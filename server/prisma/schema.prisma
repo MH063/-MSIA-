@@ -1,0 +1,100 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Patient {
+  id          Int      @id @default(autoincrement())
+  name        String   @db.VarChar(100)
+  gender      String?  @db.VarChar(10)
+  birthDate   DateTime? @map("birth_date") @db.Date
+  
+  nativePlace String?  @map("native_place") @db.VarChar(50)
+  placeOfBirth String? @map("place_of_birth") @db.VarChar(100)
+  ethnicity   String?  @db.VarChar(20)
+  address     String?  @db.VarChar(200)
+  occupation  String?  @db.VarChar(50)
+  employer    String?  @db.VarChar(100)
+
+  contactInfo Json?    @map("contact_info")
+  createdAt   DateTime @default(now()) @map("created_at")
+  
+  sessions    InterviewSession[]
+
+  @@map("patients")
+}
+
+model InterviewSession {
+  id              Int      @id @default(autoincrement())
+  patientId       Int      @map("patient_id")
+  doctorId        Int?     @map("doctor_id")
+  status          String   @default("draft") @db.VarChar(20)
+  
+  historian       String?  @db.VarChar(50)
+  reliability     String?  @db.VarChar(20)
+  historianRelationship String? @map("historian_relationship") @db.VarChar(50)
+
+  generalInfo     Json?    @map("general_info")
+  chiefComplaint  Json?    @map("chief_complaint")
+  presentIllness  Json?    @map("present_illness")
+  pastHistory     Json?    @map("past_history")
+  personalHistory Json?    @map("personal_history")
+  maritalHistory  Json?    @map("marital_history")
+  menstrualHistory Json?   @map("menstrual_history")
+  fertilityHistory Json?   @map("fertility_history")
+  familyHistory   Json?    @map("family_history")
+  reviewOfSystems Json?    @map("review_of_systems")
+
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at")
+
+  patient         Patient  @relation(fields: [patientId], references: [id])
+
+  @@map("interview_sessions")
+}
+
+model SymptomKnowledge {
+  id                  Int      @id @default(autoincrement())
+  symptomKey          String   @unique @map("symptom_key") @db.VarChar(50)
+  displayName         String   @map("display_name") @db.VarChar(100)
+  
+  requiredQuestions   Json     @map("required_questions")
+  associatedSymptoms  Json?    @map("associated_symptoms")
+  redFlags            Json?    @map("red_flags")
+  physicalSigns       Json?    @map("physical_signs")
+  
+  version             Int      @default(1)
+  updatedAt           DateTime @default(now()) @updatedAt @map("updated_at")
+
+  sourceFile          KnowledgeSource? @relation(fields: [sourceFileId], references: [id])
+  sourceFileId        Int?             @map("source_file_id")
+
+  @@map("symptom_knowledge")
+}
+
+model KnowledgeSource {
+  id          Int      @id @default(autoincrement())
+  filePath    String   @unique @map("file_path")
+  fileName    String   @map("file_name")
+  fileType    String   @map("file_type") // markdown, json, etc
+  hash        String?  @db.VarChar(64)   // MD5 checksum
+  
+  status      String   @default("pending") // pending, processed, error
+  errorMessage String? @map("error_message")
+  
+  metadata    Json?    // Extra metadata extracted from file
+  
+  lastProcessedAt DateTime? @map("last_processed_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  symptoms    SymptomKnowledge[]
+
+  @@map("knowledge_sources")
+}

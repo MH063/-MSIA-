@@ -1,0 +1,465 @@
+# 医学生智能问诊辅助系统 - 项目开发文档
+
+## 项目概述
+
+### 项目名称
+MedStudent Interview Assistant (MSIA) - 医学生智能问诊辅助系统
+
+### 项目愿景
+为医学生和初级临床医生开发一款基于 Web 的智能引导式问诊辅助工具，通过结构化问诊清单和智能提示系统，帮助用户系统性地完成病史采集，避免遗漏关键信息，提高问诊效率和病历书写质量。支持 PC 端和移动端访问（响应式设计）。
+
+### 核心价值
+- **教学价值**：帮助医学生建立系统化问诊思维
+- **临床价值**：减少信息遗漏，提高病史采集完整性
+- **效率价值**：结构化数据输入，自动生成病历草稿
+
+---
+
+## 目标用户分析
+
+### 主要用户群体
+1. **临床医学专业学生**（大三至大五，实习阶段）
+2. **住院医师规范化培训学员**
+3. **基层医疗机构全科医生**
+
+### 用户需求分析
+| 用户类型 | 核心需求 | 使用场景 |
+|---------|---------|---------|
+| 医学生 | 学习规范问诊流程，避免遗漏 | 宿舍/图书馆学习、临床实习（Pad/手机） |
+| 规培学员 | 快速适应临床工作，提高效率 | 医生办公室（PC）、床旁查房（Pad） |
+| 基层医生 | 规范病历书写，降低医疗风险 | 门诊诊室（PC） |
+
+---
+
+## 功能需求规格
+
+### 1. 核心功能模块
+
+#### 1.1 智能导航与进度管理
+**功能描述**：
+- 侧边栏/抽屉式导航显示完整的问诊结构树（八大模块）
+- 实时显示各模块完成状态
+- 一键跳转到任意模块
+
+**界面元素**：
+```
+[80%] 一般项目     [编辑]
+[30%] 主诉         [编辑]
+[10%] 现病史       [编辑]
+[0%]  既往史       [编辑]
+[0%]  系统回顾     [编辑]
+[0%]  个人史       [编辑]
+[0%]  月经/生育史  [编辑]（女性患者显示）
+[0%]  家族史       [编辑]
+```
+
+#### 1.2 一般项目模块
+**数据字段**：
+- 必填项：姓名、性别、年龄、病史陈述者
+- 选填项：民族、婚姻状况、职业、籍贯、住址
+- 自动项：记录时间（自动生成）
+
+**智能规则**：
+- 年龄<14岁：标记儿科相关病史为必填
+- 性别=女且年龄12-50岁：高亮月经史模块
+- 职业=特殊职业（化工、放射等）：提示职业史详情
+
+#### 1.3 主诉智能解析模块
+**输入引导**：
+- 格式提示："症状部位 + 症状 + 持续时间"
+- 示例展示："反复上腹痛3年，加重伴黑便2天"
+
+**智能解析**：
+- 提取关键词：症状词（腹痛、发热、咳嗽等）
+- 提取时间信息：急性（<2周）、亚急性（2周-3月）、慢性（>3月）
+- 症状严重程度标记：如有"加重"、"突发"等关键词
+
+#### 1.4 现病史动态问诊引擎（核心功能）
+
+**架构设计**：
+```
+症状库 (DB/JSON) → 规则引擎 (TS) → 动态表单 (React) → 用户交互
+```
+
+**症状知识库结构**（JSON存储于数据库）：
+```json
+{
+  "symptom": "腹痛",
+  "required_questions": [
+    {
+      "category": "性质",
+      "question": "疼痛性质是什么？",
+      "options": ["隐痛", "绞痛", "胀痛", "灼痛", "刺痛"],
+      "is_critical": true
+    },
+    {
+      "category": "部位",
+      "question": "具体疼痛部位？",
+      "interaction": "body_map_selector",
+      "is_critical": true
+    }
+  ],
+  "associated_symptoms": ["发热", "恶心呕吐", "腹泻", "便秘"],
+  "red_flags": [
+    "突发剧烈腹痛",
+    "伴休克症状",
+    "腹膜刺激征"
+  ]
+}
+```
+
+**交互设计**：
+- 主诉解析后自动推荐3-5个最常见相关症状清单
+- 使用手风琴（Accordion）或卡片式布局展示问题组
+- 问题状态：未问及（灰色）、已询问未记录（黄色）、已记录（绿色）
+
+#### 1.5 既往史及其他模块
+**标准化模板**：
+- 采用多选框/Switch组件设计，减少文字输入
+- 提供"阴性"、"阳性"、"不详"、"未询问"四种状态
+- 关键项目（过敏史、手术史）强制确认
+
+#### 1.6 智能提示与学习系统
+**提示类型**：
+1. **实时提示**：Toast 或 输入框下方的提示文字
+2. **遗漏提示**：提交前的 Modal 确认框
+3. **医学知识提示**：Hover 或 点击 Icon 出现的 Tooltip/Drawer
+
+**提示规则库示例 (TypeScript)**：
+```typescript
+interface WarningRule {
+  condition: (data: InterviewData) => boolean;
+  message: string;
+  priority: 'high' | 'medium' | 'low';
+}
+
+// 示例规则
+const coronaryRule: WarningRule = {
+  condition: (data) => {
+    return data.generalInfo.age > 50 && data.symptoms.includes('胸痛');
+  },
+  message: "建议询问冠心病危险因素：高血压、糖尿病、吸烟史、家族史",
+  priority: 'high'
+};
+```
+
+#### 1.7 输出与导出模块
+**输出格式**：
+- 结构化数据（JSON）
+- 自然语言文本（病历草稿）
+- 导出功能：复制到剪贴板、下载 .txt/.json 文件、打印预览
+
+**病历草稿生成逻辑 (TypeScript)**：
+```typescript
+function generateHistoryText(data: InterviewSession): string {
+  return `患者${data.generalInfo.name}，${data.generalInfo.age}岁，` +
+         `因"${data.chiefComplaint.text}"就诊。\n` +
+         generatePresentIllnessText(data.presentIllness);
+}
+```
+
+### 2. 非功能需求
+
+#### 2.1 性能要求
+- 首屏加载时间 (FCP)：< 1.5秒
+- 交互响应时间：< 100ms
+- API 响应时间：< 300ms
+
+#### 2.2 可用性要求
+- 响应式布局：适配 PC (Desktop)、平板 (Tablet)、手机 (Mobile)
+- 界面简洁，符合 Modern Web 设计规范
+- 快捷键支持 (PC端)：如 Ctrl+S 保存，Enter 确认
+
+#### 2.3 兼容性要求
+- 主流现代浏览器：Chrome, Edge, Firefox, Safari (最新2个版本)
+- 不支持 IE
+
+#### 2.4 数据安全
+- 传输加密：全站 HTTPS
+- 数据存储：服务器端 PostgreSQL 数据库存储
+- 用户隐私：支持匿名问诊（仅本地暂存）或账号登录（云端同步）
+
+---
+
+## 技术架构设计
+
+### 1. 技术栈选择
+
+**前端 (Web Client)**：
+- **Framework**: React 18+
+- **Language**: TypeScript 5+
+- **Build Tool**: Vite
+- **UI Library**: Ant Design (PC) / MUI
+- **State**: Zustand / Redux Toolkit
+- **Network**: Axios / React Query
+
+**后端 (Server API)**：
+- **Framework**: Node.js (NestJS / Express) 或 Python (FastAPI) [根据团队偏好选择]
+- **Language**: TypeScript (推荐)
+- **API Style**: RESTful API
+
+**数据库 (Database)**：
+- **RDBMS**: **PostgreSQL 18+**
+- **ORM**: Prisma / TypeORM / Sequelize
+
+### 2. 应用架构 (前后端分离)
+
+```
+┌─────────────────────────────────────────┐
+│             Web Client (React)          │
+│   (Pages, Components, Zustand Store)    │
+└────────────────────┬────────────────────┘
+                     │ HTTPS / JSON
+┌────────────────────▼────────────────────┐
+│             API Gateway / Server        │
+│      (Auth, Validation, Logic)          │
+├─────────────────────────────────────────┤
+│            Service Layer                │
+│    (InterviewService, RuleService)      │
+├─────────────────────────────────────────┤
+│             Data Access Layer           │
+│           (ORM / SQL Queries)           │
+└────────────────────┬────────────────────┘
+                     │ TCP / SQL
+┌────────────────────▼────────────────────┐
+│            PostgreSQL Database          │
+│      (Sessions, Patients, Rules)        │
+└─────────────────────────────────────────┘
+```
+
+### 3. 数据模型设计
+
+#### 3.1 PostgreSQL Database Schema
+
+```sql
+-- 患者表
+CREATE TABLE patients (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    gender VARCHAR(10) CHECK (gender IN ('Male', 'Female', 'Other')),
+    birth_date DATE,
+    contact_info JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 问诊会话表
+CREATE TABLE interview_sessions (
+    id SERIAL PRIMARY KEY,
+    patient_id INTEGER REFERENCES patients(id),
+    doctor_id INTEGER, -- 可选，关联医生账户
+    status VARCHAR(20) DEFAULT 'draft', -- 'draft', 'completed', 'archived'
+    
+    -- 核心问诊数据 (可根据查询需求决定是否进一步拆表)
+    general_info JSONB,      -- 一般项目快照
+    chief_complaint JSONB,   -- 主诉结构化数据
+    present_illness JSONB,   -- 现病史 (核心复杂数据)
+    past_history JSONB,      -- 既往史
+    personal_history JSONB,  -- 个人史
+    family_history JSONB,    -- 家族史
+    
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 症状知识库 (规则配置表)
+CREATE TABLE symptom_knowledge (
+    id SERIAL PRIMARY KEY,
+    symptom_key VARCHAR(50) UNIQUE NOT NULL, -- e.g., 'abdominal_pain'
+    display_name VARCHAR(100) NOT NULL,
+    
+    -- 存储复杂的问诊规则和问题结构
+    required_questions JSONB NOT NULL,
+    associated_symptoms JSONB,
+    red_flags JSONB,
+    
+    version INTEGER DEFAULT 1,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 索引优化
+CREATE INDEX idx_sessions_patient_id ON interview_sessions(patient_id);
+CREATE INDEX idx_sessions_created_at ON interview_sessions(created_at);
+CREATE INDEX idx_symptom_key ON symptom_knowledge(symptom_key);
+```
+
+#### 3.2 JSON数据结构示例 (存储于 JSONB 字段)
+```json
+// interview_sessions.present_illness
+{
+  "symptom_groups": [
+    {
+      "symptom": "腹痛",
+      "questions": [
+        {
+          "id": "q1",
+          "text": "疼痛性质",
+          "asked": true,
+          "answer": {
+            "type": "selection",
+            "value": ["绞痛"],
+            "details": ""
+          }
+        }
+      ],
+      "is_complete": false
+    }
+  ]
+}
+```
+
+### 4. 关键算法设计
+
+#### 4.1 主诉解析算法 (前端/后端均可)
+```typescript
+// 若在后端实现，可提供解析 API: POST /api/parse-complaint
+class ChiefComplaintParser {
+  // ... 逻辑同前，但基于服务端词库可能更强大
+}
+```
+
+#### 4.2 动态清单生成 (前端/后端混合)
+- **后端**：提供 `GET /api/symptoms/{key}/rules` 接口返回该症状的问诊规则 (JSON)。
+- **前端**：根据返回的规则 JSON，动态渲染表单组件。
+- **优势**：更新问诊规则只需修改数据库 JSON 配置，无需重新部署前端代码。
+
+---
+
+## 开发路线图
+
+### Phase 1：MVP（4-6周）
+**目标**：实现前后端打通，完成基础问诊
+
+**任务分解**：
+1. **第1-2周**：环境搭建
+   - 搭建 PostgreSQL 数据库
+   - 初始化后端项目 (Node.js/NestJS)，实现基础 CRUD API
+   - 初始化前端项目 (React + Vite)
+   
+2. **第3-4周**：核心业务开发
+   - 数据库表结构设计与迁移 (Migration)
+   - 一般项目与主诉 API 开发
+   - 前端表单页面与 API 对接
+   
+3. **第5-6周**：数据持久化与导出
+   - 现病史 JSONB 数据存储实现
+   - 病历文本生成逻辑
+   - 联调测试
+
+**交付物**：可运行的全栈 Web 应用，数据存储于 PG
+
+### Phase 2：智能增强（6-8周）
+**目标**：完善规则引擎与知识库
+
+**任务分解**：
+1. **第7-8周**：知识库管理
+   - 设计知识库管理后台 (Admin Panel) 或导入脚本
+   - 录入常见症状规则到 PostgreSQL
+   
+2. **第9-10周**：动态引擎优化
+   - 前端实现基于后端配置的动态表单渲染器
+   - 优化 API 响应速度 (Redis 缓存可选)
+   
+3. **第11-12周**：智能提示系统
+   - 实时校验逻辑
+
+**交付物**：具备动态配置能力的智能问诊系统
+
+### Phase 3：扩展与优化（4-6周）
+**目标**：账号系统与多端适配
+
+**任务分解**：
+1. **用户认证** (JWT, OAuth)
+2. **数据统计 Dashboard**
+3. **移动端 UI 细节优化**
+
+---
+
+## 界面设计指南
+
+### 设计原则
+1. **专业与简洁**：使用医疗行业常见的蓝/白色调
+2. **信息层级**：左侧导航，中间操作区，右侧提示区（宽屏模式）
+3. **响应式**：移动端折叠侧边栏，优化触控目标大小
+
+### 配色方案
+- 主色调：`#1890ff` (Ant Design Blue)
+- 背景色：`#f0f2f5` (Light Gray)
+- 字体颜色：`#333333` (Primary Text)
+
+### 关键界面布局
+
+#### PC 端布局
+```
+┌──────┬────────────────────────────────┬───────┐
+│ Logo │          Top Header            │ User  │
+├──────┼────────────────────────────────┼───────┤
+│      │ ┌────────────────────────────┐ │       │
+│ Nav  │ │  Breadcrumb                │ │ Tips  │
+│ Menu │ ├────────────────────────────┤ │ Panel │
+│      │ │                            │ │       │
+│      │ │      Main Content Area     │ │       │
+│      │ │      (Checklist Form)      │ │       │
+│      │ │                            │ │       │
+│      │ └────────────────────────────┘ │       │
+└──────┴────────────────────────────────┴───────┘
+```
+
+#### 移动端布局
+```
+┌─────────────────────────────────┐
+│ ≡  Title                   User │
+├─────────────────────────────────┤
+│ [Progress Bar: 30%]             │
+├─────────────────────────────────┤
+│                                 │
+│  Main Content Area              │
+│  (Single Column Form)           │
+│                                 │
+├─────────────────────────────────┤
+│ [Prev]      [Next]      [Save]  │
+└─────────────────────────────────┘
+```
+
+---
+
+## 测试计划
+
+### 1. 单元测试
+- 前端：Vitest (Components, Utils)
+- 后端：Jest (Services, Controllers)
+
+### 2. 集成测试
+- API 接口测试 (Postman / Supertest)
+- 数据库事务测试
+
+### 3. 端到端测试
+- Playwright / Cypress 覆盖完整业务流
+
+---
+
+## 风险与应对策略
+
+### 技术风险
+1. **JSONB 性能**
+   - 应对：PostgreSQL 的 JSONB 性能优异，但需注意建立适当的 GIN 索引；对于需要频繁统计分析的字段，应提取为独立列。
+   
+2. **前后端数据同步**
+   - 应对：定义清晰的 TypeScript Interface / DTO，前后端共享类型定义或使用 Swagger/OpenAPI 生成代码。
+
+### 内容风险
+1. **规则维护**
+   - 应对：虽然存储在 DB 中，但建议提供图形化管理界面，方便医学专家维护规则。
+
+---
+
+## 附录
+
+### 附录A：参考资源
+1. React 文档
+2. PostgreSQL 文档 (JSON Functions)
+3. Ant Design 组件库文档
+
+---
+
+**文档版本**：v1.3 (PostgreSQL Backend Update)
+**最后更新**：2026年01月
