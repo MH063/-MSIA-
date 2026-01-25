@@ -17,10 +17,8 @@ register({
 
 console.log('[Startup] ts-node registered, starting server...');
 
-// Import the server entry point
-// Note: We are now in 'server' directory, so we require './src/index.ts'
 try {
-  require('./src/index.ts');
+  require(path.join(serverDir, 'src', 'index.ts'));
 } catch (err) {
   console.error('[Startup] Failed to start server:', err);
   process.exit(1);
