@@ -1,9 +1,10 @@
 import axios from 'axios';
 
 const host = window.location.hostname;
+const isProduction = import.meta.env.PROD;
 
 const api = axios.create({
-  baseURL: `http://${host}:4000/api`,
+  baseURL: isProduction ? '/api' : `http://${host}:4000/api`,
 });
 
 export interface ApiResponse<T = unknown> {
