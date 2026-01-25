@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Form, message, Spin, Modal, Button } from 'antd';
 import dayjs from 'dayjs';
@@ -29,6 +29,57 @@ interface SymptomContext {
   physicalSigns: string[];
 }
 
+interface FormValues {
+  name?: string;
+  gender?: string;
+  age?: number;
+  birthDate?: unknown;
+  chiefComplaint?: { text?: string };
+  presentIllness?: {
+    onsetMode?: string;
+    onsetTime?: string;
+    trigger?: string;
+    location?: string;
+    quality?: string[];
+    severity?: string;
+    durationDetails?: string;
+    factors?: string;
+    treatmentHistory?: string;
+    associatedSymptoms?: string[];
+  };
+  pastHistory?: {
+    pmh_diseases?: string[];
+    pmh_trauma_surgery?: string;
+    pmh_allergies?: string;
+    hasAllergy?: 'yes' | 'no';
+    pmh_infectious?: string;
+    pmh_other?: string;
+  };
+  personalHistory?: {
+    smoking_status?: string;
+    alcohol_status?: string;
+  };
+  maritalHistory?: {
+    status?: string;
+  };
+  menstrualHistory?: {
+    age?: number;
+    lmp?: string;
+    menopause_age?: number;
+  };
+  fertilityHistory?: {
+    summary?: string;
+  };
+  familyHistory?: {
+    father?: string;
+    mother?: string;
+    genetic_diseases?: string[];
+    deceased?: string;
+    other?: string;
+  };
+  reviewOfSystems?: Record<string, { symptoms?: string[]; details?: string }>;
+}
+
 type SymptomPrompt = {
   questions: string[];
   relatedSymptoms: string[];
@@ -37,170 +88,17 @@ type SymptomPrompt = {
 };
 
 const symptomPrompts: Record<string, SymptomPrompt> = {
-  "腹痛": {
+  // 通用兜底
+  "general": {
     questions: [
-      "疼痛的具体部位在哪里？",
-      "疼痛的性质（绞痛/钝痛/刺痛）？",
-      "有无放射痛（如向背部、肩部放射）？",
-      "与进食有什么关系？",
-      "什么情况下会缓解或加重？"
+      "症状的起因？",
+      "持续时间？",
+      "加重/缓解因素？",
+      "是否影响日常活动？"
     ],
-    relatedSymptoms: ["恶心呕吐", "腹泻", "发热", "黄疸"],
-    redFlags: ["剧烈腹痛伴休克体征", "腹膜刺激征(板状腹)", "呕血或黑便"],
-    physicalSigns: ["腹部压痛/反跳痛/肌紧张", "肠鸣音（活跃/减弱/消失）", "腹部包块", "Murphy征"]
-  },
-  "发热": {
-    questions: [
-      "最高体温是多少？",
-      "热型（稽留热/弛张热/间歇热）？",
-      "是否伴有寒战？",
-      "退热时是否大量出汗？"
-    ],
-    relatedSymptoms: ["咳嗽", "头痛", "关节痛", "皮疹"],
-    redFlags: ["高热伴意识障碍", "皮下出血点"],
-    physicalSigns: ["面色潮红", "呼吸/脉搏增快", "淋巴结肿大", "肝脾肿大", "皮疹"]
-  },
-  "头痛": {
-      questions: [
-        "头痛部位（单侧/双侧/全头）？",
-        "性质（搏动性/胀痛/紧箍感）？",
-        "程度与频率（发作周期/持续时间）？",
-        "是否伴恶心、呕吐或畏光畏声（偏头痛特征）？",
-        "有无先兆（视觉/感觉异常）？"
-      ],
-      relatedSymptoms: ["呕吐", "眩晕", "视力障碍"],
-      redFlags: ["突发剧烈头痛（雷击样）", "伴有颈项强直", "伴有意识障碍或痫性发作"],
-      physicalSigns: ["颈项强直", "Kernig征/Brudzinski征", "瞳孔大小与对光反射", "病理反射", "眼底检查"]
-  },
-  "腹泻": {
-    questions: [
-      "每日大便次数与量？",
-      "粪便性状（水样/黏液脓血/油脂）？",
-      "是否伴腹痛、发热或里急后重？",
-      "与饮食不洁/抗生素使用的关系？",
-      "是否有脱水表现（口渴、少尿、皮肤弹性差）？"
-    ],
-    relatedSymptoms: ["腹痛", "发热", "恶心与呕吐", "里急后重"],
-    redFlags: ["高热伴血性腹泻或休克体征", "重度脱水（少尿/嗜睡）", "免疫缺陷人群持续腹泻>48小时伴发热"],
-    physicalSigns: ["皮肤弹性", "腹部压痛", "肠鸣音活跃", "肛门指检（直肠病变）"]
-  },
-  "胸痛": {
-    questions: [
-      "部位（胸骨后/左胸/弥漫）？",
-      "性质（压榨样/刺痛/撕裂样/灼痛）？",
-      "是否放射至左臂/肩背/下颌？",
-      "与活动/体位/呼吸的关系？",
-      "持续时间与发作规律（突发突止/持续）？",
-      "缓解因素（休息/硝酸酯）？"
-    ],
-    relatedSymptoms: ["呼吸困难", "心悸", "咳嗽", "咯血", "出汗"],
-    redFlags: [">20分钟压榨样胸痛伴出汗/恶心", "突发撕裂样胸痛向背部放射", "伴晕厥/低血压/呼吸困难"],
-    physicalSigns: ["心率/心律", "心脏杂音/心包摩擦音", "肺部啰音", "胸膜摩擦音", "胸壁压痛"]
-  },
-  "咳嗽": {
-    questions: [
-      "干咳还是咳痰？",
-      "是否伴发热、胸痛或呼吸困难？",
-      "夜间或运动后是否加重？",
-      "吸烟史/职业粉尘或化学品暴露史？",
-      "痰色（黄绿/铁锈色/血痰）与量？"
-    ],
-    relatedSymptoms: ["发热", "咳痰", "咯血", "胸痛", "呼吸困难"],
-    redFlags: ["咯血或进行性呼吸困难", "高热伴意识改变", "体重明显下降或>8周久咳"],
-    physicalSigns: ["呼吸音改变", "肺部干/湿啰音", "杵状指", "发绀", "气管位置"]
-  },
-  "呼吸困难": {
-    questions: [
-      "起病缓急（突发/渐进）与程度分级？",
-      "病因分型（肺源性/心源性/中毒性/血源性/神经精神性）？",
-      "与体位的关系（端坐呼吸/夜间阵发性呼吸困难）？",
-      "伴喘鸣/咳嗽/胸痛？",
-      "活动耐受度的变化？"
-    ],
-    relatedSymptoms: ["胸痛", "咳嗽", "心悸", "水肿"],
-    redFlags: ["静息时呼吸困难/血氧下降", "青紫或意识障碍", "胸痛伴低血压或心悸"],
-    physicalSigns: ["端坐呼吸体位", "三凹征", "发绀", "桶状胸", "颈静脉怒张", "双肺啰音/哮鸣音", "心界扩大/杂音"]
-  },
-  "咯血": {
-    questions: [
-      "出血量分级（痰中带血/小量<100ml/中等量100-500ml/大量>500ml）？",
-      "出血颜色（鲜红/暗红）？",
-      "是否伴胸痛、咳嗽或发热？",
-      "有无肺部或心脏疾病史？"
-    ],
-    relatedSymptoms: ["胸痛", "咳嗽", "呼吸困难", "发热"],
-    redFlags: ["大量咯血伴窒息", "咯血伴休克体征", "进行性呼吸困难"],
-    physicalSigns: ["肺部固定湿啰音", "心脏二尖瓣面容/杂音", "杵状指", "贫血貌", "休克体征"]
-  },
-  "恶心与呕吐": {
-    questions: [
-      "频率与量，是否喷射性？",
-      "呕吐物性状（胆汁/咖啡色/血）？",
-      "与进食的关系？",
-      "是否伴腹痛、发热或腹泻？",
-      "是否有脱水或电解质紊乱表现？"
-    ],
-    relatedSymptoms: ["腹痛", "发热", "腹泻", "头痛"],
-    redFlags: ["咖啡样或鲜血呕吐", "重度脱水/电解质紊乱", "剧烈头痛伴呕吐警惕颅内压升高"],
-    physicalSigns: ["皮肤弹性/眼窝凹陷（脱水）", "腹部体征（压痛/包块）", "神经系统体征（脑膜刺激征/视乳头水肿）"]
-  },
-  "恶心呕吐": {
-    questions: [
-      "频率与量，是否喷射性？",
-      "呕吐物性状（胆汁/咖啡色/血）？",
-      "与进食的关系？",
-      "是否伴腹痛、发热或腹泻？",
-      "是否有脱水或电解质紊乱表现？"
-    ],
-    relatedSymptoms: ["腹痛", "发热", "腹泻", "头痛"],
-    redFlags: ["咖啡样或鲜血呕吐", "重度脱水/电解质紊乱", "剧烈头痛伴呕吐警惕颅内压升高"],
-    physicalSigns: ["皮肤弹性/眼窝凹陷（脱水）", "腹部体征（压痛/包块）", "神经系统体征（脑膜刺激征/视乳头水肿）"]
-  },
-  "上消化道出血": {
-    questions: [
-      "出血表现（呕血/黑便/隐血阳性）？",
-      "出血量估计？",
-      "是否伴有腹痛、反酸、烧心？",
-      "有无肝病或服用NSAIDs药物史？"
-    ],
-    relatedSymptoms: ["腹痛", "恶心呕吐", "头晕", "乏力"],
-    redFlags: ["持续呕血或黑便", "休克体征（心率快/血压低）", "意识淡漠"],
-    physicalSigns: ["贫血貌", "肠鸣音活跃", "腹部压痛", "肝脾肿大/腹水/蜘蛛痣/肝掌（肝硬化）"]
-  },
-  "眩晕": {
-    questions: [
-      "眩晕类型（真性眩晕/头重脚轻）？",
-      "病变部位分型（前庭系统性/非前庭系统性）？",
-      "发作持续时间与频率？",
-      "是否伴耳鸣、听力下降（梅尼埃病）？",
-      "与体位变化的关系（位置性眩晕）？"
-    ],
-    relatedSymptoms: ["耳鸣", "恶心呕吐", "眼球震颤", "平衡障碍"],
-    redFlags: ["伴有其他神经系统体征（复视/构音障碍/肢体麻木）", "持续性剧烈眩晕", "高龄伴高血压/糖尿病"],
-    physicalSigns: ["眼球震颤（水平/垂直/旋转）", "共济失调（指鼻试验）", "Romberg征", "听力检查", "外耳道检查"]
-  },
-  "心悸": {
-    questions: [
-      "性质（阵发/持续）、频率与节律？",
-      "诱因（活动、情绪、咖啡因）？",
-      "发作时心率与节律是否规则？",
-      "是否伴胸痛或呼吸困难？",
-      "是否有晕厥或近晕厥？"
-    ],
-    relatedSymptoms: ["胸痛", "呼吸困难", "乏力", "晕厥"],
-    redFlags: ["晕厥或近晕厥", "心动过速>150次/分伴低血压", "家族猝死史或QT延长史"],
-    physicalSigns: ["心率", "心律（整齐/不齐）", "心脏杂音", "甲状腺肿大", "贫血貌"]
-  },
-  "乏力": {
-    questions: [
-      "起病时间与进展速度？",
-      "程度与日常功能影响？",
-      "是否伴头晕、体重变化或发热？",
-      "是否有慢性病/药物使用史？"
-    ],
-    relatedSymptoms: ["发热", "体重下降", "头晕", "食欲下降"],
-    redFlags: ["进行性加重伴黄疸或出血点", "明显贫血体征（心动过速/苍白）"],
-    physicalSigns: ["贫血貌", "黄疸", "淋巴结肿大", "肝脾肿大", "肌力/肌张力"]
+    relatedSymptoms: [],
+    redFlags: [],
+    physicalSigns: []
   }
 };
 
@@ -277,6 +175,18 @@ const SYMPTOM_NAME_TO_KEY: Record<string, string> = {
   "体重下降": "emaciation"
 };
 
+// 现病史伴随症状的中文名到键值映射（用于自动解析主诉文本时同步 presentIllness.associatedSymptoms）
+const NAME_TO_HPI_KEY: Record<string, string> = {
+  "发热": "fever",
+  "恶心呕吐": "nausea",
+  "腹泻": "diarrhea",
+  "咳嗽": "cough",
+  "胸痛": "chest_pain",
+  "眩晕": "dizziness",
+  "咯血": "hemoptysis",
+  "上消化道出血": "hematemesis"
+};
+
 const SECTIONS = [
   { key: 'general', label: '一般项目' },
   { key: 'chief_complaint', label: '主诉' },
@@ -291,6 +201,7 @@ const SECTIONS = [
 const KNOWLEDGE_TTL_MS = 60 * 1000;
 const knowledgeCache = new Map<string, { item: KnowledgeItem; fetchedAt: number }>();
 const pendingRequests = new Map<string, Promise<KnowledgeItem | null>>();
+const versionNotifiedKeys = new Set<string>();
 
 async function fetchKnowledgeFromAPI(symptomKey: string): Promise<KnowledgeItem | null> {
   try {
@@ -338,6 +249,48 @@ async function getKnowledgeByName(symptomName: string): Promise<KnowledgeItem | 
   return result;
 }
 
+
+/**
+ * nameToKey
+ * 症状中文名转换为知识库Key
+ */
+function nameToKey(symptomName: string): string {
+  const normalizedName = SYMPTOM_SYNONYMS[symptomName] || symptomName;
+  return SYMPTOM_NAME_TO_KEY[normalizedName] || normalizedName.toLowerCase().replace(/\s+/g, '_');
+}
+
+/**
+ * revalidateActiveKnowledge
+ * 对当前激活症状进行版本校验：若后端updatedAt发生变化，提示并自动重拉取与刷新上下文
+ */
+const revalidateActiveKnowledge = async (symptomNames: string[], onUpdated: () => void) => {
+  const keys = symptomNames.map(nameToKey);
+  let hasUpdate = false;
+  for (const key of keys) {
+    const cached = knowledgeCache.get(key);
+    try {
+      const response: ApiResponse<KnowledgeItem> = await api.get(`/knowledge/${key}`);
+      if (response.success && response.data) {
+        const serverItem = response.data as KnowledgeItem;
+        const cachedUpdated = cached?.item?.updatedAt;
+        if (cachedUpdated && serverItem.updatedAt && cachedUpdated !== serverItem.updatedAt) {
+          knowledgeCache.set(key, { item: serverItem, fetchedAt: Date.now() });
+          if (!versionNotifiedKeys.has(key)) {
+            versionNotifiedKeys.add(key);
+            message.info('知识库已更新，已自动刷新');
+          }
+          hasUpdate = true;
+        }
+      }
+    } catch (e) {
+      console.error(`[Session] 版本校验失败 [${key}]`, e);
+    }
+  }
+  if (hasUpdate) {
+    onUpdated();
+  }
+};
+
 type SessionRes = {
   patient?: {
     birthDate?: string;
@@ -377,6 +330,7 @@ const Session: React.FC = () => {
 
   // Watch form changes for Knowledge Base updates
   const chiefComplaintValues = Form.useWatch(['chiefComplaint'], form);
+const chiefComplaintText = Form.useWatch(['chiefComplaint', 'text'], form) as string | undefined;
   const hpiAssociated = Form.useWatch(['presentIllness', 'associatedSymptoms'], form) as string[] | undefined;
   const pastHistoryConfirmed = Form.useWatch(['pastHistory', 'confirmedSymptoms'], form) as string[] | undefined;
 
@@ -434,14 +388,20 @@ const Session: React.FC = () => {
     for (const s of symptoms) {
       const knowledge = await getKnowledgeByName(s);
       if (knowledge) {
-        for (const q of knowledge.requiredQuestions || []) questionsSet.add(q);
+        for (const q of knowledge.requiredQuestions || []) {
+            if (typeof q === 'string') {
+                questionsSet.add(q);
+            } else if (typeof q === 'object' && q !== null && 'text' in (q as Record<string, unknown>)) {
+                questionsSet.add((q as { text: string }).text);
+            }
+        }
         for (const r of knowledge.associatedSymptoms || []) relatedSet.add(r);
         for (const f of knowledge.redFlags || []) redFlagsSet.add(f);
         if (knowledge.physicalSigns) {
           for (const p of knowledge.physicalSigns) physicalSignsSet.add(p);
         }
       } else {
-        const prompt = symptomPrompts[s];
+        const prompt = symptomPrompts["general"];
         if (prompt) {
           for (const q of prompt.questions) questionsSet.add(q);
           for (const r of prompt.relatedSymptoms) relatedSet.add(r);
@@ -449,10 +409,6 @@ const Session: React.FC = () => {
           if (prompt.physicalSigns) {
             for (const p of prompt.physicalSigns) physicalSignsSet.add(p);
           }
-        } else {
-          questionsSet.add("症状的起因？");
-          questionsSet.add("持续时间？");
-          questionsSet.add("加重/缓解因素？");
         }
       }
     }
@@ -472,6 +428,10 @@ const Session: React.FC = () => {
     if (active.length > 0) {
       console.log('[Session] 已识别有效症状', active);
       updateSymptomContext(active);
+      const timer = setInterval(() => {
+        revalidateActiveKnowledge(active, () => updateSymptomContext(active));
+      }, 15000);
+      return () => clearInterval(timer);
     } else {
       console.log('[Session] 未识别到有效症状或为否认/无症状表达');
       setSymptomContext(null);
@@ -479,11 +439,81 @@ const Session: React.FC = () => {
     }
   }, [pickActiveSymptoms, updateSymptomContext]);
 
+/**
+ * handleChiefComplaintTextChange
+ * 实时监听完整主诉描述的文本变化，调用后端 NLP 接口解析出涉及的症状，
+ * 并自动同步到 presentIllness.associatedSymptoms，驱动知识库助手实时更新
+ */
+const analyzeTimerRef = React.useRef<number | null>(null);
+useEffect(() => {
+  const text = (chiefComplaintText || '').trim();
+  if (analyzeTimerRef.current) {
+    clearTimeout(analyzeTimerRef.current);
+    analyzeTimerRef.current = null;
+  }
+  if (!text) {
+    return;
+  }
+  analyzeTimerRef.current = window.setTimeout(async () => {
+    try {
+      type AnalyzeResData = {
+        matchedSymptoms: { name: string; key: string }[];
+        duration: { value: number | null; unit: string | null };
+        normalizedComplaint: string;
+        originalText: string;
+        validation: { inputSymptoms: string[]; mappedKeys: string[]; missingKnowledge: string[]; consistent: boolean };
+        matchedCount: number;
+        perSymptomDurations: { name: string; value: number; unit: string }[];
+        normalizationSafe: boolean;
+      };
+      const res = await api.post('/nlp/analyze', { text }) as import('../../utils/api').ApiResponse<AnalyzeResData>;
+      if (res.success && res.data) {
+        const data = res.data as AnalyzeResData;
+        const ccSymptom = (chiefComplaintValues?.symptom as string | undefined) || '';
+        const names = (data.matchedSymptoms || []).map(m => m.name);
+        const normalizedNames = names.map(n => SYMPTOM_SYNONYMS[n] || n);
+        const assocNames = normalizedNames.filter(n => n && n !== ccSymptom);
+        const assocKeys = assocNames
+          .map(n => NAME_TO_HPI_KEY[n])
+          .filter((k): k is string => !!k);
+        const prevAssoc = (form.getFieldValue(['presentIllness', 'associatedSymptoms']) as string[] | undefined) || [];
+        const mergedAssoc = Array.from(new Set([...(prevAssoc || []), ...assocKeys]));
+        if (mergedAssoc.length !== (prevAssoc || []).length) {
+          form.setFieldsValue({
+            presentIllness: {
+              ...(form.getFieldValue('presentIllness') || {}),
+              associatedSymptoms: mergedAssoc
+            }
+          });
+          console.log('[Session] 主诉文本解析更新伴随症状', { text, assocNames, assocKeys: mergedAssoc });
+        } else {
+          console.log('[Session] 主诉文本解析未发现新增伴随症状', { text, assocNames });
+        }
+        const active = pickActiveSymptoms();
+        if (active.length > 0) {
+          await updateSymptomContext(active);
+        } else {
+          setSymptomContext(null);
+          setKnowledgeLoading(false);
+        }
+      }
+    } catch (e) {
+      console.error('[Session] 主诉文本解析失败', e);
+    }
+  }, 600);
+  return () => {
+    if (analyzeTimerRef.current) {
+      clearTimeout(analyzeTimerRef.current);
+      analyzeTimerRef.current = null;
+    }
+  };
+}, [chiefComplaintText, chiefComplaintValues, form, pickActiveSymptoms, updateSymptomContext]);
+
   const allValues = Form.useWatch([], form);
 
   useEffect(() => {
     if (!allValues) return;
-    const val = allValues as any;
+    const val = allValues as FormValues;
 
     const newSections = SECTIONS.map(s => {
       let isCompleted = false;
@@ -495,51 +525,63 @@ const Session: React.FC = () => {
           isCompleted = !!(val.chiefComplaint?.text);
           break;
         case 'hpi':
-          const hpi = val.presentIllness || {};
-          const hasOnset = !!(hpi.onsetMode || hpi.onsetTime || hpi.trigger);
-          const hasSymptom = !!(hpi.location || (hpi.quality && hpi.quality.length > 0) || hpi.severity || hpi.durationDetails || hpi.factors);
-          const hasTreatment = !!hpi.treatmentHistory;
-          isCompleted = (hasOnset && hasSymptom) || hasTreatment;
-          break;
-        case 'past_history':
-          const ph = val.pastHistory || {};
-          const hasDisease = ph.pmh_diseases?.length > 0;
-          const hasSurgery = !!ph.pmh_trauma_surgery;
-          const hasAllergy = !!(ph.pmh_allergies || ph.hasAllergy === 'yes');
-          const hasInfectious = !!ph.pmh_infectious;
-          const hasOther = !!ph.pmh_other;
-          isCompleted = hasDisease || hasSurgery || hasAllergy || hasInfectious || hasOther;
-          break;
-        case 'personal_history':
-          const per = val.personalHistory || {};
-          isCompleted = !!(per.smoking_status && per.alcohol_status);
-          break;
-        case 'marital_history':
-          const mar = val.maritalHistory || {};
-          const isFemale = val.gender === '女';
-          const hasMaritalStatus = !!mar.status;
-          if (isFemale) {
-            const mens = val.menstrualHistory || {};
-            const fert = val.fertilityHistory || {};
-            const hasMens = !!(mens.age || mens.lmp || mens.menopause_age);
-            const hasFert = !!fert.summary;
-            isCompleted = hasMaritalStatus && hasMens && hasFert;
-          } else {
-            isCompleted = hasMaritalStatus;
+          {
+            const hpi = val.presentIllness || {};
+            const hasOnset = !!(hpi.onsetMode || hpi.onsetTime || hpi.trigger);
+            const hasSymptom = !!(hpi.location || (hpi.quality && hpi.quality.length > 0) || hpi.severity || hpi.durationDetails || hpi.factors);
+            const hasTreatment = !!hpi.treatmentHistory;
+            isCompleted = (hasOnset && hasSymptom) || hasTreatment;
+            break;
           }
-          break;
+        case 'past_history':
+          {
+            const ph = val.pastHistory || {};
+            const hasDisease = Array.isArray(ph.pmh_diseases) && ph.pmh_diseases.length > 0;
+            const hasSurgery = !!ph.pmh_trauma_surgery;
+            const hasAllergy = !!(ph.pmh_allergies || ph.hasAllergy === 'yes');
+            const hasInfectious = !!ph.pmh_infectious;
+            const hasOther = !!ph.pmh_other;
+            isCompleted = hasDisease || hasSurgery || hasAllergy || hasInfectious || hasOther;
+            break;
+          }
+        case 'personal_history':
+          {
+            const per = val.personalHistory || {};
+            isCompleted = !!(per.smoking_status && per.alcohol_status);
+            break;
+          }
+        case 'marital_history':
+          {
+            const mar = val.maritalHistory || {};
+            const isFemale = val.gender === '女';
+            const hasMaritalStatus = !!mar.status;
+            if (isFemale) {
+              const mens = val.menstrualHistory || {};
+              const fert = val.fertilityHistory || {};
+              const hasMens = !!(mens.age || mens.lmp || mens.menopause_age);
+              const hasFert = !!fert.summary;
+              isCompleted = hasMaritalStatus && hasMens && hasFert;
+            } else {
+              isCompleted = hasMaritalStatus;
+            }
+            break;
+          }
         case 'family_history':
-          const fam = val.familyHistory || {};
-          isCompleted = !!(fam.father || fam.mother || fam.genetic_diseases?.length > 0 || fam.deceased || fam.other);
-          break;
+          {
+            const fam = val.familyHistory || {};
+            isCompleted = !!(fam.father || fam.mother || (Array.isArray(fam.genetic_diseases) && fam.genetic_diseases.length > 0) || fam.deceased || fam.other);
+            break;
+          }
         case 'review_of_systems':
-          const ros = val.reviewOfSystems || {};
-          const systems = ['respiratory', 'cardiovascular', 'digestive', 'urinary', 'hematologic', 'endocrine', 'neurological', 'musculoskeletal'];
-          isCompleted = systems.some((sys: string) => {
-            const sysData = ros[sys] || {};
-            return (sysData.symptoms?.length > 0) || !!sysData.details;
-          });
-          break;
+          {
+            const ros = val.reviewOfSystems || {};
+            const systems = ['respiratory', 'cardiovascular', 'digestive', 'urinary', 'hematologic', 'endocrine', 'neurological', 'musculoskeletal'];
+            isCompleted = systems.some((sys: string) => {
+              const sysData = ros[sys] || {};
+              return ((Array.isArray(sysData.symptoms) && sysData.symptoms.length > 0)) || !!sysData.details;
+            });
+            break;
+          }
       }
       return { ...s, isCompleted };
     });
@@ -622,8 +664,9 @@ const Session: React.FC = () => {
       return false;
     } catch (error) {
       console.error(error);
-      // Check if it's a validation error
-      if ((error as any).errorFields) {
+      const hasErrorFields = (e: unknown): e is { errorFields: unknown } =>
+        typeof e === 'object' && e !== null && 'errorFields' in (e as Record<string, unknown>);
+      if (hasErrorFields(error)) {
           message.error('验证未通过，请检查表单');
       } else {
           message.error('保存失败');
@@ -724,6 +767,9 @@ const Session: React.FC = () => {
     }
   };
 
+  const ageValue = Form.useWatch('age', form);
+  const genderValue = Form.useWatch('gender', form);
+
   return (
     <>
     <InterviewLayout
@@ -743,7 +789,6 @@ const Session: React.FC = () => {
             <EditorPanel
               currentSection={currentSection}
               form={form}
-              loading={loading}
             />
         </Spin>
       }
@@ -752,6 +797,7 @@ const Session: React.FC = () => {
           activeSection={currentSection}
           loading={knowledgeLoading}
           symptomContext={symptomContext || undefined}
+          patientInfo={{ age: ageValue, gender: genderValue }}
         />
       }
     />

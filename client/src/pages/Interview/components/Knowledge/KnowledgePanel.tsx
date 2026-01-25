@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Typography, Collapse, Tag, Empty, Spin } from 'antd';
-import { BulbOutlined, QuestionCircleOutlined, MedicineBoxOutlined, LoadingOutlined } from '@ant-design/icons';
+import { BulbOutlined, QuestionCircleOutlined, MedicineBoxOutlined, LoadingOutlined, RobotOutlined } from '@ant-design/icons';
+import api from '../../../../utils/api';
 
 const { Title, Text } = Typography;
 
@@ -18,6 +19,10 @@ interface KnowledgePanelProps {
     redFlags?: string[];
     physicalSigns?: string[];
   };
+  patientInfo?: {
+      age?: number;
+      gender?: string;
+  };
 }
 
 /**
@@ -28,9 +33,40 @@ interface KnowledgePanelProps {
 const KnowledgePanel: React.FC<KnowledgePanelProps> = ({
   activeSection,
   loading = false,
-  symptomContext
+  symptomContext,
+  patientInfo
 }) => {
-  
+  const [diagnosisSuggestions, setDiagnosisSuggestions] = useState<string[]>([]);
+  const [diagnosisLoading, setDiagnosisLoading] = useState(false);
+
+  const fetchDiagnosisSuggestions = React.useCallback(async () => {
+      if (!symptomContext || !symptomContext.name) return;
+      setDiagnosisLoading(true);
+      try {
+          const symptoms = symptomContext.name.split('、');
+          const res = await api.post('/diagnosis/suggest', {
+              symptoms,
+              age: patientInfo?.age,
+              gender: patientInfo?.gender
+          }) as import('../../../../utils/api').ApiResponse<string[]>;
+          if (res.success && res.data) {
+              setDiagnosisSuggestions(res.data);
+          }
+      } catch (error) {
+          console.error("Failed to fetch diagnosis suggestions", error);
+      } finally {
+          setDiagnosisLoading(false);
+      }
+  }, [symptomContext?.name, patientInfo?.age, patientInfo?.gender]);
+
+  useEffect(() => {
+      if (symptomContext && symptomContext.name) {
+          fetchDiagnosisSuggestions();
+      } else {
+          setDiagnosisSuggestions([]);
+      }
+  }, [symptomContext?.name, fetchDiagnosisSuggestions]);
+
   // 移除未使用的 symptomSummaryData 以通过 linter
   
   const summaryPoints = [
@@ -164,6 +200,21 @@ const KnowledgePanel: React.FC<KnowledgePanelProps> = ({
 
      const items = [
        {
+         key: 'diagnosis',
+         label: <span style={{ fontWeight: 'bold', color: '#722ed1' }}><RobotOutlined /> 疑似诊断建议</span>,
+         children: (
+            <div>
+                {diagnosisLoading ? <Spin size="small" /> : (
+                    diagnosisSuggestions.length > 0 ? (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                            {diagnosisSuggestions.map(d => <Tag color="purple" key={d}>{d}</Tag>)}
+                        </div>
+                    ) : <Text type="secondary">暂无明确匹配的诊断建议</Text>
+                )}
+            </div>
+         )
+       },
+       {
          key: 'summary',
          label: <span style={{ fontWeight: 'bold' }}><QuestionCircleOutlined /> 症状要点总览</span>,
          children: (
@@ -221,7 +272,7 @@ const KnowledgePanel: React.FC<KnowledgePanelProps> = ({
              </div>
            )}
          </div>
-         <Collapse defaultActiveKey={['summary', 'required', 'physical_signs', 'groups']} ghost items={items} />
+         <Collapse defaultActiveKey={['diagnosis', 'summary', 'required', 'physical_signs', 'groups']} ghost items={items} />
       </div>
     );
   };

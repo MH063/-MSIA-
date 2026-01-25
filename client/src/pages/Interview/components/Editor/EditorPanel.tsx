@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, Form, Button, Space } from 'antd';
+import { Card, Form } from 'antd';
 import type { FormInstance } from 'antd';
 import GeneralSection from './GeneralSection';
 import ChiefComplaintSection from './ChiefComplaintSection';
@@ -13,13 +13,11 @@ import ReviewOfSystemsSection from './ReviewOfSystemsSection';
 interface EditorPanelProps {
   currentSection: string;
   form: FormInstance;
-  loading?: boolean;
 }
 
 const EditorPanel: React.FC<EditorPanelProps> = ({
   currentSection,
   form,
-  loading
 }) => {
   return (
     <div style={{ maxWidth: 900, margin: '0 auto' }}>

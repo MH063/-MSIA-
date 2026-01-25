@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Card, Typography, Tag, Input, Drawer, Space, Spin, Empty, Button, Row, Col, Collapse, Segmented } from 'antd';
+import React, { useEffect, useRef, useState } from 'react';
+import { Card, Typography, Tag, Input, Drawer, Space, Spin, Empty, Button, Row, Col, Collapse, Segmented, message } from 'antd';
 import { SearchOutlined, BookOutlined, MedicineBoxOutlined, ExclamationCircleOutlined, QuestionCircleOutlined, AppstoreOutlined } from '@ant-design/icons';
 import api from '../../utils/api';
 import type { ApiResponse } from '../../utils/api';
@@ -29,6 +29,7 @@ const KnowledgeList: React.FC = () => {
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<'网格' | '按首字母' | '按更新时间'>('网格');
+  const prevMapRef = useRef<Map<number, string>>(new Map());
 
   /**
    * fetchData
@@ -39,6 +40,21 @@ const KnowledgeList: React.FC = () => {
     try {
       const res: ApiResponse<KnowledgeItem[]> = await api.get('/knowledge');
       if (res.success && Array.isArray(res.data)) {
+        // 计算更新差异并提示
+        const prev = prevMapRef.current;
+        let changed = 0;
+        const nextMap = new Map<number, string>();
+        for (const it of res.data) {
+          const prevUpdated = prev.get(it.id);
+          nextMap.set(it.id, it.updatedAt);
+          if (prev.size > 0 && prevUpdated && prevUpdated !== it.updatedAt) {
+            changed++;
+          }
+        }
+        prevMapRef.current = nextMap;
+        if (changed > 0) {
+          message.success(`知识库已更新${changed}条，已自动刷新`);
+        }
         setData(res.data);
       }
     } catch (error) {
@@ -50,6 +66,10 @@ const KnowledgeList: React.FC = () => {
 
   useEffect(() => {
     fetchData();
+    const timer = setInterval(() => {
+      fetchData();
+    }, 15000);
+    return () => clearInterval(timer);
   }, []);
 
   /**
@@ -179,6 +199,7 @@ const KnowledgeList: React.FC = () => {
                 onChange={e => setSearchText(e.target.value)}
                 allowClear
               />
+              <Button type="primary" onClick={fetchData}>刷新</Button>
               <Button onClick={() => navigate('/')}>返回首页</Button>
           </Space>
         </div>

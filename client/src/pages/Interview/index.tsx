@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Table, Button, Space, Typography, Card, Modal, message, Tag, Tabs, Input } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { DeleteOutlined, EyeOutlined, ExclamationCircleOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
+import type { TablePaginationConfig, FilterValue, SorterResult, TableCurrentDataSource } from 'antd/es/table/interface';
+import { DeleteOutlined, EyeOutlined, ExclamationCircleOutlined, PlusOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import api from '../../utils/api';
@@ -51,21 +52,28 @@ const InterviewOverview: React.FC = () => {
         }
       });
       if (res?.success) {
-        const payload = res.data as any;
+        type Payload = { items: SessionListItem[]; total: number };
+        const payloadMaybe = res.data as unknown;
+        const isDirect = (p: unknown): p is Payload => {
+          if (!p || typeof p !== 'object') return false;
+          const obj = p as Record<string, unknown>;
+          return Array.isArray(obj.items);
+        };
+        const isNested = (p: unknown): p is { data: Payload } => {
+          if (!p || typeof p !== 'object') return false;
+          const obj = p as Record<string, unknown>;
+          const data = obj.data as Record<string, unknown> | undefined;
+          return !!data && Array.isArray(data.items);
+        };
         let items: SessionListItem[] = [];
         let total = 0;
-        
-        // Handle potential nested data structure
-        if (payload && typeof payload === 'object') {
-             if (Array.isArray(payload.items)) {
-                 items = payload.items;
-                 total = payload.total || 0;
-             } else if (payload.data && Array.isArray(payload.data.items)) {
-                 items = payload.data.items;
-                 total = payload.data.total || 0;
-             }
+        if (isDirect(payloadMaybe)) {
+          items = payloadMaybe.items;
+          total = payloadMaybe.total || 0;
+        } else if (isNested(payloadMaybe)) {
+          items = payloadMaybe.data.items;
+          total = payloadMaybe.data.total || 0;
         }
-        
         setData(items);
         setPagination({ current: page, pageSize, total });
       }
@@ -81,8 +89,18 @@ const InterviewOverview: React.FC = () => {
     fetchData(pagination.current, pagination.pageSize, activeTab, searchText);
   }, [activeTab, searchText]); // Reload when tab or search changes
 
-  const handleTableChange = (newPagination: any) => {
-      fetchData(newPagination.current, newPagination.pageSize, activeTab, searchText);
+  const handleTableChange = (
+    pagination: TablePaginationConfig,
+    _filters: Record<string, FilterValue | null>,
+    _sorter: SorterResult<SessionListItem> | SorterResult<SessionListItem>[],
+    _extra: TableCurrentDataSource<SessionListItem>
+  ) => {
+    void _filters;
+    void _sorter;
+    void _extra;
+    const current = pagination.current || 1;
+    const pageSize = pagination.pageSize || 10;
+    fetchData(current, pageSize, activeTab, searchText);
   };
 
   const handleTabChange = (key: string) => {

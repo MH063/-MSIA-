@@ -5,6 +5,7 @@ import patientRoutes from './routes/patient.routes';
 import sessionRoutes from './routes/session.routes';
 import knowledgeRoutes from './routes/knowledge.routes';
 import nlpRoutes from './routes/nlp.routes';
+import diagnosisRoutes from './routes/diagnosis.routes';
 import { FileWatcherService } from './services/fileWatcher.service';
 import path from 'path';
 
@@ -25,6 +26,7 @@ app.use('/api/patients', patientRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/knowledge', knowledgeRoutes);
 app.use('/api/nlp', nlpRoutes);
+app.use('/api/diagnosis', diagnosisRoutes);
 
 /**
  * 健康检查接口
