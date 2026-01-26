@@ -40,8 +40,8 @@ export const deletePatient = async (req: Request, res: Response) => {
     res.json({ success: true });
   } catch (error: any) {
     console.error('Error deleting patient:', error);
-    // 外键约束错误返回 400
-    if (String(error?.message || '').includes('Foreign key')) {
+    // 外键约束错误返回 400（Prisma P2003）
+    if (error?.code === 'P2003') {
       res.status(400).json({ success: false, message: 'Cannot delete patient with existing sessions' });
       return;
     }

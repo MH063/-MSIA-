@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { SYMPTOM_NAME_TO_KEY } from '../services/mapping.service';
 
 // Mock Diagnosis Knowledge Base
 // In a real system, this would come from a database or AI model
@@ -33,31 +34,7 @@ export const suggestDiagnosis = async (req: Request, res: Response) => {
         const diagnosisScores: Map<string, number> = new Map();
 
         for (const s of symptoms) {
-            // Map symptom name to key if necessary, or assume keys are passed
-            // Ideally frontend passes keys like 'fever', 'cough'
-            // But if frontend passes '发热', we need to map it.
-            // For now, assume keys or handle simple mapping if needed.
-            // The frontend 'Session.tsx' works with Chinese names mostly in 'symptomContext',
-            // but 'pickActiveSymptoms' returns standard names like '发热'.
-            // My DIAGNOSIS_RULES keys are English.
-            
-            // Simple mapper (Inverted from Session.tsx)
-            // Ideally this should be shared or DB driven.
-            let key = s;
-            if (s === '发热') key = 'fever';
-            if (s === '咳嗽') key = 'cough';
-            if (s === '腹痛') key = 'abdominal_pain';
-            if (s === '胸痛') key = 'chest_pain';
-            if (s === '头痛') key = 'headache';
-            if (s === '腹泻') key = 'diarrhea';
-            if (s === '恶心呕吐' || s === '恶心与呕吐') key = 'nausea_vomiting';
-            if (s === '呼吸困难') key = 'dyspnea';
-            if (s === '心悸') key = 'palpitation';
-            if (s === '咯血') key = 'hemoptysis';
-            if (s === '上消化道出血') key = 'hematemesis';
-            if (s === '眩晕') key = 'vertigo';
-            if (s === '乏力') key = 'fatigue';
-
+            const key = SYMPTOM_NAME_TO_KEY[s] || s;
             const potentialList = DIAGNOSIS_RULES[key];
             if (potentialList) {
                 potentialList.forEach(d => {

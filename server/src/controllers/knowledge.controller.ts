@@ -1,17 +1,33 @@
 import { Request, Response } from 'express';
 import * as knowledgeService from '../services/knowledge.service';
+import { eventBus } from '../services/eventBus.service';
 
 /**
  * 获取知识库列表
  */
 export const getAllKnowledge = async (req: Request, res: Response) => {
   try {
+    const { since } = req.query as Record<string, string>;
+    if (since) {
+      const sinceDate = new Date(since);
+      if (isNaN(sinceDate.getTime())) {
+        res.status(400).json({ success: false, message: 'Invalid since parameter' });
+        return;
+      }
+      const inc = await knowledgeService.getKnowledgeSince(sinceDate);
+      res.json({ success: true, data: inc });
+      return;
+    }
     const list = await knowledgeService.getAllKnowledge();
     res.json({ success: true, data: list });
   } catch (error) {
     console.error('Error fetching knowledge list:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch knowledge list' });
   }
+};
+
+export const streamKnowledgeUpdates = async (_req: Request, res: Response) => {
+  eventBus.addClient(res);
 };
 
 /**

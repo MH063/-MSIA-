@@ -6,6 +6,8 @@ import type { ApiResponse } from '../../utils/api';
 import { useNavigate } from 'react-router-dom';
 
 const { Title, Text } = Typography;
+const host = window.location.hostname;
+const isProduction = import.meta.env.PROD;
 
 type QuestionItem = string | { id: string; text: string; type: string; options?: string[] };
 
@@ -30,6 +32,8 @@ const KnowledgeList: React.FC = () => {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<'网格' | '按首字母' | '按更新时间'>('网格');
   const prevMapRef = useRef<Map<number, string>>(new Map());
+  const lastUpdatedAtRef = useRef<string>('');
+  const esRef = useRef<EventSource | null>(null);
 
   /**
    * fetchData
@@ -38,24 +42,49 @@ const KnowledgeList: React.FC = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res: ApiResponse<KnowledgeItem[]> = await api.get('/knowledge');
+      const params = lastUpdatedAtRef.current ? { since: lastUpdatedAtRef.current } : undefined;
+      const res: ApiResponse<KnowledgeItem[]> = await api.get('/knowledge', { params });
       if (res.success && Array.isArray(res.data)) {
-        // 计算更新差异并提示
-        const prev = prevMapRef.current;
-        let changed = 0;
-        const nextMap = new Map<number, string>();
-        for (const it of res.data) {
-          const prevUpdated = prev.get(it.id);
-          nextMap.set(it.id, it.updatedAt);
-          if (prev.size > 0 && prevUpdated && prevUpdated !== it.updatedAt) {
-            changed++;
+        const incoming = res.data;
+        if (!lastUpdatedAtRef.current) {
+          // 初次加载：全量替换
+          setData(incoming);
+          const map = new Map<number, string>();
+          let maxUpdated = '';
+          for (const it of incoming) {
+            map.set(it.id, it.updatedAt);
+            if (!maxUpdated || new Date(it.updatedAt).getTime() > new Date(maxUpdated).getTime()) {
+              maxUpdated = it.updatedAt;
+            }
           }
+          prevMapRef.current = map;
+          lastUpdatedAtRef.current = maxUpdated;
+        } else {
+          // 增量合并
+          const byId = new Map<number, KnowledgeItem>();
+          for (const it of data) byId.set(it.id, it);
+          let changed = 0;
+          let maxUpdated = lastUpdatedAtRef.current;
+          for (const it of incoming) {
+            const prev = byId.get(it.id);
+            if (!prev || prev.updatedAt !== it.updatedAt) {
+              changed++;
+              byId.set(it.id, it);
+            }
+            if (new Date(it.updatedAt).getTime() > new Date(maxUpdated).getTime()) {
+              maxUpdated = it.updatedAt;
+            }
+          }
+          if (changed > 0) {
+            message.success(`知识库已更新${changed}条，已自动刷新`);
+          }
+          lastUpdatedAtRef.current = maxUpdated;
+          const merged = Array.from(byId.values());
+          setData(merged);
+          const map = new Map<number, string>();
+          for (const it of merged) map.set(it.id, it.updatedAt);
+          prevMapRef.current = map;
         }
-        prevMapRef.current = nextMap;
-        if (changed > 0) {
-          message.success(`知识库已更新${changed}条，已自动刷新`);
-        }
-        setData(res.data);
       }
     } catch (error) {
       console.error(error);
@@ -66,10 +95,22 @@ const KnowledgeList: React.FC = () => {
 
   useEffect(() => {
     fetchData();
-    const timer = setInterval(() => {
-      fetchData();
-    }, 15000);
-    return () => clearInterval(timer);
+    const onFocus = () => fetchData();
+    const onVis = () => { if (document.visibilityState === 'visible') fetchData(); };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVis);
+    const url = isProduction ? '/api/knowledge/stream' : `http://${host}:4000/api/knowledge/stream`;
+    const es = new EventSource(url);
+    es.onmessage = () => fetchData();
+    es.addEventListener('knowledge_updated', () => fetchData());
+    es.onerror = () => {};
+    esRef.current = es;
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVis);
+      esRef.current?.close();
+      esRef.current = null;
+    };
   }, []);
 
   /**

@@ -27,6 +27,7 @@ interface SymptomContext {
   relatedSymptoms: string[];
   redFlags: string[];
   physicalSigns: string[];
+  updatedAt?: string;
 }
 
 interface FormValues {
@@ -34,7 +35,7 @@ interface FormValues {
   gender?: string;
   age?: number;
   birthDate?: unknown;
-  chiefComplaint?: { text?: string };
+  chiefComplaint?: { text?: string; symptom?: string };
   presentIllness?: {
     onsetMode?: string;
     onsetTime?: string;
@@ -54,6 +55,7 @@ interface FormValues {
     hasAllergy?: 'yes' | 'no';
     pmh_infectious?: string;
     pmh_other?: string;
+    confirmedSymptoms?: string[];
   };
   personalHistory?: {
     smoking_status?: string;
@@ -118,63 +120,6 @@ const HPI_ASSOCIATED_MAP: Record<string, string> = {
   dizziness: "眩晕"
 };
 
-// 标准化症状术语库（来自主诉选项与现病史映射）
-const STANDARD_SYMPTOMS = new Set<string>([
-  "发热", "头痛", "咳嗽", "腹痛", "胸痛", "呼吸困难", "心悸", "恶心呕吐", "腹泻", "乏力",
-  "咯血", "眩晕", "上消化道出血",
-  ...Object.values(HPI_ASSOCIATED_MAP)
-]);
-
-// 症状同义词映射（归一化到标准术语）
-const SYMPTOM_SYNONYMS: Record<string, string> = {
-  "恶心与呕吐": "恶心呕吐",
-  "呕吐伴恶心": "恶心呕吐",
-  "恶心后呕吐": "恶心呕吐",
-  "发烧": "发热",
-  "体温升高": "发热",
-  "高热": "发热",
-  "眩晕": "眩晕", // 保持一致
-  "头晕": "眩晕", // 广义头晕通常包含眩晕，这里简化映射
-  "天旋地转": "眩晕",
-  "痰中带血": "咯血",
-  "吐血": "上消化道出血", // 呕血归类为上消化道出血
-  "呕血": "上消化道出血",
-  "黑色大便": "上消化道出血", // 黑便归类为上消化道出血
-  "黑便": "上消化道出血",
-  "柏油样便": "上消化道出血",
-  "偏头痛": "头痛",
-  "神经性头痛": "头痛"
-};
-
-const SYMPTOM_NAME_TO_KEY: Record<string, string> = {
-  "腹痛": "abdominal_pain",
-  "发热": "fever",
-  "头痛": "headache",
-  "腹泻": "diarrhea",
-  "胸痛": "chest_pain",
-  "咳嗽": "cough_and_expectoration",
-  "呼吸困难": "dyspnea",
-  "咯血": "hemoptysis",
-  "恶心呕吐": "nausea_vomiting",
-  "恶心与呕吐": "nausea_vomiting",
-  "上消化道出血": "hematemesis",
-  "眩晕": "vertigo",
-  "心悸": "palpitation",
-  "乏力": "fatigue",
-  "意识障碍": "disturbance_of_consciousness",
-  "晕厥": "syncope",
-  "抽搐": "tic_convulsion",
-  "水肿": "edema",
-  "黄疸": "jaundice",
-  "贫血": "anemia",
-  "关节痛": "arthralgia",
-  "腰背痛": "lumbodorsalgia",
-  "尿频尿急尿痛": "urinary_frequency_urgency_dysuria",
-  "血尿": "hematuria",
-  "便秘": "constipation",
-  "体重下降": "emaciation"
-};
-
 // 现病史伴随症状的中文名到键值映射（用于自动解析主诉文本时同步 presentIllness.associatedSymptoms）
 const NAME_TO_HPI_KEY: Record<string, string> = {
   "发热": "fever",
@@ -219,78 +164,6 @@ async function fetchKnowledgeFromAPI(symptomKey: string): Promise<KnowledgeItem 
   }
 }
 
-async function getKnowledgeByName(symptomName: string): Promise<KnowledgeItem | null> {
-  const normalizedName = SYMPTOM_SYNONYMS[symptomName] || symptomName;
-  const symptomKey = SYMPTOM_NAME_TO_KEY[normalizedName] || normalizedName.toLowerCase().replace(/\s+/g, '_');
-  
-  const cached = knowledgeCache.get(symptomKey);
-  if (cached) {
-    const age = Date.now() - cached.fetchedAt;
-    if (age < KNOWLEDGE_TTL_MS) {
-      return cached.item;
-    } else {
-      console.log(`[Session] 缓存过期，触发重拉取: ${symptomKey}`);
-      // 过期则直接刷新并返回最新数据（若失败则回退到缓存）
-      const fresh = await fetchKnowledgeFromAPI(symptomKey);
-      return fresh || cached.item;
-    }
-  }
-  
-  if (pendingRequests.has(symptomKey)) {
-    return pendingRequests.get(symptomKey)!;
-  }
-  
-  const request = fetchKnowledgeFromAPI(symptomKey);
-  pendingRequests.set(symptomKey, request);
-  
-  const result = await request;
-  pendingRequests.delete(symptomKey);
-  
-  return result;
-}
-
-
-/**
- * nameToKey
- * 症状中文名转换为知识库Key
- */
-function nameToKey(symptomName: string): string {
-  const normalizedName = SYMPTOM_SYNONYMS[symptomName] || symptomName;
-  return SYMPTOM_NAME_TO_KEY[normalizedName] || normalizedName.toLowerCase().replace(/\s+/g, '_');
-}
-
-/**
- * revalidateActiveKnowledge
- * 对当前激活症状进行版本校验：若后端updatedAt发生变化，提示并自动重拉取与刷新上下文
- */
-const revalidateActiveKnowledge = async (symptomNames: string[], onUpdated: () => void) => {
-  const keys = symptomNames.map(nameToKey);
-  let hasUpdate = false;
-  for (const key of keys) {
-    const cached = knowledgeCache.get(key);
-    try {
-      const response: ApiResponse<KnowledgeItem> = await api.get(`/knowledge/${key}`);
-      if (response.success && response.data) {
-        const serverItem = response.data as KnowledgeItem;
-        const cachedUpdated = cached?.item?.updatedAt;
-        if (cachedUpdated && serverItem.updatedAt && cachedUpdated !== serverItem.updatedAt) {
-          knowledgeCache.set(key, { item: serverItem, fetchedAt: Date.now() });
-          if (!versionNotifiedKeys.has(key)) {
-            versionNotifiedKeys.add(key);
-            message.info('知识库已更新，已自动刷新');
-          }
-          hasUpdate = true;
-        }
-      }
-    } catch (e) {
-      console.error(`[Session] 版本校验失败 [${key}]`, e);
-    }
-  }
-  if (hasUpdate) {
-    onUpdated();
-  }
-};
-
 type SessionRes = {
   patient?: {
     birthDate?: string;
@@ -309,10 +182,98 @@ type SessionRes = {
   historianRelationship?: string;
 } & Record<string, unknown>;
 
+const host = window.location.hostname;
+const isProduction = import.meta.env.PROD;
+
 const Session: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [form] = Form.useForm();
+
+  // Mapping State
+  const [synonymMap, setSynonymMap] = useState<Record<string, string>>({});
+  const [nameToKeyMap, setNameToKeyMap] = useState<Record<string, string>>({});
+  const [mappingsLoaded, setMappingsLoaded] = useState(false);
+
+  // Fetch Mappings
+  useEffect(() => {
+    api.get('/mapping/symptoms').then(res => {
+      if (res.success && res.data) {
+        setSynonymMap(res.data.synonyms);
+        setNameToKeyMap(res.data.nameToKey);
+        setMappingsLoaded(true);
+      }
+    });
+  }, []);
+
+  const nameToKey = useCallback((symptomName: string): string => {
+    const normalizedName = synonymMap[symptomName] || symptomName;
+    return nameToKeyMap[normalizedName] || normalizedName.toLowerCase().replace(/\s+/g, '_');
+  }, [synonymMap, nameToKeyMap]);
+
+  const getKnowledgeByName = useCallback(async (symptomName: string): Promise<KnowledgeItem | null> => {
+    const key = nameToKey(symptomName);
+    
+    const cached = knowledgeCache.get(key);
+    if (cached) {
+      const age = Date.now() - cached.fetchedAt;
+      if (age < KNOWLEDGE_TTL_MS) {
+        return cached.item;
+      } else {
+        console.log(`[Session] 缓存过期，触发重拉取: ${key}`);
+        const fresh = await fetchKnowledgeFromAPI(key);
+        return fresh || cached.item;
+      }
+    }
+    
+    if (pendingRequests.has(key)) {
+      return pendingRequests.get(key)!;
+    }
+    
+    const request = fetchKnowledgeFromAPI(key);
+    pendingRequests.set(key, request);
+    
+    const result = await request;
+    pendingRequests.delete(key);
+    
+    return result;
+  }, [nameToKey]);
+
+  const revalidateActiveKnowledge = useCallback(async (symptomNames: string[], onUpdated: () => void) => {
+    const keys = symptomNames.map(nameToKey);
+    let hasUpdate = false;
+    for (const key of keys) {
+      const cached = knowledgeCache.get(key);
+      try {
+        const response: ApiResponse<KnowledgeItem> = await api.get(`/knowledge/${key}`);
+        if (response.success && response.data) {
+          const serverItem = response.data as KnowledgeItem;
+          const cachedUpdated = cached?.item?.updatedAt;
+          
+          // 如果缓存不存在，或者服务端更新时间比缓存新（或缓存无时间），则更新
+          const shouldUpdate = !cached || 
+                              (serverItem.updatedAt && 
+                               (!cachedUpdated || serverItem.updatedAt !== cachedUpdated));
+
+          if (shouldUpdate) {
+            knowledgeCache.set(key, { item: serverItem, fetchedAt: Date.now() });
+            
+            // 仅当是已有缓存的更新时才提示用户，避免初次加载弹窗
+            if (cached && !versionNotifiedKeys.has(key)) {
+              versionNotifiedKeys.add(key);
+              message.info(`知识库【${serverItem.displayName}】已更新，已自动刷新`);
+            }
+            hasUpdate = true;
+          }
+        }
+      } catch (e) {
+        console.error(`[Session] 版本校验失败 [${key}]`, e);
+      }
+    }
+    if (hasUpdate) {
+      onUpdated();
+    }
+  }, [nameToKey]);
   
   const [loading, setLoading] = useState(false);
   const [currentSection, setCurrentSection] = useState('general');
@@ -330,7 +291,7 @@ const Session: React.FC = () => {
 
   // Watch form changes for Knowledge Base updates
   const chiefComplaintValues = Form.useWatch(['chiefComplaint'], form);
-const chiefComplaintText = Form.useWatch(['chiefComplaint', 'text'], form) as string | undefined;
+  const chiefComplaintText = Form.useWatch(['chiefComplaint', 'text'], form) as string | undefined;
   const hpiAssociated = Form.useWatch(['presentIllness', 'associatedSymptoms'], form) as string[] | undefined;
   const pastHistoryConfirmed = Form.useWatch(['pastHistory', 'confirmedSymptoms'], form) as string[] | undefined;
 
@@ -342,19 +303,22 @@ const chiefComplaintText = Form.useWatch(['chiefComplaint', 'text'], form) as st
       const activeSymptoms: string[] = [];
       const ccSymptom = chiefComplaintValues?.symptom as string | undefined;
       const ccText = (chiefComplaintValues?.text as string | undefined) || "";
+      
+      const isValidSymptom = (name: string) => !!nameToKeyMap[name];
+
       if (ccSymptom) {
         const negPatterns = [`否认${ccSymptom}`, `无${ccSymptom}`, `不伴${ccSymptom}`, `未见${ccSymptom}`];
         const isNeg = negPatterns.some(p => ccText.includes(p));
-        const normalized = SYMPTOM_SYNONYMS[ccSymptom.trim()] || ccSymptom.trim();
-        if (!isNeg && (STANDARD_SYMPTOMS.has(normalized) || STANDARD_SYMPTOMS.has(ccSymptom.trim()))) {
+        const normalized = synonymMap[ccSymptom.trim()] || ccSymptom.trim();
+        if (!isNeg && (isValidSymptom(normalized) || isValidSymptom(ccSymptom.trim()))) {
           activeSymptoms.push(normalized);
         }
       }
       if (hpiAssociated && hpiAssociated.length > 0) {
         for (const k of hpiAssociated) {
           const mapped = HPI_ASSOCIATED_MAP[k];
-          const normalized = mapped ? (SYMPTOM_SYNONYMS[mapped] || mapped) : undefined;
-          if (normalized && STANDARD_SYMPTOMS.has(normalized)) {
+          const normalized = mapped ? (synonymMap[mapped] || mapped) : undefined;
+          if (normalized && isValidSymptom(normalized)) {
             activeSymptoms.push(normalized);
           }
         }
@@ -362,14 +326,14 @@ const chiefComplaintText = Form.useWatch(['chiefComplaint', 'text'], form) as st
       if (pastHistoryConfirmed && pastHistoryConfirmed.length > 0) {
         for (const s of pastHistoryConfirmed) {
           const name = String(s).trim();
-          const normalized = SYMPTOM_SYNONYMS[name] || name;
-          if (normalized && STANDARD_SYMPTOMS.has(normalized)) {
+          const normalized = synonymMap[name] || name;
+          if (normalized && isValidSymptom(normalized)) {
             activeSymptoms.push(normalized);
           }
         }
       }
       return Array.from(new Set(activeSymptoms));
-  }, [chiefComplaintValues, hpiAssociated, pastHistoryConfirmed]);
+  }, [chiefComplaintValues, hpiAssociated, pastHistoryConfirmed, synonymMap, nameToKeyMap]);
 
   const updateSymptomContext = useCallback(async (symptoms: string[]) => {
     if (symptoms.length === 0) {
@@ -384,6 +348,7 @@ const chiefComplaintText = Form.useWatch(['chiefComplaint', 'text'], form) as st
     const relatedSet = new Set<string>();
     const redFlagsSet = new Set<string>();
     const physicalSignsSet = new Set<string>();
+    let latestUpdatedAt: string | undefined;
 
     for (const s of symptoms) {
       const knowledge = await getKnowledgeByName(s);
@@ -399,6 +364,11 @@ const chiefComplaintText = Form.useWatch(['chiefComplaint', 'text'], form) as st
         for (const f of knowledge.redFlags || []) redFlagsSet.add(f);
         if (knowledge.physicalSigns) {
           for (const p of knowledge.physicalSigns) physicalSignsSet.add(p);
+        }
+        if (knowledge.updatedAt) {
+          if (!latestUpdatedAt || new Date(knowledge.updatedAt).getTime() > new Date(latestUpdatedAt).getTime()) {
+            latestUpdatedAt = knowledge.updatedAt;
+          }
         }
       } else {
         const prompt = symptomPrompts["general"];
@@ -418,10 +388,11 @@ const chiefComplaintText = Form.useWatch(['chiefComplaint', 'text'], form) as st
       questions: Array.from(questionsSet),
       relatedSymptoms: Array.from(relatedSet),
       redFlags: Array.from(redFlagsSet),
-      physicalSigns: Array.from(physicalSignsSet)
+      physicalSigns: Array.from(physicalSignsSet),
+      updatedAt: latestUpdatedAt
     });
     setKnowledgeLoading(false);
-  }, []);
+  }, [getKnowledgeByName]);
 
   useEffect(() => {
     const active = pickActiveSymptoms();
@@ -437,7 +408,52 @@ const chiefComplaintText = Form.useWatch(['chiefComplaint', 'text'], form) as st
       setSymptomContext(null);
       setKnowledgeLoading(false);
     }
-  }, [pickActiveSymptoms, updateSymptomContext]);
+  }, [pickActiveSymptoms, updateSymptomContext, revalidateActiveKnowledge]);
+
+  // SSE Subscription and Focus Refresh
+  useEffect(() => {
+    if (!mappingsLoaded) return;
+
+    const onUpdate = () => {
+       const active = pickActiveSymptoms();
+       if (active.length > 0) {
+          revalidateActiveKnowledge(active, () => updateSymptomContext(active));
+       }
+    };
+
+    // Focus Refresh
+    const onFocus = () => {
+        if (document.visibilityState === 'visible') {
+            console.log('[Session] 页面聚焦，检查更新');
+            onUpdate();
+        }
+    };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onFocus);
+
+    // SSE
+    const url = isProduction ? '/api/knowledge/stream' : `http://${host}:4000/api/knowledge/stream`;
+    let es: EventSource | null = new EventSource(url);
+    
+    es.addEventListener('knowledge_updated', () => {
+        console.log('[Session] 收到知识库更新通知');
+        onUpdate();
+    });
+    
+    es.onerror = (e) => {
+        console.error('[Session] SSE Error', e);
+        es?.close();
+        es = null;
+    };
+
+    return () => {
+       window.removeEventListener('focus', onFocus);
+       document.removeEventListener('visibilitychange', onFocus);
+       if (es) {
+         es.close();
+       }
+    };
+  }, [mappingsLoaded, pickActiveSymptoms, revalidateActiveKnowledge, updateSymptomContext]);
 
 /**
  * handleChiefComplaintTextChange
@@ -471,7 +487,7 @@ useEffect(() => {
         const data = res.data as AnalyzeResData;
         const ccSymptom = (chiefComplaintValues?.symptom as string | undefined) || '';
         const names = (data.matchedSymptoms || []).map(m => m.name);
-        const normalizedNames = names.map(n => SYMPTOM_SYNONYMS[n] || n);
+        const normalizedNames = names.map(n => synonymMap[n] || n);
         const assocNames = normalizedNames.filter(n => n && n !== ccSymptom);
         const assocKeys = assocNames
           .map(n => NAME_TO_HPI_KEY[n])
@@ -507,7 +523,7 @@ useEffect(() => {
       analyzeTimerRef.current = null;
     }
   };
-}, [chiefComplaintText, chiefComplaintValues, form, pickActiveSymptoms, updateSymptomContext]);
+}, [chiefComplaintText, chiefComplaintValues, form, pickActiveSymptoms, updateSymptomContext, synonymMap]);
 
   const allValues = Form.useWatch([], form);
 

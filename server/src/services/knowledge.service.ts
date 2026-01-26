@@ -8,6 +8,15 @@ export const getAllKnowledge = async () => {
 };
 
 /**
+ * 获取增量知识库（按更新时间）
+ */
+export const getKnowledgeSince = async (since: Date) => {
+  return await prisma.symptomKnowledge.findMany({
+    where: { updatedAt: { gt: since } },
+  });
+};
+
+/**
  * 根据 Key 获取症状知识
  */
 export const getKnowledgeByKey = async (key: string) => {

@@ -1,10 +1,45 @@
 import fs from 'fs';
 import path from 'path';
 import matter from 'gray-matter';
-import { sync as md5File } from 'md5-file';
 import prisma from '../prisma';
+import { createHash } from 'crypto';
+import { eventBus } from './eventBus.service';
 
 export class FileProcessorService {
+  private queue: Array<{ filePath: string; rootDir: string }> = [];
+  private processing = 0;
+  private maxConcurrency = 2;
+
+  public enqueue(filePath: string, rootDir: string) {
+    this.queue.push({ filePath, rootDir });
+    this.schedule();
+  }
+
+  private schedule() {
+    while (this.processing < this.maxConcurrency && this.queue.length > 0) {
+      const task = this.queue.shift()!;
+      this.processing++;
+      this.processFile(task.filePath, task.rootDir)
+        .catch((error) => {
+          console.error(`[FileProcessor] Task error:`, error);
+        })
+        .finally(() => {
+          this.processing--;
+          this.schedule();
+        });
+    }
+  }
+
+  private async computeFileHash(filePath: string): Promise<string> {
+    return await new Promise<string>((resolve, reject) => {
+      const hash = createHash('md5');
+      const stream = fs.createReadStream(filePath);
+      stream.on('data', (chunk) => hash.update(chunk));
+      stream.on('error', (err) => reject(err));
+      stream.on('end', () => resolve(hash.digest('hex')));
+    });
+  }
+
   /**
    * Process a file:
    * 1. Calculate hash to check if it really changed.
@@ -22,7 +57,7 @@ export class FileProcessorService {
       const relativePath = path.relative(rootDir, filePath);
       const fileName = path.basename(filePath);
       const ext = path.extname(filePath).toLowerCase();
-      const hash = md5File(filePath);
+      const hash = await this.computeFileHash(filePath);
 
       // Check if file exists in DB
       const existingSource = await prisma.knowledgeSource.findUnique({
@@ -58,7 +93,7 @@ export class FileProcessorService {
 
       // Parse content
       try {
-        const content = fs.readFileSync(filePath, 'utf-8');
+        const content = await fs.promises.readFile(filePath, 'utf-8');
         
         if (ext === '.md') {
           await this.processMarkdown(source.id, content);
@@ -74,6 +109,7 @@ export class FileProcessorService {
           where: { id: source.id },
           data: { status: 'processed' }
         });
+        eventBus.broadcast('knowledge_updated', { at: new Date().toISOString() });
 
       } catch (parseError: any) {
         console.error(`[FileProcessor] Error parsing ${relativePath}:`, parseError);
@@ -120,6 +156,7 @@ export class FileProcessorService {
       await prisma.knowledgeSource.delete({
         where: { id: source.id }
       });
+      eventBus.broadcast('knowledge_updated', { at: new Date().toISOString() });
     }
   }
 

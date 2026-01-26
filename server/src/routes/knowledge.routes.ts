@@ -4,6 +4,7 @@ import * as knowledgeController from '../controllers/knowledge.controller';
 const router = Router();
 
 router.get('/', knowledgeController.getAllKnowledge);
+router.get('/stream', knowledgeController.streamKnowledgeUpdates);
 router.get('/:key', knowledgeController.getKnowledgeByKey);
 router.post('/', knowledgeController.upsertKnowledge);
 router.delete('/:key', knowledgeController.deleteKnowledge);

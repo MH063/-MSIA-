@@ -54,7 +54,7 @@ export class FileWatcherService {
     // Only process supported extensions
     const ext = path.extname(filePath).toLowerCase();
     if (['.md', '.txt', '.json'].includes(ext)) {
-      fileProcessor.processFile(filePath, this.rootDir);
+      fileProcessor.enqueue(filePath, this.rootDir);
     }
   }
 

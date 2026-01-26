@@ -18,6 +18,7 @@ interface KnowledgePanelProps {
     relatedSymptoms?: string[];
     redFlags?: string[];
     physicalSigns?: string[];
+    updatedAt?: string;
   };
   patientInfo?: {
       age?: number;
@@ -263,6 +264,11 @@ const KnowledgePanel: React.FC<KnowledgePanelProps> = ({
            <Title level={5} style={{ marginTop: 0, color: '#0050b3' }}>
              <MedicineBoxOutlined /> 当前症状: {symptomContext.name}
            </Title>
+           {symptomContext.updatedAt && (
+             <div style={{ marginTop: 4, color: '#8c8c8c' }}>
+               来源更新时间：{new Date(symptomContext.updatedAt).toLocaleString()}
+             </div>
+           )}
            {symptomContext.redFlags && symptomContext.redFlags.length > 0 && (
              <div style={{ marginTop: 8 }}>
                <Text type="danger" strong>警惕征象 (Red Flags):</Text>
