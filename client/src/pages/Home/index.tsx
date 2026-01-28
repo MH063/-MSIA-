@@ -13,7 +13,7 @@ import {
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import 'dayjs/locale/zh-cn';
-import api from '../../utils/api';
+import api, { unwrapData } from '../../utils/api';
 import type { ApiResponse } from '../../utils/api';
 
 dayjs.extend(relativeTime);
@@ -47,10 +47,10 @@ const Home: React.FC = () => {
   const fetchData = React.useCallback(async () => {
     setLoading(true);
     try {
-        const res: ApiResponse<Stats> = await api.get('/sessions/stats');
-        if (res?.success && res.data) {
-            const payload = res.data as Stats;
-            setStats(payload);
+        const res: ApiResponse<Stats | { data: Stats }> = await api.get('/sessions/stats');
+        if (res?.success) {
+            const payload = unwrapData<Stats>(res);
+            if (payload) setStats(payload);
         }
     } catch (err) {
         console.error(err);

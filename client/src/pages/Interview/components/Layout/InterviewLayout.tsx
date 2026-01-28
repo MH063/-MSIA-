@@ -35,15 +35,14 @@ const InterviewLayout: React.FC<InterviewLayoutProps> = ({
       </Sider>
 
       {/* Center Editor Panel */}
-      <Layout style={{ marginLeft: 250, marginRight: 350 }}>
+      <Layout style={{ marginLeft: 250, marginRight: 350, height: '100vh' }}>
         <Content
           style={{
-            margin: '24px 16px',
+            margin: 0,
             padding: 24,
             background: '#fff',
-            minHeight: 280,
-            overflow: 'initial',
-            borderRadius: 4,
+            overflowY: 'auto',
+            height: '100%',
           }}
         >
           {editor}

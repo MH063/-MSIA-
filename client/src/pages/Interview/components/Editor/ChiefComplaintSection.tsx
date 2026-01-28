@@ -1,16 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Form, Input, AutoComplete, Row, Col, Typography, Card, Space, Button, message } from 'antd';
-import { RobotOutlined } from '@ant-design/icons';
+import { Form, Input, AutoComplete, Row, Col, Typography, Card, Space, Button, message, Tag, Radio, InputNumber } from 'antd';
+import { RobotOutlined, BulbOutlined, EditOutlined, SoundOutlined } from '@ant-design/icons';
 import type { FormInstance } from 'antd';
-import api from '../../../../utils/api';
+import api, { unwrapData } from '../../../../utils/api';
+import type { ApiResponse } from '../../../../utils/api';
 
-const { Title, Text } = Typography;
-const { Search } = Input;
+const { Title, Text, Paragraph } = Typography;
+const { Search, TextArea } = Input;
 
 const symptomOptions = [
   { value: '发热', label: '发热' },
   { value: '头痛', label: '头痛' },
   { value: '咳嗽', label: '咳嗽' },
+  { value: '咳痰', label: '咳痰' },
   { value: '腹痛', label: '腹痛' },
   { value: '胸痛', label: '胸痛' },
   { value: '呼吸困难', label: '呼吸困难' },
@@ -35,19 +37,26 @@ interface ChiefComplaintSectionProps {
 const ChiefComplaintSection: React.FC<ChiefComplaintSectionProps> = ({ form }) => {
   const [symptomOptionsState, setSymptomOptionsState] = useState<{value: string}[]>([]);
   const [analyzing, setAnalyzing] = useState(false);
+  const [inputMode, setInputMode] = useState('free'); // free, example, voice
   const lastAutoRef = useRef<string>('');
+  
   const ccSymptom = Form.useWatch(['chiefComplaint', 'symptom'], form);
   const ccDurationNum = Form.useWatch(['chiefComplaint', 'durationNum'], form);
   const ccDurationUnit = Form.useWatch(['chiefComplaint', 'durationUnit'], form);
+  
   const assocKeysMap: Record<string, string> = {
     '发热': 'fever',
     '恶心呕吐': 'nausea',
     '腹泻': 'diarrhea',
     '咳嗽': 'cough',
+    '咳痰': 'sputum',
     '胸痛': 'chest_pain',
+    '头痛': 'headache',
     '眩晕': 'dizziness',
     '咯血': 'hemoptysis',
-    '上消化道出血': 'hematemesis'
+    '上消化道出血': 'hematemesis',
+    '心悸': 'palpitation',
+    '呼吸困难': 'dyspnea'
   };
   
   const handleSymptomSearch = (value: string) => {
@@ -59,6 +68,11 @@ const ChiefComplaintSection: React.FC<ChiefComplaintSectionProps> = ({ form }) =
     setSymptomOptionsState(filtered.map(f => ({ value: f.value })));
   };
 
+  /**
+   * 智能识别主诉文本并填充结构化字段
+   * 输入自然语言文本，调用后端 NLP 接口，使用统一解包处理双层 data 结构，
+   * 将识别到的主症状、伴随症状及时长写入表单并提示缺失映射
+   */
   const handleSmartAnalyze = async (text: string) => {
     if (!text) return;
     setAnalyzing(true);
@@ -73,9 +87,10 @@ const ChiefComplaintSection: React.FC<ChiefComplaintSectionProps> = ({ form }) =
         perSymptomDurations: { name: string; value: number; unit: string }[];
         normalizationSafe: boolean;
       };
-      const res = await api.post('/nlp/analyze', { text }) as import('../../../../utils/api').ApiResponse<AnalyzeResData>;
-      if (res.success && res.data) {
-        const { matchedSymptoms, duration, validation, originalText, perSymptomDurations, normalizationSafe } = res.data;
+      const res = await api.post('/nlp/analyze', { text }) as ApiResponse<AnalyzeResData | { data: AnalyzeResData }>;
+      const payload = unwrapData<AnalyzeResData>(res);
+      if (res.success && payload) {
+        const { matchedSymptoms, duration, validation, originalText, perSymptomDurations, normalizationSafe } = payload;
         const updates: Partial<{ symptom: string; durationNum: number; durationUnit: string; text: string }> = {};
         if (Array.isArray(matchedSymptoms) && matchedSymptoms.length > 0) {
           const mainName = matchedSymptoms[0].name;
@@ -127,7 +142,7 @@ const ChiefComplaintSection: React.FC<ChiefComplaintSectionProps> = ({ form }) =
             message.warning(`以下症状暂无知识库映射: ${missing.join('、')}`);
           }
         }
-        console.log('[ChiefComplaintSection] 智能识别结果', res.data);
+        console.log('[ChiefComplaintSection] 智能识别结果', payload);
       }
     } catch (error) {
       console.error(error);
@@ -139,93 +154,153 @@ const ChiefComplaintSection: React.FC<ChiefComplaintSectionProps> = ({ form }) =
 
   useEffect(() => {
     const hasAll = ccSymptom && ccDurationNum && ccDurationUnit;
-    const auto = hasAll ? `${ccSymptom}${ccDurationNum}${ccDurationUnit}` : '';
+    const next = hasAll ? `${ccSymptom}${ccDurationNum}${ccDurationUnit}` : '';
     const current = form.getFieldValue(['chiefComplaint', 'text']) as string | undefined;
-    if (hasAll) {
-      if (!current || current === lastAutoRef.current) {
-        form.setFieldsValue({ chiefComplaint: { text: auto } });
-        lastAutoRef.current = auto;
-        console.log('[ChiefComplaintSection] 自动生成主诉', auto);
-      }
+    if (hasAll && current !== next) {
+      form.setFieldsValue({ chiefComplaint: { text: next } });
+      lastAutoRef.current = next;
+      console.log('[ChiefComplaintSection] 自动生成主诉', next);
     }
   }, [ccSymptom, ccDurationNum, ccDurationUnit, form]);
 
+  const examples = [
+    '转移性右下腹痛1天',
+    '反复头晕头痛3年，加重2天',
+    '活动后心悸气促5年'
+  ];
+
   return (
-    <div>
-      <Title level={5}>主诉 (Chief Complaint)</Title>
+    <div className="section-container">
+      <Title level={4} style={{ marginBottom: 24 }}>主诉 (Chief Complaint)</Title>
       
-      <Card size="small" style={{ marginBottom: 16, background: '#f5f5f5' }}>
-        <Space orientation="vertical" style={{ width: '100%' }}>
-            <Text strong>🤖 智能识别</Text>
-            <Search
-                placeholder="请输入患者主诉描述（例如：发热伴咳嗽3天），点击按钮识别"
-                enterButton={<Button icon={<RobotOutlined />} loading={analyzing}>识别填充</Button>}
-                onSearch={handleSmartAnalyze}
-            />
-        </Space>
+      {/* 1. 智能识别区 */}
+      <Card type="inner" title="【智能识别区】" size="small" style={{ marginBottom: 24 }}>
+        <Paragraph type="secondary" style={{ marginBottom: 12 }}>
+          请输入患者主诉，系统将自动提取症状和时间。支持自然语言输入。
+        </Paragraph>
+        <Search
+            placeholder="请输入患者主诉描述（例如：发热伴咳嗽3天）"
+            enterButton={<Button type="primary" icon={<RobotOutlined />} loading={analyzing}>智能识别</Button>}
+            onSearch={handleSmartAnalyze}
+            size="large"
+            style={{ marginBottom: 16 }}
+        />
+        
+        {/* 练习模式选择 */}
+                <div style={{ marginBottom: 16 }}>
+            <Space>
+                <Text strong>练习模式：</Text>
+                <Radio.Group value={inputMode} onChange={e => setInputMode(e.target.value)} size="small">
+                    <Radio.Button value="free"><EditOutlined /> 自由填写</Radio.Button>
+                    <Radio.Button value="example"><BulbOutlined /> 示例改写</Radio.Button>
+                    <Radio.Button value="voice" disabled title="暂未开放"><SoundOutlined /> 语音输入</Radio.Button>
+                </Radio.Group>
+            </Space>
+        </div>
+
+        {/* 示例库 */}
+        {inputMode === 'example' && (
+            <div style={{ background: '#fafafa', padding: 12, borderRadius: 4, marginBottom: 16 }}>
+                <Text type="secondary" style={{ marginRight: 8 }}>示例库：</Text>
+                <Space wrap>
+                    {examples.map(ex => (
+                        <Tag 
+                            key={ex} 
+                            color="blue" 
+                            style={{ cursor: 'pointer' }}
+                            onClick={() => {
+                                form.setFieldsValue({ chiefComplaint: { text: ex } });
+                                handleSmartAnalyze(ex);
+                            }}
+                        >
+                            {ex}
+                        </Tag>
+                    ))}
+                </Space>
+            </div>
+        )}
       </Card>
 
-      <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-        格式：主要症状 + 持续时间 (例如：发热伴咳嗽3天)
-      </Text>
+      {/* 2. 结构化填写 */}
+      <Card type="inner" title="【结构化填写】" size="small" style={{ marginBottom: 24 }}>
+        <Row gutter={24}>
+          <Col span={12}>
+             <Form.Item
+               name={['chiefComplaint', 'symptom']}
+               label="主要症状"
+               rules={[{ required: true, message: '请输入主要症状' }]}
+               help="核心症状，如：发热、腹痛"
+             >
+               <AutoComplete
+                 options={symptomOptionsState}
+                 onSearch={handleSymptomSearch}
+                 placeholder="输入症状关键词"
+               />
+             </Form.Item>
+          </Col>
+          <Col span={12}>
+              <Form.Item label="持续时间" required style={{ marginBottom: 0 }}>
+                  <Space.Compact style={{ width: '100%' }}>
+                      <Form.Item
+                          name={['chiefComplaint', 'durationNum']}
+                          noStyle
+                          rules={[
+                            { required: true, message: '请输入数字' },
+                            {
+                              validator: (_rule, value) => {
+                                const v = value as number | undefined;
+                                if (typeof v === 'number' && Number.isFinite(v) && v > 0) {
+                                  return Promise.resolve();
+                                }
+                                return Promise.reject(new Error('请输入数字'));
+                              }
+                            }
+                          ]}
+                      >
+                          <InputNumber placeholder="数字" min={1} style={{ width: '100%' }} />
+                      </Form.Item>
+                      <Form.Item
+                          name={['chiefComplaint', 'durationUnit']}
+                          noStyle
+                          rules={[{ required: true, message: '请选择单位' }]}
+                      >
+                           <AutoComplete
+                              placeholder="单位"
+                              options={durationUnits}
+                           />
+                      </Form.Item>
+                  </Space.Compact>
+              </Form.Item>
+              <div style={{ lineHeight: '1.5', minHeight: '22px', margin: '0 0 24px', clear: 'both', color: 'rgba(0, 0, 0, 0.45)', fontSize: '14px' }}>
+                精确的时间，如：3天
+              </div>
+          </Col>
+          <Col span={24}>
+              <div style={{ lineHeight: '1.5', minHeight: '22px', margin: '0 0 24px', clear: 'both', color: 'rgba(0, 0, 0, 0.45)', fontSize: '14px' }}>
+                精确的时间，如：3天
+              </div>
+          </Col>
+        </Row>
+      </Card>
 
-      <Row gutter={16}>
-        <Col span={12}>
-           <Form.Item
-             name={['chiefComplaint', 'symptom']}
-             label="主要症状"
-             rules={[{ required: true, message: '请输入主要症状' }]}
-           >
-             <AutoComplete
-               options={symptomOptionsState}
-               onSearch={handleSymptomSearch}
-               placeholder="输入症状关键词 (如: 腹痛)"
-             />
-           </Form.Item>
-        </Col>
-        <Col span={12}>
-            <Form.Item label="持续时间" style={{ marginBottom: 0 }}>
-                <Space.Compact style={{ width: '100%' }}>
-                    <Form.Item
-                        name={['chiefComplaint', 'durationNum']}
-                        noStyle
-                        rules={[{ required: true, message: '请输入数字' }]}
-                    >
-                        <Input placeholder="数字" type="number" />
-                    </Form.Item>
-                    <Form.Item
-                        name={['chiefComplaint', 'durationUnit']}
-                        noStyle
-                        rules={[{ required: true, message: '请选择单位' }]}
-                    >
-                         <AutoComplete
-                            placeholder="单位"
-                            options={durationUnits}
-                         />
-                    </Form.Item>
-                </Space.Compact>
-            </Form.Item>
-        </Col>
-      </Row>
-
-      <Form.Item
-        name={['chiefComplaint', 'text']}
-        label="完整主诉描述"
-        help="系统将根据上述输入自动生成，也可以手动修改"
-      >
-        <Input.TextArea rows={2} placeholder="发热伴咳嗽3天..." />
-      </Form.Item>
-      
-      <Card size="small" title="示例库" style={{ marginTop: 16, background: '#fafafa' }}>
-         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-             {['转移性右下腹痛1天', '反复头晕、头痛3年，加重2天', '活动后心悸、气促5年'].map(ex => (
-                 <a key={ex} onClick={() => {
-                     form.setFieldsValue({
-                         chiefComplaint: { text: ex }
-                     });
-                 }}>{ex}</a>
-             ))}
-         </div>
+      {/* 3. 完整主诉 */}
+      <Card type="inner" title="【完整主诉】" size="small">
+        <Form.Item
+          name={['chiefComplaint', 'text']}
+          noStyle
+        >
+          <TextArea 
+            rows={3} 
+            placeholder="最终生成的完整主诉..." 
+            style={{ fontSize: '16px' }}
+          />
+        </Form.Item>
+        <div style={{ marginTop: 8, display: 'flex', justifyContent: 'flex-end' }}>
+             <Space>
+                 <Button onClick={() => form.setFieldValue(['chiefComplaint', 'text'], '')}>清空</Button>
+                 <Button type="primary" onClick={() => handleSmartAnalyze(form.getFieldValue(['chiefComplaint', 'text']))}>重新识别</Button>
+             </Space>
+        </div>
       </Card>
     </div>
   );

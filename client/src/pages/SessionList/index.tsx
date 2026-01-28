@@ -4,7 +4,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { DeleteOutlined, EyeOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
-import api from '../../utils/api';
+import api, { unwrapData } from '../../utils/api';
 import type { ApiResponse } from '../../utils/api';
 
 const { Title } = Typography;
@@ -35,21 +35,13 @@ const SessionList: React.FC = () => {
   const fetchData = async (page: number = 1, pageSize: number = 10) => {
     setLoading(true);
     try {
-      const res: ApiResponse<{ items: SessionListItem[]; total: number }> = await api.get('/sessions', {
+      const res: ApiResponse<{ items: SessionListItem[]; total: number } | { data: { items: SessionListItem[]; total: number } }> = await api.get('/sessions', {
         params: { limit: pageSize, offset: (page - 1) * pageSize }
       });
       if (res?.success) {
-        const payload = res.data as unknown;
-        let items: SessionListItem[] = [];
-        let total = 0;
-        if (payload && typeof payload === 'object') {
-          const obj = payload as { items?: unknown; total?: unknown; data?: unknown };
-          const inner = obj.data as { items?: unknown; total?: unknown } | undefined;
-          const maybeItems = (obj.items ?? inner?.items) as unknown;
-          const maybeTotal = (obj.total ?? inner?.total) as unknown;
-          if (Array.isArray(maybeItems)) items = maybeItems as SessionListItem[];
-          if (typeof maybeTotal === 'number') total = maybeTotal;
-        }
+        const payload = unwrapData<{ items: SessionListItem[]; total: number }>(res);
+        const items = payload?.items || [];
+        const total = payload?.total || 0;
         setData(items);
         setPagination({ current: page, pageSize, total });
       }

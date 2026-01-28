@@ -1,9 +1,15 @@
 import React from 'react';
-import { Menu, Progress, Typography, Badge } from 'antd';
-import { Button } from 'antd';
-import { CheckCircleOutlined, ExclamationCircleOutlined, DownloadOutlined } from '@ant-design/icons';
+import { Menu, Progress, Typography, Button, Tooltip } from 'antd';
+import { 
+  CheckCircleFilled, 
+  ClockCircleFilled, 
+  MinusCircleOutlined, 
+  DownloadOutlined,
+  HomeOutlined,
+  ArrowLeftOutlined
+} from '@ant-design/icons';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 
 export interface SectionStatus {
   key: string;
@@ -31,31 +37,51 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
   onGoHome,
   onGoInterviewStart
 }) => {
-  const menuItems = sections.map((section) => ({
-    key: section.key,
-    label: section.label,
-    icon: section.hasError
-      ? <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />
-      : section.isCompleted
-        ? <CheckCircleOutlined style={{ color: '#52c41a' }} />
-        : <div style={{ width: 14, height: 14, border: '2px solid #d9d9d9', borderRadius: '50%', display: 'inline-block' }} />
-  }));
+  const menuItems = sections.map((section) => {
+    let icon;
+    if (section.isCompleted) {
+      icon = <CheckCircleFilled style={{ color: '#52c41a' }} />;
+    } else if (section.key === currentSection) {
+      icon = <ClockCircleFilled style={{ color: '#1890ff' }} />;
+    } else {
+      icon = <MinusCircleOutlined style={{ color: '#d9d9d9' }} />;
+    }
+
+    return {
+      key: section.key,
+      label: (
+        <span style={{ fontWeight: section.key === currentSection ? 500 : 400 }}>
+          {section.label}
+        </span>
+      ),
+      icon: icon
+    };
+  });
 
   const completedCount = sections.filter(s => s.isCompleted).length;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <div style={{ padding: '20px 16px', borderBottom: '1px solid #f0f0f0' }}>
-        <Title level={4} style={{ margin: 0 }}>问诊导航</Title>
-        <div style={{ marginTop: 16 }}>
+      {/* Header Area */}
+      <div style={{ padding: '24px 20px', borderBottom: '1px solid #f0f0f0' }}>
+        <Title level={4} style={{ margin: '0 0 16px 0', fontSize: '18px' }}>问诊导航</Title>
+        
+        <div style={{ marginBottom: 8 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-            <span>完成度 ({completedCount}/{sections.length})</span>
-            <span>{Math.round(progress)}%</span>
+            <Text type="secondary" style={{ fontSize: '12px' }}>完成度 ({completedCount}/{sections.length})</Text>
+            <Text strong style={{ fontSize: '14px' }}>{Math.round(progress)}%</Text>
           </div>
-          <Progress percent={progress} showInfo={false} size="small" />
+          <Progress 
+            percent={progress} 
+            showInfo={false} 
+            size="small" 
+            strokeColor="#1890ff" 
+            railColor="#f0f0f0"
+          />
         </div>
       </div>
 
+      {/* Menu Area */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '12px 0' }}>
         <Menu
           mode="inline"
@@ -66,17 +92,29 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
         />
       </div>
       
-      <div style={{ padding: 16, borderTop: '1px solid #f0f0f0' }}>
-         <div style={{ fontSize: 12, color: '#999', marginBottom: 12 }}>
-            <Badge status="success" text="已完成" />
-            <span style={{ margin: '0 8px' }}>|</span>
-            <Badge status="default" text="未完成" />
+      {/* Footer Area */}
+      <div style={{ padding: '16px 20px', borderTop: '1px solid #f0f0f0', background: '#fafafa' }}>
+         <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginBottom: 16, fontSize: '12px', color: '#8c8c8c' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <CheckCircleFilled style={{ color: '#52c41a' }} /> 已完成
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <ClockCircleFilled style={{ color: '#1890ff' }} /> 进行中
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <MinusCircleOutlined style={{ color: '#d9d9d9' }} /> 未开始
+            </div>
          </div>
-         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
-            <Button onClick={onGoHome}>返回首页</Button>
-            <Button onClick={onGoInterviewStart}>返回问诊页</Button>
+         
+         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+            <Tooltip title="返回首页">
+              <Button icon={<HomeOutlined />} onClick={onGoHome} block>首页</Button>
+            </Tooltip>
+            <Tooltip title="返回列表">
+              <Button icon={<ArrowLeftOutlined />} onClick={onGoInterviewStart} block>列表</Button>
+            </Tooltip>
          </div>
-         <Button type="primary" block icon={<DownloadOutlined />} onClick={onExport}>
+         <Button type="primary" block icon={<DownloadOutlined />} onClick={onExport} style={{ height: '40px' }}>
              生成病历
          </Button>
       </div>

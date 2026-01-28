@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Typography, Collapse, Tag, Empty, Spin } from 'antd';
 import { BulbOutlined, QuestionCircleOutlined, MedicineBoxOutlined, LoadingOutlined, RobotOutlined } from '@ant-design/icons';
-import api from '../../../../utils/api';
+import api, { unwrapData } from '../../../../utils/api';
 
 const { Title, Text } = Typography;
 
@@ -24,6 +24,7 @@ interface KnowledgePanelProps {
       age?: number;
       gender?: string;
   };
+  sessionId?: number;
 }
 
 /**
@@ -35,30 +36,41 @@ const KnowledgePanel: React.FC<KnowledgePanelProps> = ({
   activeSection,
   loading = false,
   symptomContext,
-  patientInfo
+  patientInfo,
+  sessionId
 }) => {
   const [diagnosisSuggestions, setDiagnosisSuggestions] = useState<string[]>([]);
   const [diagnosisLoading, setDiagnosisLoading] = useState(false);
 
+  /**
+   * fetchDiagnosisSuggestions
+   * 根据当前症状上下文与患者基本信息，携带会话ID调用后端诊断建议接口，
+   * 统一使用 unwrapData 解包双层 data 响应结构并更新建议列表
+   */
   const fetchDiagnosisSuggestions = React.useCallback(async () => {
-      if (!symptomContext || !symptomContext.name) return;
+      const validSession = typeof sessionId === 'number' && Number.isFinite(sessionId);
+      if (!symptomContext || !symptomContext.name || !validSession) return;
       setDiagnosisLoading(true);
       try {
+          console.log('[Knowledge] 拉取诊断建议', { name: symptomContext.name, sessionId, patientInfo });
           const symptoms = symptomContext.name.split('、');
           const res = await api.post('/diagnosis/suggest', {
               symptoms,
               age: patientInfo?.age,
-              gender: patientInfo?.gender
-          }) as import('../../../../utils/api').ApiResponse<string[]>;
-          if (res.success && res.data) {
-              setDiagnosisSuggestions(res.data);
+              gender: patientInfo?.gender,
+              sessionId
+          }) as import('../../../../utils/api').ApiResponse<string[] | { data: string[] }>;
+          const payload = unwrapData<string[]>(res);
+          if (Array.isArray(payload)) {
+              setDiagnosisSuggestions(payload);
+              console.log('[Knowledge] 诊断建议更新', { count: payload.length, items: payload });
           }
       } catch (error) {
           console.error("Failed to fetch diagnosis suggestions", error);
       } finally {
           setDiagnosisLoading(false);
       }
-  }, [symptomContext?.name, patientInfo?.age, patientInfo?.gender]);
+  }, [symptomContext, patientInfo, sessionId]);
 
   useEffect(() => {
       if (symptomContext && symptomContext.name) {
@@ -66,122 +78,9 @@ const KnowledgePanel: React.FC<KnowledgePanelProps> = ({
       } else {
           setDiagnosisSuggestions([]);
       }
-  }, [symptomContext?.name, fetchDiagnosisSuggestions]);
+  }, [symptomContext, fetchDiagnosisSuggestions]);
 
-  // 移除未使用的 symptomSummaryData 以通过 linter
-  
-  const summaryPoints = [
-    '症状发生时间、起病方式',
-    '部位、性质、程度',
-    '频率/持续时间、发作或缓解因素',
-    '量、色、味等定量或特征描述',
-    '与其他症状之间的关系'
-  ];
-  
-  const imageBasedHints = [
-    {
-      group: '全身症状',
-      items: [
-        { name: '发热', points: ['程度', '热型', '有无寒战/盗汗', '与其他症状的关系'] },
-        { name: '食欲下降', points: ['程度', '加重或缓解因素', '与其他症状关系'] },
-        { name: '多饮/多尿', points: ['每日饮水/尿量', '颜色', '加重或缓解因素'] },
-        { name: '消瘦(体重下降)', points: ['下降幅度', '发生时间', '伴随症状', '诱因'] },
-        { name: '水肿', points: ['部位', '程度', '对称性', '是否凹陷性水肿'] },
-        { name: '黄疸', points: ['程度', '皮肤巩膜颜色变化', '是否瘙痒', '尿色'] },
-        { name: '皮疹', points: ['部位', '形状/颜色', '数目', '是否瘙痒', '是否向外扩展'] },
-        { name: '皮下结节', points: ['部位', '大小/数量', '质地', '是否疼痛'] },
-        { name: '淋巴结肿大', points: ['部位', '大小/数目', '质地', '是否疼痛', '是否进行性增大'] },
-        { name: '外伤', points: ['受伤原因', '受伤时间', '部位', '程度'] }
-      ]
-    },
-    {
-      group: '头颈部症状',
-      items: [
-        { name: '头痛', points: ['部位', '性质', '程度', '持续时间', '加重或缓解因素'] },
-        { name: '眩晕/头晕', points: ['类型(旋转/头重脚轻)', '诱发因素', '伴随症状', '持续时间'] },
-        { name: '抽搐/惊厥', points: ['发作形式', '持续时间', '诱因', '发作后状态'] },
-        { name: '昏迷', points: ['起病时间', '诱因', '伴随症状', '病程变化'] },
-        { name: '意识障碍', points: ['具体表现', '程度', '持续时间', '加重缓解因素'] },
-        { name: '语言障碍', points: ['起病方式', '是否伴面瘫/吞咽困难', '演变过程'] },
-        { name: '吞咽困难', points: ['固体/液体', '疼痛', '异物感', '与体位/活动的关系'] },
-        { name: '颈痛', points: ['部位', '性质', '放射痛', '加重因素'] },
-        { name: '呕吐', points: ['频率', '性质', '量', '与饮食关系', '是否喷射性'] }
-      ]
-    },
-    {
-      group: '胸部症状',
-      items: [
-        { name: '心悸', points: ['性质(间歇/持续)', '发作时机', '程度', '持续时间', '是否突发', '与活动/情绪关系'] },
-        { name: '胸痛', points: ['部位', '性质', '程度', '持续时间', '是否放射', '加重缓解因素'] },
-        { name: '胸闷', points: ['起病时间', '诱因', '伴随症状', '与体位或活动关系'] },
-        { name: '咳嗽', points: ['性质(干/有痰)', '频率', '持续时间', '加重缓解因素'] },
-        { name: '咳痰', points: ['量', '色', '味', '是否粘稠', '是否血痰'] },
-        { name: '咯血', points: ['量', '颜色', '伴随症状', '加重诱因'] },
-        { name: '呼吸困难', points: ['程度', '起病方式', '与体位/活动关系', '夜间阵发性呼吸困难'] }
-      ]
-    },
-    {
-      group: '腹部症状',
-      items: [
-        { name: '腹痛', points: ['部位', '性质', '程度', '持续时间', '放射痛', '与进食关系', '加重缓解因素'] },
-        { name: '腹胀', points: ['起病时间', '持续时间', '伴随症状', '加重缓解因素'] },
-        { name: '恶心与呕吐', points: ['频率', '性质', '量', '与饮食关系', '是否喷射性'] },
-        { name: '腹泻', points: ['次数/量', '性状', '色/味', '是否含黏液/脓血', '伴随发热/腹痛'] },
-        { name: '便秘/大便不畅', points: ['持续时间', '排便困难程度', '伴随症状', '加重缓解因素'] },
-        { name: '黑便', points: ['发生时间', '颜色/气味', '是否伴乏力头晕', '加重缓解因素'] }
-      ]
-    },
-    {
-      group: '泌尿系统症状',
-      items: [
-        { name: '血尿', points: ['尿液颜色', '是否全程血尿', '伴随疼痛', '是否有凝血块'] },
-        { name: '多尿', points: ['每日总量', '伴随口渴', '夜尿次数', '加重缓解因素'] },
-        { name: '少尿/无尿', points: ['每日总量', '持续时间', '伴随水肿', '加重缓解因素'] },
-        { name: '尿频/尿急/尿痛', points: ['起病时间', '持续时间', '伴随发热/腰痛', '加重缓解因素'] },
-        { name: '尿失禁', points: ['类型(应力/急迫/混合)', '频率', '诱因', '对生活影响'] }
-      ]
-    },
-    {
-      group: '运动系统症状',
-      items: [
-        { name: '颈部疼痛', points: ['部位', '性质', '放射痛', '与体位/活动关系'] },
-        { name: '腰背痛', points: ['部位', '性质', '程度', '持续时间', '放射至下肢是否', '伴随麻木/乏力'] },
-        { name: '关节痛', points: ['受累关节', '肿胀/红热痛', '晨僵时间', '活动受限程度'] },
-        { name: '肌肉痛', points: ['部位', '性质', '诱因(运动/劳累)', '伴随发热/乏力'] }
-      ]
-    },
-    {
-      group: '妇产科症状',
-      items: [
-        { name: '月经异常', points: ['周期/经期', '经量/经色', '痛经', '绝经与否'] },
-        { name: '白带异常', points: ['量', '色', '气味', '伴随瘙痒/疼痛'] },
-        { name: '妊娠相关症状', points: ['孕周', '是否阴道流血', '腹痛', '胎动变化'] },
-        { name: '乳房症状', points: ['肿块', '疼痛', '溢乳', '皮肤改变'] }
-      ]
-    }
-  ];
-
-    const renderGenericSymptomList = () => (
-      <Collapse
-        ghost
-        items={imageBasedHints.map(group => ({
-          key: group.group,
-          label: group.group,
-          children: (
-            <div>
-              {group.items.map((it) => (
-                <div key={it.name} style={{ padding: '8px 0' }}>
-                  <div style={{ fontWeight: 600 }}>{it.name}</div>
-                  <div style={{ marginTop: 4 }}>
-                    {it.points.map((p, idx) => <Tag key={idx} color="geekblue">{p}</Tag>)}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )
-        }))}
-      />
-    );
+  // 空状态提示改为引导，移除所有静态示例内容
 
   /**
    * renderSymptomHints
@@ -192,9 +91,8 @@ const KnowledgePanel: React.FC<KnowledgePanelProps> = ({
          return (
              <div>
                 <div style={{ padding: '0 16px 16px', textAlign: 'center' }}>
-                   <Empty description="暂未识别到特定症状，请参考以下通用要点" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                   <Empty description="请先选择或填写症状以获取动态提示" image={Empty.PRESENTED_IMAGE_SIMPLE} />
                 </div>
-                {renderGenericSymptomList()}
              </div>
          );
      }
@@ -213,15 +111,6 @@ const KnowledgePanel: React.FC<KnowledgePanelProps> = ({
                     ) : <Text type="secondary">暂无明确匹配的诊断建议</Text>
                 )}
             </div>
-         )
-       },
-       {
-         key: 'summary',
-         label: <span style={{ fontWeight: 'bold' }}><QuestionCircleOutlined /> 症状要点总览</span>,
-         children: (
-           <ul style={{ margin: 0, paddingLeft: 20 }}>
-             {summaryPoints.map((it, idx) => <li key={idx}>{it}</li>)}
-           </ul>
          )
        },
        {
@@ -251,11 +140,6 @@ const KnowledgePanel: React.FC<KnowledgePanelProps> = ({
            </div>
          )
        },
-       {
-         key: 'groups',
-         label: <span style={{ fontWeight: 'bold' }}><BulbOutlined /> 常见症状问诊要点</span>,
-         children: renderGenericSymptomList()
-       }
      ];
 
      return (
@@ -278,7 +162,7 @@ const KnowledgePanel: React.FC<KnowledgePanelProps> = ({
              </div>
            )}
          </div>
-         <Collapse defaultActiveKey={['diagnosis', 'summary', 'required', 'physical_signs', 'groups']} ghost items={items} />
+         <Collapse defaultActiveKey={['diagnosis', 'required', 'physical_signs', 'related']} ghost items={items} />
       </div>
     );
   };

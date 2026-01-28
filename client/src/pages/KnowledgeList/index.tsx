@@ -3,11 +3,10 @@ import { Card, Typography, Tag, Input, Drawer, Space, Spin, Empty, Button, Row, 
 import { SearchOutlined, BookOutlined, MedicineBoxOutlined, ExclamationCircleOutlined, QuestionCircleOutlined, AppstoreOutlined } from '@ant-design/icons';
 import api from '../../utils/api';
 import type { ApiResponse } from '../../utils/api';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const { Title, Text } = Typography;
-const host = window.location.hostname;
-const isProduction = import.meta.env.PROD;
+// 移除未使用的变量，避免 lint 报错
 
 type QuestionItem = string | { id: string; text: string; type: string; options?: string[] };
 
@@ -24,6 +23,7 @@ interface KnowledgeItem {
 
 const KnowledgeList: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<KnowledgeItem[]>([]);
   const [searchText, setSearchText] = useState('');
@@ -36,10 +36,23 @@ const KnowledgeList: React.FC = () => {
   const esRef = useRef<EventSource | null>(null);
 
   /**
+   * initFromQuery
+   * 读取 URL 查询参数初始化搜索框
+   */
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const q = params.get('q');
+    if (q) {
+      setSearchText(q);
+      console.log('[KnowledgeList] 从查询参数初始化搜索关键字', q);
+    }
+  }, [location.search]);
+
+  /**
    * fetchData
    * 拉取知识库列表数据
    */
-  const fetchData = async () => {
+  const fetchData = React.useCallback(async () => {
     setLoading(true);
     try {
       const params = lastUpdatedAtRef.current ? { since: lastUpdatedAtRef.current } : undefined;
@@ -47,7 +60,6 @@ const KnowledgeList: React.FC = () => {
       if (res.success && Array.isArray(res.data)) {
         const incoming = res.data;
         if (!lastUpdatedAtRef.current) {
-          // 初次加载：全量替换
           setData(incoming);
           const map = new Map<number, string>();
           let maxUpdated = '';
@@ -60,30 +72,31 @@ const KnowledgeList: React.FC = () => {
           prevMapRef.current = map;
           lastUpdatedAtRef.current = maxUpdated;
         } else {
-          // 增量合并
-          const byId = new Map<number, KnowledgeItem>();
-          for (const it of data) byId.set(it.id, it);
           let changed = 0;
           let maxUpdated = lastUpdatedAtRef.current;
-          for (const it of incoming) {
-            const prev = byId.get(it.id);
-            if (!prev || prev.updatedAt !== it.updatedAt) {
-              changed++;
-              byId.set(it.id, it);
+          setData(prev => {
+            const byId = new Map<number, KnowledgeItem>();
+            for (const it of prev) byId.set(it.id, it);
+            for (const it of incoming) {
+              const prevIt = byId.get(it.id);
+              if (!prevIt || prevIt.updatedAt !== it.updatedAt) {
+                changed++;
+                byId.set(it.id, it);
+              }
+              if (new Date(it.updatedAt).getTime() > new Date(maxUpdated).getTime()) {
+                maxUpdated = it.updatedAt;
+              }
             }
-            if (new Date(it.updatedAt).getTime() > new Date(maxUpdated).getTime()) {
-              maxUpdated = it.updatedAt;
-            }
-          }
+            const merged = Array.from(byId.values());
+            const map = new Map<number, string>();
+            for (const it of merged) map.set(it.id, it.updatedAt);
+            prevMapRef.current = map;
+            return merged;
+          });
           if (changed > 0) {
             message.success(`知识库已更新${changed}条，已自动刷新`);
           }
           lastUpdatedAtRef.current = maxUpdated;
-          const merged = Array.from(byId.values());
-          setData(merged);
-          const map = new Map<number, string>();
-          for (const it of merged) map.set(it.id, it.updatedAt);
-          prevMapRef.current = map;
         }
       }
     } catch (error) {
@@ -91,6 +104,16 @@ const KnowledgeList: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  /**
+   * 构建 SSE 连接地址，遵循网卡IP优先的规则
+   */
+  const buildSseUrl = (): string => {
+    const base = api.defaults.baseURL || '';
+    if (!base) return '/api/knowledge/stream';
+    const root = base.endsWith('/api') ? base.slice(0, -4) : base;
+    return `${root}/api/knowledge/stream`;
   };
 
   useEffect(() => {
@@ -99,7 +122,7 @@ const KnowledgeList: React.FC = () => {
     const onVis = () => { if (document.visibilityState === 'visible') fetchData(); };
     window.addEventListener('focus', onFocus);
     document.addEventListener('visibilitychange', onVis);
-    const url = isProduction ? '/api/knowledge/stream' : `http://${host}:4000/api/knowledge/stream`;
+    const url = buildSseUrl();
     const es = new EventSource(url);
     es.onmessage = () => fetchData();
     es.addEventListener('knowledge_updated', () => fetchData());
@@ -111,7 +134,7 @@ const KnowledgeList: React.FC = () => {
       esRef.current?.close();
       esRef.current = null;
     };
-  }, []);
+  }, [fetchData]);
 
   /**
    * getPrimarySymptomTags

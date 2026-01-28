@@ -5,7 +5,7 @@ import type { TablePaginationConfig, FilterValue, SorterResult, TableCurrentData
 import { DeleteOutlined, EyeOutlined, ExclamationCircleOutlined, PlusOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
-import api from '../../utils/api';
+import api, { unwrapData } from '../../utils/api';
 import type { ApiResponse } from '../../utils/api';
 
 const { Title } = Typography;
@@ -43,7 +43,7 @@ const InterviewOverview: React.FC = () => {
   const fetchData = async (page: number = 1, pageSize: number = 10, status: string = 'incomplete', search: string = '') => {
     setLoading(true);
     try {
-      const res: ApiResponse<{ items: SessionListItem[]; total: number }> = await api.get('/sessions', {
+      const res: ApiResponse<{ items: SessionListItem[]; total: number } | { data: { items: SessionListItem[]; total: number } }> = await api.get('/sessions', {
         params: { 
             limit: pageSize, 
             offset: (page - 1) * pageSize,
@@ -52,28 +52,9 @@ const InterviewOverview: React.FC = () => {
         }
       });
       if (res?.success) {
-        type Payload = { items: SessionListItem[]; total: number };
-        const payloadMaybe = res.data as unknown;
-        const isDirect = (p: unknown): p is Payload => {
-          if (!p || typeof p !== 'object') return false;
-          const obj = p as Record<string, unknown>;
-          return Array.isArray(obj.items);
-        };
-        const isNested = (p: unknown): p is { data: Payload } => {
-          if (!p || typeof p !== 'object') return false;
-          const obj = p as Record<string, unknown>;
-          const data = obj.data as Record<string, unknown> | undefined;
-          return !!data && Array.isArray(data.items);
-        };
-        let items: SessionListItem[] = [];
-        let total = 0;
-        if (isDirect(payloadMaybe)) {
-          items = payloadMaybe.items;
-          total = payloadMaybe.total || 0;
-        } else if (isNested(payloadMaybe)) {
-          items = payloadMaybe.data.items;
-          total = payloadMaybe.data.total || 0;
-        }
+        const payload = unwrapData<{ items: SessionListItem[]; total: number }>(res);
+        const items = payload?.items || [];
+        const total = payload?.total || 0;
         setData(items);
         setPagination({ current: page, pageSize, total });
       }
@@ -85,9 +66,12 @@ const InterviewOverview: React.FC = () => {
     }
   };
 
+  const pageCurrent = React.useMemo(() => pagination.current, [pagination]);
+  const pageSize = React.useMemo(() => pagination.pageSize, [pagination]);
+
   useEffect(() => {
-    fetchData(pagination.current, pagination.pageSize, activeTab, searchText);
-  }, [activeTab, searchText]); // Reload when tab or search changes
+    fetchData(pageCurrent, pageSize, activeTab, searchText);
+  }, [activeTab, searchText, pageCurrent, pageSize]); // 仅依赖具体数值，避免对象引用变化导致循环
 
   const handleTableChange = (
     pagination: TablePaginationConfig,
