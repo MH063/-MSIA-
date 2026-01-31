@@ -37,6 +37,34 @@ export interface AssistantPanelData {
   redFlagsTip?: string;
 }
 
+export interface KnowledgeContext {
+  name: string;
+  questions?: string[];
+  relatedSymptoms?: string[];
+  redFlags?: string[];
+  physicalSigns?: string[];
+  updatedAt?: string;
+}
+
+export interface KnowledgeState {
+  context: KnowledgeContext | null;
+  diagnosisSuggestions: string[];
+  nameToKey: Record<string, string>;
+  keyToName: Record<string, string>;
+  loading: boolean;
+  error: string | null;
+}
+
+export interface KnowledgeActions {
+  setKnowledgeContext: (context: KnowledgeContext | null) => void;
+  setDiagnosisSuggestions: (suggestions: string[]) => void;
+  setKnowledgeMappings: (mappings: { nameToKey: Record<string, string>; keyToName: Record<string, string> }) => void;
+  setKnowledgeLoading: (loading: boolean) => void;
+  setKnowledgeError: (error: string | null) => void;
+  addAssociatedFromKnowledge?: (key: string) => void;
+  clearKnowledge: () => void;
+}
+
 export interface AssistantActions {
   improveChiefComplaint?: () => void;
   openExampleLibrary?: () => void;
@@ -55,6 +83,7 @@ export interface AssistantActions {
   suggestOccupationalExposure?: () => void;
   showPregnancyRedFlags?: () => void;
   detectFamilyConflict?: () => void;
+  addAssociatedFromKnowledge?: (key: string) => void;
 }
 
 export interface AssistantState {
@@ -64,11 +93,12 @@ export interface AssistantState {
   panel: AssistantPanelData;
   hasNewMessage: boolean;
   actions: AssistantActions;
+  knowledge: KnowledgeState & KnowledgeActions;
   setModule: (key: ModuleKey, label: string) => void;
   setProgress: (p: number) => void;
   setPanel: (data: Partial<AssistantPanelData>) => void;
   setNewMessage: (flag: boolean) => void;
-  setActions: (handlers: Partial<AssistantActions>) => void;
+  setActions: (handlers: Partial<AssistantActions> & Partial<KnowledgeActions>) => void;
 }
 
 /**
@@ -82,6 +112,27 @@ export const useAssistantStore = create<AssistantState>((set) => ({
   panel: {},
   hasNewMessage: false,
   actions: {},
+  knowledge: {
+    context: null,
+    diagnosisSuggestions: [],
+    nameToKey: {},
+    keyToName: {},
+    loading: false,
+    error: null,
+    setKnowledgeContext: (context) => set((s) => ({ knowledge: { ...s.knowledge, context } })),
+    setDiagnosisSuggestions: (suggestions) => set((s) => ({ knowledge: { ...s.knowledge, diagnosisSuggestions: suggestions, error: null } })),
+    setKnowledgeMappings: (mappings) => set((s) => ({ knowledge: { ...s.knowledge, ...mappings } })),
+    setKnowledgeLoading: (loading) => set((s) => ({ knowledge: { ...s.knowledge, loading } })),
+    setKnowledgeError: (error) => set((s) => ({ knowledge: { ...s.knowledge, error, loading: false } })),
+    clearKnowledge: () => set((s) => ({
+      knowledge: {
+        ...s.knowledge,
+        context: null,
+        diagnosisSuggestions: [],
+        error: null
+      }
+    })),
+  },
   /**
    * setModule
    * 设置当前模块键与展示标签
@@ -106,6 +157,11 @@ export const useAssistantStore = create<AssistantState>((set) => ({
    * setActions
    * 设定或更新各功能按钮的处理函数
    */
-  setActions: (handlers) => set((s) => ({ actions: { ...s.actions, ...handlers } })),
+  setActions: (handlers) => set((s) => {
+    const { knowledge: knowledgeHandlers, ...actionHandlers } = handlers as { knowledge?: KnowledgeActions } & Partial<AssistantActions>;
+    return {
+      actions: { ...s.actions, ...actionHandlers },
+      knowledge: knowledgeHandlers ? { ...s.knowledge, ...knowledgeHandlers } : s.knowledge
+    };
+  }),
 }));
-

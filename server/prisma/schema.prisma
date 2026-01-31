@@ -49,6 +49,9 @@ model InterviewSession {
   menstrualHistory Json?   @map("menstrual_history")
   fertilityHistory Json?   @map("fertility_history")
   familyHistory   Json?    @map("family_history")
+  physicalExam    Json?    @map("physical_exam")
+  specialistExam  Json?    @map("specialist_exam")
+  auxiliaryExams  Json?    @map("auxiliary_exams")
   reviewOfSystems Json?    @map("review_of_systems")
 
   createdAt       DateTime @default(now()) @map("created_at")
@@ -63,12 +66,19 @@ model SymptomKnowledge {
   id                  Int      @id @default(autoincrement())
   symptomKey          String   @unique @map("symptom_key") @db.VarChar(50)
   displayName         String   @map("display_name") @db.VarChar(100)
-  
+
   requiredQuestions   Json     @map("required_questions")
   associatedSymptoms  Json?    @map("associated_symptoms")
   redFlags            Json?    @map("red_flags")
   physicalSigns       Json?    @map("physical_signs")
-  
+
+  // 新增字段
+  category            String?  @db.VarChar(50)
+  priority            String?  @default("medium") @db.VarChar(20)
+  questions           Json?    @default("[]")
+  physicalExamination Json?    @map("physical_examination") @default("[]")
+  differentialPoints  Json?    @map("differential_points") @default("[]")
+
   version             Int      @default(1)
   updatedAt           DateTime @default(now()) @updatedAt @map("updated_at")
 
@@ -84,12 +94,12 @@ model KnowledgeSource {
   fileName    String   @map("file_name")
   fileType    String   @map("file_type") // markdown, json, etc
   hash        String?  @db.VarChar(64)   // MD5 checksum
-  
+
   status      String   @default("pending") // pending, processed, error
   errorMessage String? @map("error_message")
-  
+
   metadata    Json?    // Extra metadata extracted from file
-  
+
   lastProcessedAt DateTime? @map("last_processed_at")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
@@ -97,4 +107,73 @@ model KnowledgeSource {
   symptoms    SymptomKnowledge[]
 
   @@map("knowledge_sources")
+}
+
+// 诊断表
+model Diagnosis {
+  id                Int                @id @default(autoincrement())
+  name              String             @unique @db.VarChar(100)
+  description       String?
+  category          String?            @db.VarChar(50)
+  minAge            Int?               @map("min_age")
+  maxAge            Int?               @map("max_age")
+  genderPreference  String?            @map("gender_preference") @db.VarChar(10)
+  priority          Int                @default(0)
+  isActive          Boolean            @default(true) @map("is_active")
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime           @default(now()) @updatedAt @map("updated_at")
+
+  symptoms          DiagnosisSymptom[]
+  redFlags          DiagnosisRedFlag[]
+
+  @@map("diagnoses")
+}
+
+// 诊断-症状关联表
+model DiagnosisSymptom {
+  id            Int       @id @default(autoincrement())
+  diagnosisId   Int       @map("diagnosis_id")
+  symptomKey    String    @map("symptom_key") @db.VarChar(50)
+  weight        Decimal   @default(0.10) @db.Decimal(3, 2)
+  isRequired    Boolean   @default(false) @map("is_required")
+  isExcluding   Boolean   @default(false) @map("is_excluding")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  diagnosis     Diagnosis @relation(fields: [diagnosisId], references: [id], onDelete: Cascade)
+
+  @@unique([diagnosisId, symptomKey])
+  @@map("diagnosis_symptoms")
+}
+
+// 诊断-警惕征象关联表
+model DiagnosisRedFlag {
+  id              Int       @id @default(autoincrement())
+  diagnosisId     Int       @map("diagnosis_id")
+  redFlagName     String    @map("red_flag_name") @db.VarChar(100)
+  weight          Decimal   @default(0.15) @db.Decimal(3, 2)
+  severityLevel   Int       @default(1) @map("severity_level")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  diagnosis       Diagnosis @relation(fields: [diagnosisId], references: [id], onDelete: Cascade)
+
+  @@unique([diagnosisId, redFlagName])
+  @@map("diagnosis_red_flags")
+}
+
+// 医学指南表
+model MedicalGuideline {
+  id            Int       @id @default(autoincrement())
+  title         String    @db.VarChar(200)
+  category      String?   @db.VarChar(50)
+  version       String?   @db.VarChar(50)
+  publishDate   DateTime? @map("publish_date") @db.Date
+  source        String?   @db.VarChar(200)
+  summary       String?
+  keyPoints     Json?     @map("key_points")
+  fullContent   String?   @map("full_content")
+  isLatest      Boolean   @default(true) @map("is_latest")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  @@map("medical_guidelines")
 }

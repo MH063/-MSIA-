@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeAll, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import { Form } from 'antd';
 import type { FormInstance } from 'antd';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 beforeAll(() => {
   if (!window.matchMedia) {
     Object.defineProperty(window, 'matchMedia', {
@@ -31,10 +32,30 @@ beforeAll(() => {
   }
 });
 vi.mock('../../../../../utils/api', () => {
-  const mockApi = { post: async () => ({ success: true, data: {} }) };
+  const mockApi = {
+    get: async () => ({
+      success: true,
+      data: {
+        synonyms: {},
+        nameToKey: {
+          发热: 'fever',
+          咳嗽: 'cough',
+        },
+      },
+    }),
+    post: async () => ({ success: true, data: {} }),
+    patch: async () => ({ success: true, data: {} }),
+  };
   return {
     default: mockApi,
-    unwrapData: (res: unknown) => (res as { data?: unknown }).data ?? res,
+    unwrapData: (res: unknown) => {
+      const payload = (res as { data?: unknown } | undefined)?.data;
+      if (!payload) return undefined;
+      if (typeof payload === 'object' && payload !== null && 'data' in (payload as { data: unknown })) {
+        return (payload as { data: unknown }).data;
+      }
+      return payload;
+    },
   };
 });
 import EditorPanel from '../EditorPanel';
@@ -48,11 +69,22 @@ const renderWithForm = async (section: string, initial?: Record<string, unknown>
   let captured: FormInstance | null = null;
   const Harness = ({ s, init }: { s: string; init?: Record<string, unknown> }) => {
     const [form] = Form.useForm();
+    const [queryClient] = React.useState(() => new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+      },
+    }));
     React.useEffect(() => {
       captured = form;
       if (init) form.setFieldsValue(init);
     }, [form, init]);
-    return <EditorPanel currentSection={s} form={form} disableConfirm />;
+    return (
+      <QueryClientProvider client={queryClient}>
+        <Form form={form}>
+          <EditorPanel currentSection={s} disableConfirm />
+        </Form>
+      </QueryClientProvider>
+    );
   };
   render(<Harness s={section} init={initial} />);
   await waitFor(() => {
@@ -91,10 +123,17 @@ describe('EditorPanel section reset', () => {
   });
 
   it('resets Past History section and keeps initial values', async () => {
-    const form = await renderWithForm('past_history', { pastHistory: { hasAllergy: 'yes', allergyDetails: '青霉素' } });
+    const form = await renderWithForm('past_history', {
+      pastHistory: {
+        generalHealth: 'poor',
+        vaccinationHistory: '按计划接种',
+        surgeries: [{ name: '阑尾切除' }],
+      },
+    });
     fireEvent.click(screen.getByTestId('reset-section'));
-    expect(form.getFieldValue(['pastHistory', 'allergyDetails'])).toBeUndefined();
-    expect(form.getFieldValue(['pastHistory', 'hasAllergy'])).toBe('no');
+    expect(form.getFieldValue(['pastHistory', 'vaccinationHistory'])).toBeUndefined();
+    expect(form.getFieldValue(['pastHistory', 'surgeries'])).toBeUndefined();
+    expect(form.getFieldValue(['pastHistory', 'generalHealth'])).toBe('good');
   });
 
   it('resets Personal History nested fields only', async () => {

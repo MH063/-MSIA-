@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import * as knowledgeService from '../services/knowledge.service';
 import { eventBus } from '../services/eventBus.service';
+import prisma from '../prisma';
 
 /**
  * 获取知识库列表
@@ -92,5 +93,292 @@ export const deleteKnowledgeBulk = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error bulk deleting knowledge:', error);
     res.status(500).json({ success: false, message: 'Failed to bulk delete symptom knowledge' });
+  }
+};
+
+/**
+ * 获取症状问诊要点映射列表
+ * 从数据库动态获取，不再使用硬编码数据
+ */
+export const getSymptomMappings = async (req: Request, res: Response) => {
+  try {
+    const { category, priority } = req.query as Record<string, string>;
+    
+    // 从数据库查询症状知识
+    const where: any = {};
+    if (category) where.category = category;
+    if (priority) where.priority = priority;
+    
+    const knowledgeList = await prisma.symptomKnowledge.findMany({
+      where,
+      select: {
+        id: true,
+        symptomKey: true,
+        displayName: true,
+        category: true,
+        priority: true,
+        questions: true,
+        physicalExamination: true,
+        differentialPoints: true,
+        associatedSymptoms: true,
+        redFlags: true,
+        updatedAt: true,
+      },
+      orderBy: { priority: 'desc' },
+    });
+
+    // 转换为前端需要的格式
+    const mappings = knowledgeList.map((k) => ({
+      id: String(k.id),
+      symptomKey: k.symptomKey,
+      symptomName: k.displayName,
+      category: k.category || '其他',
+      priority: k.priority || 'medium',
+      questions: (k.questions as string[]) || [],
+      physicalExamination: (k.physicalExamination as string[]) || [],
+      differentialPoints: (k.differentialPoints as string[]) || [],
+      relatedSymptoms: (k.associatedSymptoms as string[]) || [],
+      redFlags: (k.redFlags as string[]) || [],
+      updatedAt: k.updatedAt.toISOString(),
+    }));
+
+    res.json({ success: true, data: mappings });
+  } catch (error) {
+    console.error('Error fetching symptom mappings:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch symptom mappings' });
+  }
+};
+
+/**
+ * 根据症状名称获取问诊要点
+ * 从数据库动态获取
+ */
+export const getSymptomMappingByName = async (req: Request, res: Response) => {
+  try {
+    const { symptomName } = req.params;
+    
+    const name = Array.isArray(symptomName) ? symptomName[0] : symptomName;
+    
+    const knowledge = await prisma.symptomKnowledge.findFirst({
+      where: {
+        OR: [
+          { displayName: name },
+          { symptomKey: name },
+        ],
+      },
+      select: {
+        id: true,
+        symptomKey: true,
+        displayName: true,
+        category: true,
+        priority: true,
+        questions: true,
+        physicalExamination: true,
+        differentialPoints: true,
+        associatedSymptoms: true,
+        redFlags: true,
+        updatedAt: true,
+      },
+    });
+
+    if (!knowledge) {
+      res.status(404).json({ success: false, message: 'Symptom mapping not found' });
+      return;
+    }
+
+    const mapping = {
+      id: String(knowledge.id),
+      symptomKey: knowledge.symptomKey,
+      symptomName: knowledge.displayName,
+      category: knowledge.category || '其他',
+      priority: knowledge.priority || 'medium',
+      questions: (knowledge.questions as string[]) || [],
+      physicalExamination: (knowledge.physicalExamination as string[]) || [],
+      differentialPoints: (knowledge.differentialPoints as string[]) || [],
+      relatedSymptoms: (knowledge.associatedSymptoms as string[]) || [],
+      redFlags: (knowledge.redFlags as string[]) || [],
+      updatedAt: knowledge.updatedAt.toISOString(),
+    };
+
+    res.json({ success: true, data: mapping });
+  } catch (error) {
+    console.error('Error fetching symptom mapping:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch symptom mapping' });
+  }
+};
+
+/**
+ * 获取医学指南列表
+ * 从数据库动态获取
+ */
+export const getGuidelines = async (req: Request, res: Response) => {
+  try {
+    const { category } = req.query as Record<string, string>;
+    
+    const where: any = { isLatest: true };
+    if (category) where.category = category;
+    
+    const guidelines = await prisma.medicalGuideline.findMany({
+      where,
+      select: {
+        id: true,
+        title: true,
+        category: true,
+        version: true,
+        publishDate: true,
+        source: true,
+        summary: true,
+        keyPoints: true,
+        isLatest: true,
+        updatedAt: true,
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+
+    // 转换为前端需要的格式
+    const formattedGuidelines = guidelines.map((g) => ({
+      id: String(g.id),
+      title: g.title,
+      category: g.category || '其他',
+      version: g.version || '',
+      publishDate: g.publishDate?.toISOString().split('T')[0] || '',
+      source: g.source || '',
+      summary: g.summary || '',
+      keyPoints: (g.keyPoints as string[]) || [],
+      isLatest: g.isLatest,
+    }));
+
+    res.json({ success: true, data: formattedGuidelines });
+  } catch (error) {
+    console.error('Error fetching guidelines:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch guidelines' });
+  }
+};
+
+/**
+ * 检查指南更新
+ */
+export const checkGuidelineUpdates = async (req: Request, res: Response) => {
+  try {
+    // 从数据库检查最新更新时间
+    const latestKnowledge = await prisma.symptomKnowledge.findFirst({
+      orderBy: { updatedAt: 'desc' },
+      select: { updatedAt: true },
+    });
+
+    res.json({
+      success: true,
+      data: {
+        hasUpdates: false,
+        count: 0,
+        lastCheck: new Date().toISOString(),
+        lastUpdate: latestKnowledge?.updatedAt.toISOString(),
+      },
+    });
+  } catch (error) {
+    console.error('Error checking guideline updates:', error);
+    res.status(500).json({ success: false, message: 'Failed to check guideline updates' });
+  }
+};
+
+/**
+ * 获取疾病百科列表
+ * 从数据库动态获取（使用 diagnoses 表）
+ */
+export const getDiseases = async (req: Request, res: Response) => {
+  try {
+    const { category } = req.query as Record<string, string>;
+    
+    const where: any = { isActive: true };
+    if (category) where.category = category;
+    
+    const diagnoses = await prisma.diagnosis.findMany({
+      where,
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        category: true,
+        symptoms: {
+          select: {
+            symptomKey: true,
+            weight: true,
+          },
+        },
+        redFlags: {
+          select: {
+            redFlagName: true,
+            severityLevel: true,
+          },
+        },
+        updatedAt: true,
+      },
+      orderBy: { priority: 'desc' },
+    });
+
+    // 转换为疾病百科格式
+    const diseases = diagnoses.map((d) => ({
+      id: String(d.id),
+      name: d.name,
+      aliases: [],
+      category: d.category || '未分类',
+      definition: d.description || '',
+      symptoms: d.symptoms.map((s) => s.symptomKey),
+      redFlags: d.redFlags.map((r) => r.redFlagName),
+      updatedAt: d.updatedAt.toISOString(),
+    }));
+
+    res.json({ success: true, data: diseases });
+  } catch (error) {
+    console.error('Error fetching diseases:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch diseases' });
+  }
+};
+
+/**
+ * 根据疾病名称获取详情
+ * 从数据库动态获取
+ */
+export const getDiseaseByName = async (req: Request, res: Response) => {
+  try {
+    const { diseaseName } = req.params as any;
+    const nameStr = Array.isArray(diseaseName) ? String(diseaseName[0]) : String(diseaseName);
+    
+    const diagnosis = await prisma.diagnosis.findFirst({
+      where: {
+        name: nameStr,
+        isActive: true,
+      },
+      include: {
+        symptoms: true,
+        redFlags: true,
+      },
+    });
+
+    if (!diagnosis) {
+      res.status(404).json({ success: false, message: 'Disease not found' });
+      return;
+    }
+
+    const disease = {
+      id: String(diagnosis.id),
+      name: diagnosis.name,
+      aliases: [],
+      category: diagnosis.category || '未分类',
+      definition: diagnosis.description || '',
+      etiology: '',
+      clinicalManifestations: diagnosis.symptoms.map((s) => s.symptomKey),
+      diagnosisCriteria: [],
+      treatment: '',
+      prognosis: '',
+      relatedDiseases: [],
+      references: [],
+      updatedAt: diagnosis.updatedAt.toISOString(),
+    };
+
+    res.json({ success: true, data: disease });
+  } catch (error) {
+    console.error('Error fetching disease:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch disease' });
   }
 };

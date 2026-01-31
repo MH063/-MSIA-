@@ -7,8 +7,7 @@ import * as patientService from '../services/patient.service';
 export const getPatients = async (req: Request, res: Response) => {
   try {
     const patients = await patientService.getAllPatients();
-    // 遵循 response.data.data 结构
-    res.json({ success: true, data: patients });
+    res.json({ success: true, data: { patients } });
   } catch (error) {
     console.error('Error fetching patients:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch patients' });

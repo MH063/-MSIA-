@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Typography, Collapse, Tag, Empty, Spin } from 'antd';
+import { Typography, Collapse, Tag, Empty, Spin, message } from 'antd';
 import { BulbOutlined, QuestionCircleOutlined, MedicineBoxOutlined, LoadingOutlined, RobotOutlined } from '@ant-design/icons';
 import api, { unwrapData } from '../../../../utils/api';
+import type { ApiResponse } from '../../../../utils/api';
+import { useQuery } from '@tanstack/react-query';
 
 const { Title, Text } = Typography;
 
@@ -25,6 +27,7 @@ interface KnowledgePanelProps {
       gender?: string;
   };
   sessionId?: number;
+  onAddAssociated?: (key: string) => void;
 }
 
 /**
@@ -37,10 +40,36 @@ const KnowledgePanel: React.FC<KnowledgePanelProps> = ({
   loading = false,
   symptomContext,
   patientInfo,
-  sessionId
+  sessionId,
+  onAddAssociated
 }) => {
   const [diagnosisSuggestions, setDiagnosisSuggestions] = useState<string[]>([]);
   const [diagnosisLoading, setDiagnosisLoading] = useState(false);
+  
+  /**
+   * 映射加载
+   * 拉取 /mapping/symptoms，构造 name→key 与 key→name 映射，确保展示中文名称且与后端键值一致
+   */
+  const mappingQuery = useQuery({
+    queryKey: ['mapping', 'symptoms'],
+    queryFn: async () => {
+      const res = await api.get('/mapping/symptoms') as ApiResponse<{ synonyms: Record<string, string>; nameToKey: Record<string, string> }>;
+      return res;
+    }
+  });
+  const nameToKey = React.useMemo(() => {
+    const payload = unwrapData<{ synonyms: Record<string, string>; nameToKey: Record<string, string> }>(mappingQuery.data as ApiResponse<{ synonyms: Record<string, string>; nameToKey: Record<string, string> }>);
+    return payload?.nameToKey || {};
+  }, [mappingQuery.data]);
+  const keyToName = React.useMemo(() => {
+    const mappingPayload = unwrapData<{ synonyms: Record<string, string>; nameToKey: Record<string, string> }>(mappingQuery.data as ApiResponse<{ synonyms: Record<string, string>; nameToKey: Record<string, string> }>);
+    const nameToKey = mappingPayload?.nameToKey || {};
+    const inverted: Record<string, string> = {};
+    for (const [name, key] of Object.entries(nameToKey)) {
+      if (key && name && !inverted[key]) inverted[key] = name;
+    }
+    return inverted;
+  }, [mappingQuery.data]);
 
   /**
    * fetchDiagnosisSuggestions
@@ -66,7 +95,8 @@ const KnowledgePanel: React.FC<KnowledgePanelProps> = ({
               console.log('[Knowledge] 诊断建议更新', { count: payload.length, items: payload });
           }
       } catch (error) {
-          console.error("Failed to fetch diagnosis suggestions", error);
+          console.error("[Knowledge] 获取诊断建议失败:", error);
+          message.error('诊断建议加载失败');
       } finally {
           setDiagnosisLoading(false);
       }
@@ -97,6 +127,30 @@ const KnowledgePanel: React.FC<KnowledgePanelProps> = ({
          );
      }
 
+     /**
+      * mapToName
+      * 将后端键或名称统一映射为中文名称以展示；若映射缺失则原样返回
+      */
+     const mapToName = (s: string) => keyToName[s] || s;
+     /**
+      * handleAddRelated
+      * 将“常见鉴别”标签点击事件转换为现病史伴随症状的键，并回调给父组件追加
+      */
+     const handleAddRelated = (s: string) => {
+       const key = nameToKey[s] || (keyToName[s] ? s : s.toLowerCase().replace(/\s+/g, '_'));
+       if (typeof key === 'string' && key.trim() && onAddAssociated) {
+         onAddAssociated(key);
+         message.success(`已添加伴随症状：${mapToName(s)}`);
+         console.log('[Knowledge] 添加伴随症状', { source: s, key });
+       } else {
+         console.warn('[Knowledge] 添加伴随症状失败：无效键', { source: s });
+       }
+     };
+     const currentSymptomName = mapToName(symptomContext.name);
+     const relatedSource = symptomContext.relatedSymptoms || [];
+     const physicalDisplay = (symptomContext.physicalSigns || []).map(mapToName);
+     const redFlagsDisplay = (symptomContext.redFlags || []).map(mapToName);
+     
      const items = [
        {
          key: 'diagnosis',
@@ -118,7 +172,7 @@ const KnowledgePanel: React.FC<KnowledgePanelProps> = ({
         label: <span style={{ fontWeight: 'bold' }}><QuestionCircleOutlined /> 必问问题</span>,
         children: (
           <ul style={{ margin: 0, paddingLeft: 20 }}>
-            {(symptomContext.questions || []).map((q, idx) => <li key={idx}>{q}</li>)}
+            {(symptomContext.questions || []).map((q, idx) => <li key={idx}>{mapToName(q)}</li>)}
           </ul>
         )
       },
@@ -127,7 +181,7 @@ const KnowledgePanel: React.FC<KnowledgePanelProps> = ({
         label: <span style={{ fontWeight: 'bold' }}><MedicineBoxOutlined /> 体征提示</span>,
         children: (
           <ul style={{ margin: 0, paddingLeft: 20 }}>
-             {(symptomContext.physicalSigns || []).map((sign, idx) => <li key={idx}>{sign}</li>)}
+             {physicalDisplay.map((sign, idx) => <li key={idx}>{sign}</li>)}
           </ul>
         )
       },
@@ -136,7 +190,16 @@ const KnowledgePanel: React.FC<KnowledgePanelProps> = ({
          label: <span style={{ fontWeight: 'bold' }}><BulbOutlined /> 常见鉴别</span>,
          children: (
            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-             {symptomContext.relatedSymptoms?.map(s => <Tag color="blue" key={s}>{s}</Tag>)}
+             {relatedSource.map(s => (
+               <Tag 
+                 color="blue" 
+                 key={s} 
+                 style={{ cursor: 'pointer' }}
+                 onClick={() => handleAddRelated(s)}
+               >
+                 {mapToName(s)}
+               </Tag>
+             ))}
            </div>
          )
        },
@@ -146,18 +209,18 @@ const KnowledgePanel: React.FC<KnowledgePanelProps> = ({
        <div>
          <div style={{ marginBottom: 16, padding: '12px', background: '#e6f7ff', borderRadius: 4, border: '1px solid #91d5ff' }}>
            <Title level={5} style={{ marginTop: 0, color: '#0050b3' }}>
-             <MedicineBoxOutlined /> 当前症状: {symptomContext.name}
+             <MedicineBoxOutlined /> 当前症状: {currentSymptomName}
            </Title>
            {symptomContext.updatedAt && (
              <div style={{ marginTop: 4, color: '#8c8c8c' }}>
                来源更新时间：{new Date(symptomContext.updatedAt).toLocaleString()}
              </div>
            )}
-           {symptomContext.redFlags && symptomContext.redFlags.length > 0 && (
+           {redFlagsDisplay && redFlagsDisplay.length > 0 && (
              <div style={{ marginTop: 8 }}>
                <Text type="danger" strong>警惕征象 (Red Flags):</Text>
                <ul style={{ paddingLeft: 20, margin: '4px 0', color: '#cf1322' }}>
-                 {symptomContext.redFlags.map((flag, idx) => <li key={idx}>{flag}</li>)}
+                 {redFlagsDisplay.map((flag, idx) => <li key={idx}>{flag}</li>)}
                </ul>
              </div>
            )}

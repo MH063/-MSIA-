@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Button, Form, Input, Select, DatePicker, Card, message, Row, Col, Space, Typography } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { UserOutlined, HomeOutlined, SettingOutlined, AuditOutlined } from '@ant-design/icons';
-import api from '../../utils/api';
+import api, { unwrapData } from '../../utils/api';
 import type { Dayjs } from 'dayjs';
 
 const { Title } = Typography;
@@ -55,26 +55,41 @@ const NewInterview: React.FC = () => {
         contactInfo: { phone: values.phone },
       }) as unknown as import('../../utils/api').ApiResponse<{ id: string }>;
 
-      if (patientRes.success && patientRes.data) {
-        const patientId = patientRes.data.id;
+      const patientData = unwrapData<{ id: string }>(patientRes);
+      if (patientData) {
+        const patientId = patientData.id;
         
         // 2. 创建会话
-        const sessionRes = await api.post('/sessions', {
-          patientId: patientId,
-          historian: values.historian,
-          reliability: values.reliability,
-          historianRelationship: values.historianRelationship
-        }) as unknown as import('../../utils/api').ApiResponse<{ id: string }>;
+        try {
+          const sessionRes = await api.post('/sessions', {
+            patientId: patientId,
+            historian: values.historian,
+            reliability: values.reliability,
+            historianRelationship: values.historianRelationship
+          }) as unknown as import('../../utils/api').ApiResponse<{ id: string }>;
 
-        if (sessionRes.success && sessionRes.data) {
-          console.log('[Interview] 创建会话成功', sessionRes.data);
-          message.success('会话创建成功');
-          // 导航到具体的问诊步骤页面
-          navigate(`/interview/${sessionRes.data.id}`);
+          const sessionData = unwrapData<{ id: string }>(sessionRes);
+          if (sessionData) {
+            console.log('[Interview] 创建会话成功', sessionData);
+            message.success('会话创建成功');
+            navigate(`/interview/${sessionData.id}`);
+            return;
+          } else {
+            throw new Error('会话创建失败');
+          }
+        } catch (err) {
+          console.error('[Interview] 创建会话失败:', err);
+          try {
+            await api.delete(`/patients/${patientId}`) as unknown as import('../../utils/api').ApiResponse;
+            message.error('会话创建失败，已回滚患者记录');
+          } catch (rollbackErr) {
+            console.error('[Interview] 患者回滚失败:', rollbackErr);
+            message.error('会话创建失败，患者回滚失败，请手动处理');
+          }
         }
       }
     } catch (error) {
-      console.error(error);
+      console.error('[Interview] 创建会话失败:', error);
       message.error('创建会话失败');
     } finally {
       setLoading(false);

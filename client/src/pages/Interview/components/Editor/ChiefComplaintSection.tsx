@@ -4,25 +4,18 @@ import { RobotOutlined, BulbOutlined, EditOutlined, SoundOutlined } from '@ant-d
 import type { FormInstance } from 'antd';
 import api, { unwrapData } from '../../../../utils/api';
 import type { ApiResponse } from '../../../../utils/api';
+import { useQuery } from '@tanstack/react-query';
 
 const { Title, Text, Paragraph } = Typography;
 const { Search, TextArea } = Input;
 
-const symptomOptions = [
-  { value: '发热', label: '发热' },
-  { value: '头痛', label: '头痛' },
-  { value: '咳嗽', label: '咳嗽' },
-  { value: '咳痰', label: '咳痰' },
-  { value: '腹痛', label: '腹痛' },
-  { value: '胸痛', label: '胸痛' },
-  { value: '呼吸困难', label: '呼吸困难' },
-  { value: '心悸', label: '心悸' },
-  { value: '恶心呕吐', label: '恶心呕吐' },
-  { value: '腹泻', label: '腹泻' },
-  { value: '乏力', label: '乏力' },
-];
+/**
+ * 主诉症状候选项来源改为后端映射，保证名称与键值一致性
+ */
+// 映射查询需在组件内调用 Hook
 
 const durationUnits = [
+  { value: '分钟', label: '分钟' },
   { value: '小时', label: '小时' },
   { value: '天', label: '天' },
   { value: '周', label: '周' },
@@ -35,6 +28,16 @@ interface ChiefComplaintSectionProps {
 }
 
 const ChiefComplaintSection: React.FC<ChiefComplaintSectionProps> = ({ form }) => {
+  // 拉取后端映射，生成症状名称候选
+  const mappingQuery = useQuery({
+    queryKey: ['mapping', 'symptoms'],
+    queryFn: async () => {
+      const res = await api.get('/mapping/symptoms') as ApiResponse<{ synonyms: Record<string, string>; nameToKey: Record<string, string> }>;
+      return res;
+    }
+  });
+  const mappingPayload = unwrapData<{ synonyms: Record<string, string>; nameToKey: Record<string, string> }>(mappingQuery.data as ApiResponse<{ synonyms: Record<string, string>; nameToKey: Record<string, string> }>);
+  const mappingNames = mappingPayload ? Object.keys(mappingPayload.nameToKey || {}) : [];
   const [symptomOptionsState, setSymptomOptionsState] = useState<{value: string}[]>([]);
   const [analyzing, setAnalyzing] = useState(false);
   const [inputMode, setInputMode] = useState('free'); // free, example, voice
@@ -42,30 +45,24 @@ const ChiefComplaintSection: React.FC<ChiefComplaintSectionProps> = ({ form }) =
   
   const ccSymptom = Form.useWatch(['chiefComplaint', 'symptom'], form);
   const ccDurationNum = Form.useWatch(['chiefComplaint', 'durationNum'], form);
+  const ccDurationNumMax = Form.useWatch(['chiefComplaint', 'durationNumMax'], form);
   const ccDurationUnit = Form.useWatch(['chiefComplaint', 'durationUnit'], form);
+  const ccText = Form.useWatch(['chiefComplaint', 'text'], form);
+  const ccDurationRaw = Form.useWatch(['chiefComplaint', 'durationRaw'], form);
+  const ccDurationKey = `${ccDurationNum ?? ''}|${ccDurationNumMax ?? ''}|${ccDurationUnit ?? ''}`;
   
-  const assocKeysMap: Record<string, string> = {
-    '发热': 'fever',
-    '恶心呕吐': 'nausea',
-    '腹泻': 'diarrhea',
-    '咳嗽': 'cough',
-    '咳痰': 'sputum',
-    '胸痛': 'chest_pain',
-    '头痛': 'headache',
-    '眩晕': 'dizziness',
-    '咯血': 'hemoptysis',
-    '上消化道出血': 'hematemesis',
-    '心悸': 'palpitation',
-    '呼吸困难': 'dyspnea'
-  };
+  // 标记用户是否手动修改过完整主诉文本，避免自动覆盖
+  const userModifiedTextRef = useRef<boolean>(false);
+  // 记录上一次结构化字段的值，用于判断是否是结构化字段变化导致的更新
+  const lastStructuredKeyRef = useRef<string>('');
   
+  /**
+   * 根据输入匹配后端映射名称列表，填充主诉症状候选
+   */
   const handleSymptomSearch = (value: string) => {
-    if (!value) {
-        setSymptomOptionsState([]);
-        return;
-    }
-    const filtered = symptomOptions.filter(opt => opt.value.includes(value));
-    setSymptomOptionsState(filtered.map(f => ({ value: f.value })));
+    const list = mappingNames.length > 0 ? mappingNames : [];
+    const filtered = value ? list.filter(n => n.includes(value)) : list.slice(0, 50);
+    setSymptomOptionsState(filtered.map(n => ({ value: n })));
   };
 
   /**
@@ -77,72 +74,55 @@ const ChiefComplaintSection: React.FC<ChiefComplaintSectionProps> = ({ form }) =
     if (!text) return;
     setAnalyzing(true);
     try {
-      type AnalyzeResData = {
-        matchedSymptoms: { name: string; key: string; knowledge: unknown | null }[];
-        duration: { value: number | null; unit: string | null };
-        normalizedComplaint: string;
-        originalText: string;
-        validation: { inputSymptoms: string[]; mappedKeys: string[]; missingKnowledge: string[]; consistent: boolean };
-        matchedCount: number;
-        perSymptomDurations: { name: string; value: number; unit: string }[];
-        normalizationSafe: boolean;
+      type DurationValue = number | { min: number; max: number };
+      type ParseResData = {
+        complaint_text: string;
+        duration_value: DurationValue | null;
+        duration_unit: string | null;
+        duration_raw: string | null;
+        normalized_text: string;
+        confidence: number;
+        failure_reason: string | null;
       };
-      const res = await api.post('/nlp/analyze', { text }) as ApiResponse<AnalyzeResData | { data: AnalyzeResData }>;
-      const payload = unwrapData<AnalyzeResData>(res);
+      const res = await api.post('/nlp/chief-complaint/parse', { text }) as ApiResponse<ParseResData | { data: ParseResData }>;
+      const payload = unwrapData<ParseResData>(res);
       if (res.success && payload) {
-        const { matchedSymptoms, duration, validation, originalText, perSymptomDurations, normalizationSafe } = payload;
-        const updates: Partial<{ symptom: string; durationNum: number; durationUnit: string; text: string }> = {};
-        if (Array.isArray(matchedSymptoms) && matchedSymptoms.length > 0) {
-          const mainName = matchedSymptoms[0].name;
-          updates.symptom = mainName;
-          const assoc = matchedSymptoms.slice(1).map((m) => m.name);
-          const assocKeys = assoc.map(n => assocKeysMap[n]).filter(Boolean);
-          const prevAssoc = form.getFieldValue(['presentIllness', 'associatedSymptoms']) || [];
-          const mergedAssoc = Array.from(new Set([...(prevAssoc || []), ...assocKeys]));
-          form.setFieldsValue({
-            presentIllness: {
-              ...form.getFieldValue('presentIllness'),
-              associatedSymptoms: mergedAssoc
-            }
-          });
-          message.success(`已识别症状: ${matchedSymptoms.map((m) => m.name).join('、')}`);
+        const updates: Partial<{ symptom: string; durationNum?: number; durationNumMax?: number; durationUnit?: string; text: string; durationRaw?: string | null }> = {};
+        const symptom = String(payload.complaint_text || '').trim();
+        if (symptom) {
+          updates.symptom = symptom;
+          message.success(`已提取主诉：${symptom}`);
         } else {
-          message.info('未识别到明确症状，请手动填写');
+          message.info('未识别到明确主诉核心描述，请手动填写');
         }
-        const mainSymptom = updates.symptom;
-        if (normalizationSafe) {
-          if (mainSymptom) {
-            const durForMain = (perSymptomDurations || []).find(d => d.name === mainSymptom);
-            if (durForMain) {
-              updates.durationNum = durForMain.value;
-              updates.durationUnit = durForMain.unit || '天';
-            } else if (duration && duration.value && matchedSymptoms.length === 1) {
-              updates.durationNum = duration.value;
-              updates.durationUnit = duration.unit || '天';
-            }
-          } else if (duration && duration.value && matchedSymptoms.length === 1) {
-            updates.durationNum = duration.value;
-            updates.durationUnit = duration.unit || '天';
+
+        if (payload.duration_value && payload.duration_unit) {
+          if (typeof payload.duration_value === 'number') {
+            updates.durationNum = payload.duration_value;
+            updates.durationNumMax = undefined;
+          } else {
+            updates.durationNum = payload.duration_value.min;
+            updates.durationNumMax = payload.duration_value.max;
           }
+          updates.durationUnit = payload.duration_unit;
+          updates.durationRaw = payload.duration_raw;
         } else {
-          message.warning('检测到多段时长，已保留原始主诉，请手动核对语序与时长');
+          updates.durationNum = undefined;
+          updates.durationNumMax = undefined;
+          updates.durationUnit = undefined;
+          updates.durationRaw = payload.duration_raw;
+          message.warning('未识别到持续时间，请手动补充');
         }
-        updates.text = originalText || text;
-        if (Object.keys(updates).length > 0) {
-          form.setFieldsValue({
-            chiefComplaint: {
-              ...form.getFieldValue('chiefComplaint'),
-              ...updates
-            }
-          });
-        }
-        if (validation && validation.consistent === false) {
-          const missing = Array.isArray(validation.missingKnowledge) ? validation.missingKnowledge : [];
-          if (missing.length > 0) {
-            message.warning(`以下症状暂无知识库映射: ${missing.join('、')}`);
-          }
-        }
-        console.log('[ChiefComplaintSection] 智能识别结果', payload);
+
+        updates.text = text;
+        form.setFieldsValue({
+          chiefComplaint: {
+            ...form.getFieldValue('chiefComplaint'),
+            ...updates,
+          },
+        });
+
+        console.log('[ChiefComplaintSection] 主诉解析结果', payload);
       }
     } catch (error) {
       console.error(error);
@@ -152,16 +132,56 @@ const ChiefComplaintSection: React.FC<ChiefComplaintSectionProps> = ({ form }) =
     }
   };
 
+  /**
+   * 监听完整主诉文本的变化，检测用户是否手动修改
+   * 如果用户手动修改的文本与自动生成的文本不一致，则标记为用户已修改
+   */
   useEffect(() => {
-    const hasAll = ccSymptom && ccDurationNum && ccDurationUnit;
-    const next = hasAll ? `${ccSymptom}${ccDurationNum}${ccDurationUnit}` : '';
+    if (!ccText) return;
+    
+    const hasAll = Boolean(ccSymptom && typeof ccDurationNum === 'number' && Number.isFinite(ccDurationNum) && ccDurationUnit);
+    const autoGenerated = (() => {
+      if (!hasAll) return '';
+      const range = ccDurationNumMax ? `${ccDurationNum}-${ccDurationNumMax}` : `${ccDurationNum}`;
+      return `${ccSymptom}${range}${ccDurationUnit}`;
+    })();
+    
+    // 如果当前文本与自动生成的文本不一致，说明用户手动修改过
+    if (ccText !== autoGenerated && ccText !== lastAutoRef.current) {
+      userModifiedTextRef.current = true;
+      console.log('[ChiefComplaintSection] 检测到用户手动修改主诉文本', { text: ccText, autoGenerated });
+    }
+  }, [ccText, ccSymptom, ccDurationNum, ccDurationNumMax, ccDurationUnit]);
+
+  /**
+   * 根据结构化字段自动生成完整主诉文本
+   * 只在以下情况执行：
+   * 1. 结构化字段（症状、时长）发生变化时
+   * 2. 用户未手动修改过完整主诉文本时
+   * 3. 当前完整主诉为空时（初始化状态）
+   */
+  useEffect(() => {
+    const hasAll = Boolean(ccSymptom && typeof ccDurationNum === 'number' && Number.isFinite(ccDurationNum) && ccDurationUnit);
+    const next = (() => {
+      if (!hasAll) return '';
+      const range = ccDurationNumMax ? `${ccDurationNum}-${ccDurationNumMax}` : `${ccDurationNum}`;
+      return `${ccSymptom}${range}${ccDurationUnit}`;
+    })();
     const current = form.getFieldValue(['chiefComplaint', 'text']) as string | undefined;
-    if (hasAll && current !== next) {
+    
+    const structuredKey = hasAll ? `${ccSymptom}|${ccDurationKey}` : '';
+    const structuredChanged = structuredKey !== lastStructuredKeyRef.current;
+    if (structuredKey) {
+      lastStructuredKeyRef.current = structuredKey;
+    }
+    
+    // 只在结构化字段变化且用户未手动修改过文本时，才自动更新完整主诉
+    if (hasAll && structuredChanged && !userModifiedTextRef.current && (!current || current === lastAutoRef.current)) {
       form.setFieldsValue({ chiefComplaint: { text: next } });
       lastAutoRef.current = next;
       console.log('[ChiefComplaintSection] 自动生成主诉', next);
     }
-  }, [ccSymptom, ccDurationNum, ccDurationUnit, form]);
+  }, [ccSymptom, ccDurationKey, ccDurationNum, ccDurationNumMax, ccDurationUnit, form]);
 
   const examples = [
     '转移性右下腹痛1天',
@@ -249,15 +269,41 @@ const ChiefComplaintSection: React.FC<ChiefComplaintSectionProps> = ({ form }) =
                             {
                               validator: (_rule, value) => {
                                 const v = value as number | undefined;
+                                if (v === undefined || v === null) {
+                                  return Promise.resolve();
+                                }
                                 if (typeof v === 'number' && Number.isFinite(v) && v > 0) {
                                   return Promise.resolve();
                                 }
-                                return Promise.reject(new Error('请输入数字'));
+                                return Promise.reject(new Error('请输入有效数字'));
                               }
                             }
                           ]}
                       >
-                          <InputNumber placeholder="数字" min={1} style={{ width: '100%' }} />
+                          <InputNumber placeholder="数字" min={0.5} step={0.5} style={{ width: '100%' }} />
+                      </Form.Item>
+                      <Form.Item
+                          name={['chiefComplaint', 'durationNumMax']}
+                          noStyle
+                          dependencies={[['chiefComplaint', 'durationNum']]}
+                          rules={[
+                            {
+                              validator: (_rule, value) => {
+                                const maxV = value as number | undefined;
+                                const minV = form.getFieldValue(['chiefComplaint', 'durationNum']) as number | undefined;
+                                if (maxV === undefined || maxV === null) return Promise.resolve();
+                                if (typeof maxV !== 'number' || !Number.isFinite(maxV) || maxV <= 0) {
+                                  return Promise.reject(new Error('请输入有效数字'));
+                                }
+                                if (typeof minV === 'number' && Number.isFinite(minV) && maxV < minV) {
+                                  return Promise.reject(new Error('范围上限需≥下限'));
+                                }
+                                return Promise.resolve();
+                              }
+                            }
+                          ]}
+                      >
+                          <InputNumber placeholder="范围上限(可选)" min={0.5} step={0.5} style={{ width: '100%' }} />
                       </Form.Item>
                       <Form.Item
                           name={['chiefComplaint', 'durationUnit']}
@@ -272,12 +318,7 @@ const ChiefComplaintSection: React.FC<ChiefComplaintSectionProps> = ({ form }) =
                   </Space.Compact>
               </Form.Item>
               <div style={{ lineHeight: '1.5', minHeight: '22px', margin: '0 0 24px', clear: 'both', color: 'rgba(0, 0, 0, 0.45)', fontSize: '14px' }}>
-                精确的时间，如：3天
-              </div>
-          </Col>
-          <Col span={24}>
-              <div style={{ lineHeight: '1.5', minHeight: '22px', margin: '0 0 24px', clear: 'both', color: 'rgba(0, 0, 0, 0.45)', fontSize: '14px' }}>
-                精确的时间，如：3天
+                {ccDurationRaw ? `识别片段：${ccDurationRaw}` : '精确的时间，如：3天 或 2-3天'}
               </div>
           </Col>
         </Row>
@@ -287,18 +328,27 @@ const ChiefComplaintSection: React.FC<ChiefComplaintSectionProps> = ({ form }) =
       <Card type="inner" title="【完整主诉】" size="small">
         <Form.Item
           name={['chiefComplaint', 'text']}
-          noStyle
+          label="完整主诉"
+          help="建议不超过20字，包含主要症状及持续时间"
+          rules={[{ max: 20, message: '主诉不能超过20个字' }]}
         >
           <TextArea 
-            rows={3} 
-            placeholder="最终生成的完整主诉..." 
+            rows={2} 
+            placeholder="如：反复咳嗽、咳痰3年，加重1周" 
             style={{ fontSize: '16px' }}
+            onChange={() => userModifiedTextRef.current = true}
           />
         </Form.Item>
         <div style={{ marginTop: 8, display: 'flex', justifyContent: 'flex-end' }}>
              <Space>
-                 <Button onClick={() => form.setFieldValue(['chiefComplaint', 'text'], '')}>清空</Button>
-                 <Button type="primary" onClick={() => handleSmartAnalyze(form.getFieldValue(['chiefComplaint', 'text']))}>重新识别</Button>
+                 <Button onClick={() => {
+                   form.setFieldValue(['chiefComplaint', 'text'], '');
+                   userModifiedTextRef.current = false;
+                 }}>清空</Button>
+                 <Button type="primary" onClick={() => {
+                   userModifiedTextRef.current = false;
+                   handleSmartAnalyze(form.getFieldValue(['chiefComplaint', 'text']));
+                 }}>重新识别</Button>
              </Space>
         </div>
       </Card>

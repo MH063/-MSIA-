@@ -1,7 +1,6 @@
 import React from 'react';
 import { Layout, Menu, theme } from 'antd';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import FloatingAssistantButton from '../components/FloatingAssistantButton';
 
 const { Header, Content, Footer } = Layout;
 
@@ -45,16 +44,6 @@ const MainLayout: React.FC = () => {
       <Footer style={{ textAlign: 'center' }}>
         MSIA ©{new Date().getFullYear()} Created by Trae AI
       </Footer>
-      <FloatingAssistantButton
-        status="default"
-        iconVariant="robot"
-        currentLabel="一般项目"
-        progressPercent={25}
-        onClick={() => {
-          // 关键日志
-          console.log('[浮动按钮] 触发全局点击');
-        }}
-      />
     </Layout>
   );
 };

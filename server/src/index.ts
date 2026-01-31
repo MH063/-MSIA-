@@ -8,21 +8,150 @@ import nlpRoutes from './routes/nlp.routes';
 import diagnosisRoutes from './routes/diagnosis.routes';
 import mappingRoutes from './routes/mapping.routes';
 import { FileWatcherService } from './services/fileWatcher.service';
+import { errorHandler, notFoundHandler } from './middleware/errorHandler';
+import { securityHeaders, sqlInjectionProtection, xssProtection } from './utils/security';
+import { serverConfig, corsConfig, fileConfig } from './config';
 import path from 'path';
 
 dotenv.config();
 
 const app = express();
-const port = process.env.PORT || 4000;
+const port = serverConfig.port;
+const host = process.env.HOST || '0.0.0.0';
 
-// Initialize Knowledge Base Watcher
-const KNOWLEDGE_BASE_DIR = process.env.KNOWLEDGE_BASE_DIR || path.join(__dirname, '../knowledge_base');
-const fileWatcher = new FileWatcherService(KNOWLEDGE_BASE_DIR);
-fileWatcher.start();
+// 安全响应头
+app.use(securityHeaders);
 
-app.use(cors());
-app.use(express.json());
+// 配置CORS - 只允许特定来源
+app.use(cors({
+  origin: (origin, callback) => {
+    // 允许无来源的请求（如移动应用）
+    if (!origin) return callback(null, true);
 
+    const allowDev = (() => {
+      if (!serverConfig.isDevelopment) return false;
+      try {
+        const u = new URL(origin);
+        const h = u.hostname;
+        const p = u.port ? Number(u.port) : (u.protocol === 'https:' ? 443 : 80);
+        const allowedPorts = new Set([8000, 3000, 5173]);
+        if (!allowedPorts.has(p)) return false;
+        if (h === 'localhost' || h === '127.0.0.1') return true;
+        if (/^192\.168\.\d{1,3}\.\d{1,3}$/u.test(h)) return true;
+        if (/^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/u.test(h)) return true;
+        const m = /^172\.(\d{1,3})\.\d{1,3}\.\d{1,3}$/u.exec(h);
+        if (m) {
+          const n = Number(m[1]);
+          if (n >= 16 && n <= 31) return true;
+        }
+        return false;
+      } catch {
+        return false;
+      }
+    })();
+
+    if (corsConfig.allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else if (allowDev) {
+      callback(null, true);
+    } else {
+      console.warn(`[CORS] 拒绝来自 ${origin} 的请求`);
+      callback(new Error('不允许的跨域请求'));
+    }
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID'],
+  credentials: true,
+  maxAge: corsConfig.maxAge,
+}));
+
+// 请求体大小限制
+app.use(express.json({ limit: fileConfig.maxFileSize }));
+app.use(express.urlencoded({ extended: true, limit: fileConfig.maxFileSize }));
+
+/**
+ * 找出对象中疑似乱码文本的路径
+ * @param value 任意输入
+ * @returns 命中的字段路径列表
+ */
+const findGarbledTextPaths = (value: unknown) => {
+  const paths: string[] = [];
+  const walk = (v: unknown, pathKey: string) => {
+    if (typeof v === 'string') {
+      const hasReplacementChar = v.includes('\uFFFD');
+      const hasCjk = /[\u4E00-\u9FFF]/u.test(v);
+      const hasLatin = /[A-Za-z]/u.test(v);
+      const looksLikeLostCjk = !hasCjk && !hasLatin && /[?？]{2,}/u.test(v);
+      if (hasReplacementChar || looksLikeLostCjk) paths.push(pathKey);
+      return;
+    }
+    if (Array.isArray(v)) {
+      for (let i = 0; i < v.length; i += 1) walk(v[i], `${pathKey}[${i}]`);
+      return;
+    }
+    if (v && typeof v === 'object') {
+      for (const [k, next] of Object.entries(v as Record<string, unknown>)) {
+        walk(next, pathKey ? `${pathKey}.${k}` : k);
+      }
+    }
+  };
+  walk(value, '');
+  return paths.filter(Boolean);
+};
+
+app.use((req: Request, res: Response, next) => {
+  const bodyPaths = findGarbledTextPaths(req.body);
+  const queryPaths = findGarbledTextPaths(req.query);
+  if (bodyPaths.length === 0 && queryPaths.length === 0) return next();
+
+  console.warn('[Encoding] 检测到疑似非UTF-8解码字符', {
+    method: req.method,
+    path: req.path,
+    bodyPaths,
+    queryPaths,
+    contentType: req.headers['content-type'],
+  });
+  return res.status(400).json({
+    success: false,
+    error: {
+      code: 'INVALID_ENCODING',
+      message: '请求包含疑似乱码字符，请确保使用UTF-8编码并避免中文丢失为问号',
+      details: [
+        ...bodyPaths.map((p) => ({ field: `body.${p}`, message: '包含不可解析字符' })),
+        ...queryPaths.map((p) => ({ field: `query.${p}`, message: '包含不可解析字符' })),
+      ],
+    },
+  });
+});
+
+// SQL注入防护
+app.use(sqlInjectionProtection);
+
+// XSS防护
+app.use(xssProtection);
+
+// 请求日志中间件
+app.use((req: Request, res: Response, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    console.log(
+      `[${new Date().toISOString()}] ${req.method} ${req.path} ${res.statusCode} - ${duration}ms`
+    );
+  });
+  next();
+});
+
+// 启动文件监控服务
+const KNOWLEDGE_BASE_DIR = fileConfig.knowledgeBaseDir;
+if (process.env.DATABASE_URL && process.env.DATABASE_URL.trim() !== '') {
+  const fileWatcher = new FileWatcherService(KNOWLEDGE_BASE_DIR);
+  fileWatcher.start();
+} else {
+  console.log('[Server]: 未配置数据库连接，跳过知识库文件监控与解析');
+}
+
+// 路由
 app.use('/api/patients', patientRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/knowledge', knowledgeRoutes);
@@ -36,13 +165,54 @@ app.use('/api/mapping', mappingRoutes);
  * @returns {object} { message: string }
  */
 app.get('/', (req: Request, res: Response) => {
-  res.send({ message: 'MSIA Backend API is running' });
+  res.json({
+    success: true,
+    message: 'MSIA Backend API is running',
+    version: '1.0.0',
+    timestamp: new Date().toISOString(),
+  });
 });
+
+/**
+ * API状态检查接口
+ * @route GET /health
+ * @returns {object} 系统健康状态
+ */
+app.get('/health', async (req: Request, res: Response) => {
+  const health = {
+    success: true,
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: serverConfig.nodeEnv,
+    database: process.env.DATABASE_URL ? 'connected' : 'not configured',
+  };
+  res.json(health);
+});
+
+// 404处理 - 必须放在所有路由之后
+app.use(notFoundHandler);
+
+// 全局错误处理 - 必须放在最后
+app.use(errorHandler);
 
 /**
  * 启动服务器
  */
-app.listen(port, () => {
+app.listen(port, host, () => {
   const tip = '请使用本机网卡IP访问，如 http://<本机IP>:' + port;
   console.log(`[Server]: 服务已启动，端口 ${port}。${tip}`);
+  console.log(`[Server]: 允许的跨域来源: ${corsConfig.allowedOrigins.join(', ')}`);
+  console.log(`[Server]: 运行环境: ${serverConfig.nodeEnv}`);
+});
+
+// 未捕获的异常处理
+process.on('uncaughtException', (error) => {
+  console.error('[Fatal] 未捕获的异常:', error);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[Fatal] 未处理的Promise拒绝:', reason);
+  process.exit(1);
 });

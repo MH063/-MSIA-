@@ -144,7 +144,7 @@ const Home: React.FC = () => {
                   <Row align="middle">
                     <Col flex="1">
                       <Title level={4} style={{ color: '#1d39c4' }}>开始新问诊</Title>
-                      <Text type="secondary">创建新的标准问诊会话，录入患者信息并开始模拟问诊流程。</Text>
+                      <Text type="secondary">创建新的标准问诊会话，录入患者信息并开始问诊流程。</Text>
                     </Col>
                     <Col>
                       <Button type="primary" shape="circle" icon={<ArrowRightOutlined />} size="large" />

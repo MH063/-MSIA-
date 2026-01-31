@@ -1,15 +1,32 @@
 import { Router } from 'express';
 import * as sessionController from '../controllers/session.controller';
+import { validateBody, validateParams } from '../middleware/validate';
+import { SessionSchemas, IdParamSchema } from '../validators';
 
 const router = Router();
 
+// 仪表盘统计
 router.get('/stats', sessionController.getDashboardStats);
+
+// 获取所有会话
 router.get('/', sessionController.getAllSessions);
-router.post('/', sessionController.createSession);
-router.get('/:id', sessionController.getSession);
-router.delete('/:id', sessionController.deleteSession);
+
+// 创建会话 - 验证请求体
+router.post('/', validateBody(SessionSchemas.create), sessionController.createSession);
+
+// 获取单个会话 - 验证ID参数
+router.get('/:id', validateParams(IdParamSchema), sessionController.getSession);
+
+// 删除会话 - 验证ID参数
+router.delete('/:id', validateParams(IdParamSchema), sessionController.deleteSession);
+
+// 批量删除会话
 router.post('/bulk-delete', sessionController.deleteSessionsBulk);
-router.patch('/:id', sessionController.updateSession);
-router.post('/:id/report', sessionController.generateReport);
+
+// 更新会话 - 验证ID参数和请求体
+router.patch('/:id', validateParams(IdParamSchema), validateBody(SessionSchemas.update), sessionController.updateSession);
+
+// 生成报告 - 验证ID参数
+router.post('/:id/report', validateParams(IdParamSchema), sessionController.generateReport);
 
 export default router;

@@ -1,9 +1,6 @@
 import React from 'react';
 import { Menu, Progress, Typography, Button, Tooltip } from 'antd';
 import { 
-  CheckCircleFilled, 
-  ClockCircleFilled, 
-  MinusCircleOutlined, 
   DownloadOutlined,
   HomeOutlined,
   ArrowLeftOutlined
@@ -15,6 +12,8 @@ export interface SectionStatus {
   key: string;
   label: string;
   isCompleted: boolean;
+  status?: 'not_started' | 'in_progress' | 'completed';
+  progress?: number;
   hasError?: boolean;
 }
 
@@ -37,15 +36,99 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
   onGoHome,
   onGoInterviewStart
 }) => {
-  const menuItems = sections.map((section) => {
-    let icon;
-    if (section.isCompleted) {
-      icon = <CheckCircleFilled style={{ color: '#52c41a' }} />;
-    } else if (section.key === currentSection) {
-      icon = <ClockCircleFilled style={{ color: '#1890ff' }} />;
-    } else {
-      icon = <MinusCircleOutlined style={{ color: '#d9d9d9' }} />;
+  const menuWrapRef = React.useRef<HTMLDivElement | null>(null);
+  const hideScrollbarTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isScrollable, setIsScrollable] = React.useState(false);
+  const [scrollbarVisible, setScrollbarVisible] = React.useState(false);
+  const [thumbStyle, setThumbStyle] = React.useState<{ height: number; y: number }>({ height: 0, y: 0 });
+
+  const updateScrollable = React.useCallback(() => {
+    const el = menuWrapRef.current;
+    if (!el) return;
+    const next = el.scrollHeight - el.clientHeight > 2;
+    setIsScrollable(prev => (prev === next ? prev : next));
+    if (!next) setScrollbarVisible(false);
+  }, []);
+
+  const updateThumb = React.useCallback(() => {
+    const el = menuWrapRef.current;
+    if (!el) return;
+    const { scrollHeight, clientHeight, scrollTop } = el;
+    const maxScrollTop = Math.max(0, scrollHeight - clientHeight);
+    if (maxScrollTop <= 0 || clientHeight <= 0) {
+      setThumbStyle({ height: 0, y: 0 });
+      return;
     }
+    const ratio = clientHeight / scrollHeight;
+    const minHeight = 24;
+    const height = Math.max(minHeight, Math.floor(clientHeight * ratio));
+    const track = Math.max(1, clientHeight - height);
+    const y = Math.floor((scrollTop / maxScrollTop) * track);
+    setThumbStyle(prev => (prev.height === height && prev.y === y ? prev : { height, y }));
+  }, []);
+
+  const showScrollbarTemporarily = React.useCallback((delayMs: number) => {
+    if (!isScrollable) return;
+    setScrollbarVisible(true);
+    if (hideScrollbarTimerRef.current) clearTimeout(hideScrollbarTimerRef.current);
+    hideScrollbarTimerRef.current = setTimeout(() => {
+      setScrollbarVisible(false);
+    }, delayMs);
+  }, [isScrollable]);
+
+  React.useLayoutEffect(() => {
+    updateScrollable();
+    updateThumb();
+  }, [updateScrollable, updateThumb, sections]);
+
+  React.useEffect(() => {
+    updateScrollable();
+    updateThumb();
+  }, [updateScrollable, updateThumb, currentSection, sections, progress]);
+
+  React.useEffect(() => {
+    const el = menuWrapRef.current;
+    if (!el) return;
+
+    if (typeof ResizeObserver !== 'undefined') {
+      const ro = new ResizeObserver(() => {
+        updateScrollable();
+        updateThumb();
+      });
+      ro.observe(el);
+      const menu = el.querySelector('.ant-menu');
+      if (menu) ro.observe(menu);
+      return () => ro.disconnect();
+    }
+
+    const t = setInterval(() => {
+      updateScrollable();
+      updateThumb();
+    }, 500);
+    return () => clearInterval(t);
+  }, [updateScrollable, updateThumb]);
+
+  React.useEffect(() => {
+    return () => {
+      if (hideScrollbarTimerRef.current) clearTimeout(hideScrollbarTimerRef.current);
+    };
+  }, []);
+
+  const getStatusMark = (sectionKey: string, section: SectionStatus) => {
+    const status = section.status || (section.isCompleted ? 'completed' : 'not_started');
+    if (status === 'completed') return { mark: '✓', color: '#52c41a' };
+    if (sectionKey === currentSection) return { mark: '•', color: '#1890ff' };
+    if (status === 'in_progress') return { mark: '•', color: '#faad14' };
+    return { mark: '○', color: '#bfbfbf' };
+  };
+
+  const menuItems = sections.map((section) => {
+    const status = getStatusMark(section.key, section);
+    const icon = (
+      <span style={{ color: status.color, fontSize: 14, display: 'inline-flex', width: 16, justifyContent: 'center' }}>
+        {status.mark}
+      </span>
+    );
 
     return {
       key: section.key,
@@ -58,10 +141,10 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
     };
   });
 
-  const completedCount = sections.filter(s => s.isCompleted).length;
+  const completedCount = sections.filter(s => (s.status ? s.status === 'completed' : s.isCompleted)).length;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div className="interview-nav-panel" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* Header Area */}
       <div style={{ padding: '24px 20px', borderBottom: '1px solid #f0f0f0' }}>
         <Title level={4} style={{ margin: '0 0 16px 0', fontSize: '18px' }}>问诊导航</Title>
@@ -75,14 +158,34 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
             percent={progress} 
             showInfo={false} 
             size="small" 
-            strokeColor="#1890ff" 
+            strokeColor={{ '0%': '#ff4d4f', '50%': '#faad14', '100%': '#52c41a' }}
             railColor="#f0f0f0"
           />
         </div>
       </div>
 
       {/* Menu Area */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '12px 0' }}>
+      <div
+        ref={menuWrapRef}
+        className={[
+          'interview-nav-menu-area',
+          isScrollable ? 'is-scrollable' : 'not-scrollable',
+          scrollbarVisible ? 'scrollbar-visible' : 'scrollbar-hidden',
+        ].join(' ')}
+        onMouseEnter={() => {
+          if (!isScrollable) return;
+          if (hideScrollbarTimerRef.current) clearTimeout(hideScrollbarTimerRef.current);
+          setScrollbarVisible(true);
+        }}
+        onMouseLeave={() => showScrollbarTemporarily(240)}
+        onScroll={() => {
+          updateThumb();
+          showScrollbarTemporarily(900);
+        }}
+        onWheel={() => showScrollbarTemporarily(900)}
+        onKeyDown={() => showScrollbarTemporarily(900)}
+        onFocusCapture={() => showScrollbarTemporarily(900)}
+      >
         <Menu
           mode="inline"
           selectedKeys={[currentSection]}
@@ -90,19 +193,30 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
           style={{ borderRight: 0 }}
           items={menuItems}
         />
+        {isScrollable && (
+          <div className="nav-scrollbar-overlay" aria-hidden>
+            <div
+              className="nav-scrollbar-thumb"
+              style={{
+                height: thumbStyle.height ? `${thumbStyle.height}px` : undefined,
+                transform: `translateY(${thumbStyle.y}px)`,
+              }}
+            />
+          </div>
+        )}
       </div>
       
       {/* Footer Area */}
       <div style={{ padding: '16px 20px', borderTop: '1px solid #f0f0f0', background: '#fafafa' }}>
          <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginBottom: 16, fontSize: '12px', color: '#8c8c8c' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <CheckCircleFilled style={{ color: '#52c41a' }} /> 已完成
+              <span style={{ color: '#52c41a' }}>✓</span> 已完成
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <ClockCircleFilled style={{ color: '#1890ff' }} /> 进行中
+              <span style={{ color: '#1890ff' }}>•</span> 进行中
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <MinusCircleOutlined style={{ color: '#d9d9d9' }} /> 未开始
+              <span style={{ color: '#bfbfbf' }}>○</span> 未开始
             </div>
          </div>
          

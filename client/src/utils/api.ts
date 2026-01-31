@@ -2,6 +2,7 @@ import axios from 'axios';
 
 const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
 const isProduction = import.meta.env.PROD;
+const defaultDevHosts = ['192.168.66.42', '192.168.137.1'];
 
 /**
  * 计算开发环境下的网卡IP主机名
@@ -28,6 +29,11 @@ function getDevHost(): string {
     if (candidate) {
       console.log('[api] 使用网卡IP作为开发主机:', candidate);
       return candidate;
+    }
+    const fallback = defaultDevHosts[0];
+    if (fallback) {
+      console.warn('[api] 当前使用 localhost 访问开发环境，自动回退到网卡IP:', fallback);
+      return fallback;
     }
     console.warn('[api] 当前使用 localhost 访问开发环境，请在地址栏添加 ?dev_host=<网卡IP> 或通过 localStorage 设置 DEV_HOST 以避免被代理软件接管');
   }

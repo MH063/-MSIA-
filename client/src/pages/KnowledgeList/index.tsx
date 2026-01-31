@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Card, Typography, Tag, Input, Drawer, Space, Spin, Empty, Button, Row, Col, Collapse, Segmented, message } from 'antd';
 import { SearchOutlined, BookOutlined, MedicineBoxOutlined, ExclamationCircleOutlined, QuestionCircleOutlined, AppstoreOutlined } from '@ant-design/icons';
-import api from '../../utils/api';
+import api, { unwrapData } from '../../utils/api';
 import type { ApiResponse } from '../../utils/api';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -56,9 +56,10 @@ const KnowledgeList: React.FC = () => {
     setLoading(true);
     try {
       const params = lastUpdatedAtRef.current ? { since: lastUpdatedAtRef.current } : undefined;
-      const res: ApiResponse<KnowledgeItem[]> = await api.get('/knowledge', { params });
-      if (res.success && Array.isArray(res.data)) {
-        const incoming = res.data;
+      const res: ApiResponse<KnowledgeItem[] | { data: KnowledgeItem[] }> = await api.get('/knowledge', { params });
+      const incoming = unwrapData<KnowledgeItem[]>(res as ApiResponse<KnowledgeItem[] | { data: KnowledgeItem[] }>);
+      if (Array.isArray(incoming)) {
+        console.log('[KnowledgeList] 加载知识库数据成功，共', incoming.length, '条');
         if (!lastUpdatedAtRef.current) {
           setData(incoming);
           const map = new Map<number, string>();
@@ -100,7 +101,8 @@ const KnowledgeList: React.FC = () => {
         }
       }
     } catch (error) {
-      console.error(error);
+      console.error('[KnowledgeList] 加载知识库数据失败:', error);
+      message.error('加载知识库数据失败，请刷新重试');
     } finally {
       setLoading(false);
     }

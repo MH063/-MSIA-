@@ -9,6 +9,10 @@
   background: #1890ff;
   color: #fff;
   font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
   cursor: pointer;
   z-index: 1000;
 }
