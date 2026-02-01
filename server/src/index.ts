@@ -34,7 +34,7 @@ app.use(cors({
         const u = new URL(origin);
         const h = u.hostname;
         const p = u.port ? Number(u.port) : (u.protocol === 'https:' ? 443 : 80);
-        const allowedPorts = new Set([8000, 3000, 5173]);
+        const allowedPorts = new Set([8000, 8100]);
         if (!allowedPorts.has(p)) return false;
         if (h === 'localhost' || h === '127.0.0.1') return true;
         if (/^192\.168\.\d{1,3}\.\d{1,3}$/u.test(h)) return true;
@@ -104,11 +104,60 @@ app.use((req: Request, res: Response, next) => {
   const queryPaths = findGarbledTextPaths(req.query);
   if (bodyPaths.length === 0 && queryPaths.length === 0) return next();
 
+  const strictBodyPaths: string[] = [];
+  const strictQueryPaths: string[] = [];
+  const suspiciousBodyPaths: string[] = [];
+  const suspiciousQueryPaths: string[] = [];
+
+  const splitPaths = (source: 'body' | 'query', value: unknown, paths: string[]) => {
+    for (const p of paths) {
+      const parts = p.split('.').filter(Boolean);
+      let cur: any = value as any;
+      for (const part of parts) {
+        const m = /^(.+)\[(\d+)\]$/u.exec(part);
+        if (m) {
+          cur = cur?.[m[1]]?.[Number(m[2])];
+        } else {
+          cur = cur?.[part];
+        }
+      }
+      if (typeof cur !== 'string') continue;
+      const hasReplacementChar = cur.includes('\uFFFD');
+      const hasCjk = /[\u4E00-\u9FFF]/u.test(cur);
+      const hasLatin = /[A-Za-z]/u.test(cur);
+      const looksLikeLostCjk = !hasCjk && !hasLatin && /[?？]{2,}/u.test(cur);
+
+      if (hasReplacementChar) {
+        if (source === 'body') strictBodyPaths.push(p);
+        else strictQueryPaths.push(p);
+      } else if (looksLikeLostCjk) {
+        if (source === 'body') suspiciousBodyPaths.push(p);
+        else suspiciousQueryPaths.push(p);
+      }
+    }
+  };
+
+  splitPaths('body', req.body, bodyPaths);
+  splitPaths('query', req.query, queryPaths);
+
+  if (strictBodyPaths.length === 0 && strictQueryPaths.length === 0) {
+    console.warn('[Encoding] 检测到疑似中文丢失为问号的文本，已放行', {
+      method: req.method,
+      path: req.path,
+      suspiciousBodyPaths,
+      suspiciousQueryPaths,
+      contentType: req.headers['content-type'],
+    });
+    return next();
+  }
+
   console.warn('[Encoding] 检测到疑似非UTF-8解码字符', {
     method: req.method,
     path: req.path,
-    bodyPaths,
-    queryPaths,
+    strictBodyPaths,
+    strictQueryPaths,
+    suspiciousBodyPaths,
+    suspiciousQueryPaths,
     contentType: req.headers['content-type'],
   });
   return res.status(400).json({
@@ -117,8 +166,8 @@ app.use((req: Request, res: Response, next) => {
       code: 'INVALID_ENCODING',
       message: '请求包含疑似乱码字符，请确保使用UTF-8编码并避免中文丢失为问号',
       details: [
-        ...bodyPaths.map((p) => ({ field: `body.${p}`, message: '包含不可解析字符' })),
-        ...queryPaths.map((p) => ({ field: `query.${p}`, message: '包含不可解析字符' })),
+        ...strictBodyPaths.map((p) => ({ field: `body.${p}`, message: '包含不可解析字符' })),
+        ...strictQueryPaths.map((p) => ({ field: `query.${p}`, message: '包含不可解析字符' })),
       ],
     },
   });

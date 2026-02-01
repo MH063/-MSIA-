@@ -20,12 +20,53 @@ const PersonalHistorySection: React.FC = () => {
   const drinkFreqPerWeek = Form.useWatch(['personalHistory', 'drinkFreqPerWeek'], form); // 次/周
   const drinkingHistory = Form.useWatch(['personalHistory', 'drinkingHistory'], form);
   
+  // 监听需要反向同步到一般项目的字段
+  const personalOccupation = Form.useWatch(['personalHistory', 'occupation'], form);
+  const personalEmployer = Form.useWatch(['personalHistory', 'employer'], form);
+  const personalBirthplace = Form.useWatch(['personalHistory', 'birthplace'], form);
+  
   // 标记用户是否手动修改过吸烟/饮酒史文本
   const userModifiedSmokingRef = useRef<boolean>(false);
   const userModifiedDrinkingRef = useRef<boolean>(false);
   // 记录上一次结构化数据
   const lastSmokingDataRef = useRef<{ status?: string; cigarettes?: number; years?: number }>({});
   const lastDrinkingDataRef = useRef<{ status?: string; volume?: number; degree?: number; freq?: number }>({});
+
+  /**
+   * 双向同步：职业
+   * 个人史 -> 一般项目
+   */
+  useEffect(() => {
+    const generalOccupation = form.getFieldValue('occupation');
+    if (personalOccupation && personalOccupation !== generalOccupation) {
+      form.setFieldValue('occupation', personalOccupation);
+      console.log('[PersonalHistorySection] 同步职业到一般项目:', personalOccupation);
+    }
+  }, [personalOccupation, form]);
+
+  /**
+   * 双向同步：工作单位
+   * 个人史 -> 一般项目
+   */
+  useEffect(() => {
+    const generalEmployer = form.getFieldValue('employer');
+    if (personalEmployer && personalEmployer !== generalEmployer) {
+      form.setFieldValue('employer', personalEmployer);
+      console.log('[PersonalHistorySection] 同步工作单位到一般项目:', personalEmployer);
+    }
+  }, [personalEmployer, form]);
+
+  /**
+   * 双向同步：出生地
+   * 个人史 -> 一般项目
+   */
+  useEffect(() => {
+    const generalPlaceOfBirth = form.getFieldValue('placeOfBirth');
+    if (personalBirthplace && personalBirthplace !== generalPlaceOfBirth) {
+      form.setFieldValue('placeOfBirth', personalBirthplace);
+      console.log('[PersonalHistorySection] 同步出生地到一般项目:', personalBirthplace);
+    }
+  }, [personalBirthplace, form]);
 
   // 监听吸烟史文本变化，检测用户手动修改
   useEffect(() => {
@@ -162,12 +203,20 @@ const PersonalHistorySection: React.FC = () => {
       <Card type="inner" title="1. 社会经历与职业" size="small" style={{ marginBottom: 24 }}>
         <Row gutter={24}>
             <Col span={12}>
-                <Form.Item name={['personalHistory', 'birthplace']} label="出生地">
+                <Form.Item
+                  name={['personalHistory', 'birthplace']}
+                  label="出生地"
+                  rules={[{ required: true, message: '请填写出生地' }]}
+                >
                     <Input placeholder="省/市" />
                 </Form.Item>
             </Col>
             <Col span={12}>
-                <Form.Item name={['personalHistory', 'residence']} label="居留地">
+                <Form.Item
+                  name={['personalHistory', 'residence']}
+                  label="居留地"
+                  rules={[{ required: true, message: '请填写居留地' }]}
+                >
                     <Input placeholder="长期居住地" />
                 </Form.Item>
             </Col>
@@ -200,7 +249,13 @@ const PersonalHistorySection: React.FC = () => {
           <div style={{ background: '#fff7e6', padding: 16, borderRadius: 8, marginBottom: 16, border: '1px solid #ffe7ba' }}>
             <Row gutter={16} align="middle">
                 <Col span={6}>
-                    <Form.Item name={['personalHistory', 'smoking_status']} label="吸烟史" initialValue="从不" style={{ marginBottom: 0 }}>
+                    <Form.Item
+                      name={['personalHistory', 'smoking_status']}
+                      label="吸烟史"
+                      initialValue="从不"
+                      style={{ marginBottom: 0 }}
+                      rules={[{ required: true, message: '请选择吸烟史' }]}
+                    >
                         <Radio.Group buttonStyle="solid">
                             <Radio.Button value="从不">从不</Radio.Button>
                             <Radio.Button value="已戒烟">戒烟</Radio.Button>
@@ -270,7 +325,13 @@ const PersonalHistorySection: React.FC = () => {
           <div style={{ background: '#f0f5ff', padding: 16, borderRadius: 8, marginBottom: 16, border: '1px solid #adc6ff' }}>
             <Row gutter={16} align="middle">
                 <Col span={6}>
-                    <Form.Item name={['personalHistory', 'alcohol_status']} label="饮酒史" initialValue="从不" style={{ marginBottom: 0 }}>
+                    <Form.Item
+                      name={['personalHistory', 'alcohol_status']}
+                      label="饮酒史"
+                      initialValue="从不"
+                      style={{ marginBottom: 0 }}
+                      rules={[{ required: true, message: '请选择饮酒史' }]}
+                    >
                         <Radio.Group buttonStyle="solid">
                             <Radio.Button value="从不">从不</Radio.Button>
                             <Radio.Button value="已戒酒">戒酒</Radio.Button>

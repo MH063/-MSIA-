@@ -1,0 +1,41 @@
+# ============================================
+# Systemd 服务配置
+# 复制到 /etc/systemd/system/msia.service
+# 然后执行: systemctl daemon-reload && systemctl enable msia && systemctl start msia
+# ============================================
+
+[Unit]
+Description=MSIA 医学生智能问诊辅助系统
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=msia
+Group=msia
+
+# 工作目录
+WorkingDirectory=/opt/msia/server
+
+# 环境变量文件
+EnvironmentFile=/opt/msia/server/.env.production
+
+# 启动命令
+ExecStart=/usr/bin/node dist/index.js
+
+# 重启策略
+Restart=always
+RestartSec=10
+
+# 日志输出
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=msia
+
+# 安全设置
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/msia/server/uploads /opt/msia/server/logs
+
+[Install]
+WantedBy=multi-user.target

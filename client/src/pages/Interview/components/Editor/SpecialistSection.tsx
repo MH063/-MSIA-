@@ -28,7 +28,11 @@ const SpecialistSection: React.FC = () => {
              </Select>
         </Form.Item>
 
-        <Form.Item name={['physicalExam', 'specialist']} label="检查描述">
+        <Form.Item
+          name={['physicalExam', 'specialist']}
+          label="检查描述"
+          rules={[{ required: true, message: '请填写专科检查描述' }]}
+        >
             <TextArea 
                 rows={10} 
                 placeholder="记录专科检查的阳性体征及有意义的阴性体征..." 

@@ -37,6 +37,22 @@ export const upsertKnowledge = async (data: any) => {
       associatedSymptoms: data.associatedSymptoms,
       redFlags: data.redFlags,
       physicalSigns: data.physicalSigns,
+      // 基础扩展字段
+      category: data.category,
+      priority: data.priority,
+      questions: data.questions,
+      physicalExamination: data.physicalExamination,
+      differentialPoints: data.differentialPoints,
+      // 扩展字段
+      description: data.description,
+      commonCauses: data.commonCauses,
+      onsetPatterns: data.onsetPatterns,
+      severityScale: data.severityScale,
+      relatedExams: data.relatedExams,
+      imageUrl: data.imageUrl,
+      bodySystems: data.bodySystems,
+      ageGroups: data.ageGroups,
+      prevalence: data.prevalence,
       version: { increment: 1 }
     },
     create: {
@@ -45,7 +61,23 @@ export const upsertKnowledge = async (data: any) => {
       requiredQuestions: data.requiredQuestions,
       associatedSymptoms: data.associatedSymptoms,
       redFlags: data.redFlags,
-      physicalSigns: data.physicalSigns
+      physicalSigns: data.physicalSigns,
+      // 基础扩展字段
+      category: data.category,
+      priority: data.priority,
+      questions: data.questions,
+      physicalExamination: data.physicalExamination,
+      differentialPoints: data.differentialPoints,
+      // 扩展字段
+      description: data.description,
+      commonCauses: data.commonCauses,
+      onsetPatterns: data.onsetPatterns,
+      severityScale: data.severityScale,
+      relatedExams: data.relatedExams,
+      imageUrl: data.imageUrl,
+      bodySystems: data.bodySystems,
+      ageGroups: data.ageGroups,
+      prevalence: data.prevalence,
     },
   });
 };

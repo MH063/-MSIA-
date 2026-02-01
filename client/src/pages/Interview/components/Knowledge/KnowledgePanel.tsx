@@ -1,11 +1,32 @@
 import React, { useState, useEffect } from 'react';
-import { Typography, Collapse, Tag, Empty, Spin, message } from 'antd';
+import { App as AntdApp, Typography, Collapse, Tag, Empty, Spin } from 'antd';
 import { BulbOutlined, QuestionCircleOutlined, MedicineBoxOutlined, LoadingOutlined, RobotOutlined } from '@ant-design/icons';
 import api, { unwrapData } from '../../../../utils/api';
 import type { ApiResponse } from '../../../../utils/api';
 import { useQuery } from '@tanstack/react-query';
 
 const { Title, Text } = Typography;
+
+const SYMPTOM_ICON_MAP: Record<string, { emoji: string; bg: string; ring: string }> = {
+  fever: { emoji: '🌡️', bg: '#fff2f0', ring: '#ffccc7' },
+  cough_and_expectoration: { emoji: '🤧', bg: '#e6f7ff', ring: '#91d5ff' },
+  diarrhea: { emoji: '💩', bg: '#fff7e6', ring: '#ffd591' },
+  nausea_vomiting: { emoji: '🤮', bg: '#fffbe6', ring: '#ffe58f' },
+  dyspnea: { emoji: '🫁', bg: '#f0f5ff', ring: '#adc6ff' },
+  vertigo: { emoji: '🌀', bg: '#f9f0ff', ring: '#d3adf7' },
+  edema: { emoji: '💧', bg: '#e6fffb', ring: '#87e8de' },
+  depression: { emoji: '🧠', bg: '#f5f5f5', ring: '#d9d9d9' },
+  hematemesis: { emoji: '🩸', bg: '#fff1f0', ring: '#ffa39e' },
+  jaundice: { emoji: '🟡', bg: '#fffbe6', ring: '#ffe58f' },
+  lumbodorsalgia: { emoji: '🦴', bg: '#fff7e6', ring: '#ffd591' },
+  arthralgia: { emoji: '🦵', bg: '#fff7e6', ring: '#ffd591' },
+  dysphagia: { emoji: '🥄', bg: '#f0f5ff', ring: '#adc6ff' },
+  hemoptysis: { emoji: '🩸', bg: '#fff1f0', ring: '#ffa39e' },
+  urinary_frequency_urgency_dysuria: { emoji: '🚽', bg: '#e6f7ff', ring: '#91d5ff' },
+  urinary_incontinence: { emoji: '💧', bg: '#e6fffb', ring: '#87e8de' },
+  emaciation: { emoji: '🥀', bg: '#f5f5f5', ring: '#d9d9d9' },
+  hematochezia: { emoji: '🩸', bg: '#fff1f0', ring: '#ffa39e' },
+};
 
 /**
  * KnowledgePanelProps
@@ -43,6 +64,7 @@ const KnowledgePanel: React.FC<KnowledgePanelProps> = ({
   sessionId,
   onAddAssociated
 }) => {
+  const { message } = AntdApp.useApp();
   const [diagnosisSuggestions, setDiagnosisSuggestions] = useState<string[]>([]);
   const [diagnosisLoading, setDiagnosisLoading] = useState(false);
   
@@ -77,15 +99,20 @@ const KnowledgePanel: React.FC<KnowledgePanelProps> = ({
    * 统一使用 unwrapData 解包双层 data 响应结构并更新建议列表
    */
   const fetchDiagnosisSuggestions = React.useCallback(async () => {
-      const validSession = typeof sessionId === 'number' && Number.isFinite(sessionId);
+      const validSession = typeof sessionId === 'number' && Number.isFinite(sessionId) && sessionId > 0;
       if (!symptomContext || !symptomContext.name || !validSession) return;
       setDiagnosisLoading(true);
       try {
           console.log('[Knowledge] 拉取诊断建议', { name: symptomContext.name, sessionId, patientInfo });
           const symptoms = symptomContext.name.split('、');
+          const normalizedAge = (() => {
+            const a = patientInfo?.age;
+            if (typeof a === 'number' && Number.isFinite(a)) return Math.max(0, Math.floor(a));
+            return undefined;
+          })();
           const res = await api.post('/diagnosis/suggest', {
               symptoms,
-              age: patientInfo?.age,
+              age: normalizedAge,
               gender: patientInfo?.gender,
               sessionId
           }) as import('../../../../utils/api').ApiResponse<string[] | { data: string[] }>;
@@ -100,7 +127,7 @@ const KnowledgePanel: React.FC<KnowledgePanelProps> = ({
       } finally {
           setDiagnosisLoading(false);
       }
-  }, [symptomContext, patientInfo, sessionId]);
+  }, [symptomContext, patientInfo, sessionId, message]);
 
   useEffect(() => {
       if (symptomContext && symptomContext.name) {
@@ -146,7 +173,9 @@ const KnowledgePanel: React.FC<KnowledgePanelProps> = ({
          console.warn('[Knowledge] 添加伴随症状失败：无效键', { source: s });
        }
      };
+     const currentSymptomKey = nameToKey[symptomContext.name] || symptomContext.name;
      const currentSymptomName = mapToName(symptomContext.name);
+     const icon = SYMPTOM_ICON_MAP[currentSymptomKey] || { emoji: '🩺', bg: '#f0f5ff', ring: '#adc6ff' };
      const relatedSource = symptomContext.relatedSymptoms || [];
      const physicalDisplay = (symptomContext.physicalSigns || []).map(mapToName);
      const redFlagsDisplay = (symptomContext.redFlags || []).map(mapToName);
@@ -160,7 +189,7 @@ const KnowledgePanel: React.FC<KnowledgePanelProps> = ({
                 {diagnosisLoading ? <Spin size="small" /> : (
                     diagnosisSuggestions.length > 0 ? (
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                            {diagnosisSuggestions.map(d => <Tag color="purple" key={d}>{d}</Tag>)}
+                            {diagnosisSuggestions.map(d => <Tag className="msia-tag" color="purple" key={d}>{d}</Tag>)}
                         </div>
                     ) : <Text type="secondary">暂无明确匹配的诊断建议</Text>
                 )}
@@ -194,6 +223,7 @@ const KnowledgePanel: React.FC<KnowledgePanelProps> = ({
                <Tag 
                  color="blue" 
                  key={s} 
+                 className="msia-tag"
                  style={{ cursor: 'pointer' }}
                  onClick={() => handleAddRelated(s)}
                >
@@ -207,18 +237,30 @@ const KnowledgePanel: React.FC<KnowledgePanelProps> = ({
 
      return (
        <div>
-         <div style={{ marginBottom: 16, padding: '12px', background: '#e6f7ff', borderRadius: 4, border: '1px solid #91d5ff' }}>
-           <Title level={5} style={{ marginTop: 0, color: '#0050b3' }}>
-             <MedicineBoxOutlined /> 当前症状: {currentSymptomName}
-           </Title>
-           {symptomContext.updatedAt && (
-             <div style={{ marginTop: 4, color: '#8c8c8c' }}>
-               来源更新时间：{new Date(symptomContext.updatedAt).toLocaleString()}
+         <div className="msia-filter-panel" style={{ marginBottom: 16, background: '#ffffff' }}>
+           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+             <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+               <div className="msia-icon-pill" style={{ background: icon.bg, borderColor: icon.ring, width: 34, height: 34, borderRadius: 12, fontSize: 18 }}>
+                 {icon.emoji}
+               </div>
+               <div style={{ minWidth: 0 }}>
+                 <Title level={5} style={{ margin: 0, color: '#10239e' }}>
+                   当前症状：{currentSymptomName}
+                 </Title>
+                 {symptomContext.updatedAt && (
+                   <div style={{ marginTop: 4, color: '#8c8c8c' }}>
+                     来源更新时间：{new Date(symptomContext.updatedAt).toLocaleString()}
+                   </div>
+                 )}
+               </div>
              </div>
-           )}
+             <Tag className="msia-tag" color="processing" style={{ marginInlineEnd: 0 }}>
+               {currentSymptomKey}
+             </Tag>
+           </div>
            {redFlagsDisplay && redFlagsDisplay.length > 0 && (
              <div style={{ marginTop: 8 }}>
-               <Text type="danger" strong>警惕征象 (Red Flags):</Text>
+               <Text type="danger" strong>警惕征象：</Text>
                <ul style={{ paddingLeft: 20, margin: '4px 0', color: '#cf1322' }}>
                  {redFlagsDisplay.map((flag, idx) => <li key={idx}>{flag}</li>)}
                </ul>

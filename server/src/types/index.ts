@@ -161,24 +161,6 @@ export interface SymptomKnowledge {
 }
 
 /**
- * 医学指南类型
- */
-export interface MedicalGuideline {
-  id: number;
-  title: string;
-  category?: string;
-  version?: string;
-  publishDate?: Date | string;
-  source?: string;
-  summary?: string;
-  keyPoints?: string[];
-  fullContent?: string;
-  isLatest: boolean;
-  createdAt?: Date | string;
-  updatedAt?: Date | string;
-}
-
-/**
  * 诊断建议请求
  */
 export interface DiagnosisSuggestRequest {

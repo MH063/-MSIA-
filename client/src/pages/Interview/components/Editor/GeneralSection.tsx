@@ -1,30 +1,90 @@
-import React, { useEffect } from 'react';
-import { Form, Input, Row, Col, Typography, Select, DatePicker, Card } from 'antd';
+import React, { useEffect, useMemo } from 'react';
+import { Form, Input, Row, Col, Typography, Select, DatePicker, Card, InputNumber, Space } from 'antd';
 import dayjs from 'dayjs';
+import AgeDisplayView from './AgeDisplay';
+import { computeAgeDisplay, formatAgeText, normalizeAge, validateAge } from '../../../../utils/age';
 
 const { Title } = Typography;
 
 const GeneralSection: React.FC = () => {
   const form = Form.useFormInstance();
   const birthDate = Form.useWatch('birthDate', form);
+  const recordTime = Form.useWatch(['generalInfo', 'recordTime'], form);
   const historian = Form.useWatch('historian', form);
+  const ageYears = Form.useWatch('ageYears', form) as number | undefined;
+  const ageMonthsPart = Form.useWatch('ageMonthsPart', form) as number | undefined;
+  
+  // 监听需要双向同步的字段
+  const generalOccupation = Form.useWatch('occupation', form);
+  const generalEmployer = Form.useWatch('employer', form);
+  const generalPlaceOfBirth = Form.useWatch('placeOfBirth', form);
+  const generalMaritalStatus = Form.useWatch(['maritalHistory', 'status'], form);
 
   /**
-   * 自动计算年龄，避免重复写入导致受控组件循环更新
+   * 自动计算并写回表单字段，避免重复写入导致受控组件循环更新
    */
   useEffect(() => {
-    if (birthDate) {
-      const birth = dayjs(birthDate);
-      const now = dayjs();
-      if (birth.isValid()) {
-        const age = now.diff(birth, 'year');
-        const prev = form.getFieldValue('age');
-        if (prev !== age) {
-          form.setFieldValue('age', age);
-        }
-      }
+    const ref = recordTime ?? dayjs();
+    const display = computeAgeDisplay(birthDate, ref);
+    if (!display) return;
+    const patch: Record<string, unknown> = {};
+
+    if (form.getFieldValue('age') !== display.yearsFloat) patch.age = display.yearsFloat;
+    if ((form.getFieldValue('ageYears') as unknown) !== display.yearsPart) patch.ageYears = display.yearsPart;
+    if ((form.getFieldValue('ageMonthsTotal') as unknown) !== display.totalMonthsInt) patch.ageMonthsTotal = display.totalMonthsInt;
+    if ((form.getFieldValue('ageMonthsPart') as unknown) !== display.monthsPart) patch.ageMonthsPart = display.monthsPart;
+    if (form.getFieldValue('ageDisplayText') !== display.mainText) patch.ageDisplayText = display.mainText;
+    if (form.getFieldValue('ageDisplayBackupText') !== (display.backupText ?? '')) patch.ageDisplayBackupText = display.backupText ?? '';
+
+    if (Object.keys(patch).length > 0) {
+      form.setFieldsValue(patch);
+      console.log('[GeneralSection] 年龄已按策略自动换算', {
+        mainText: display.mainText,
+        backupText: display.backupText,
+        yearsFloat: display.yearsFloat,
+        totalDays: display.totalDays,
+        totalMonthsInt: display.totalMonthsInt
+      });
     }
-  }, [birthDate, form]);
+  }, [birthDate, recordTime, form]);
+
+  /**
+   * 兜底：未填写出生日期时允许手动输入岁数
+   */
+  useEffect(() => {
+    const display = computeAgeDisplay(birthDate, recordTime ?? dayjs());
+    if (display) return;
+
+    const hasYears = typeof ageYears === 'number' && Number.isFinite(ageYears);
+    const hasMonths = typeof ageMonthsPart === 'number' && Number.isFinite(ageMonthsPart);
+    if (!hasYears && !hasMonths) return;
+
+    const normalized = normalizeAge({ years: hasYears ? ageYears : 0, months: hasMonths ? ageMonthsPart : 0 });
+    const yearsFloat = Math.round((normalized.totalMonths / 12) * 100) / 100;
+    const nextDisplayText = formatAgeText(normalized.years, normalized.months, 'auto', 'years_months');
+    const patch: Record<string, unknown> = {};
+
+    if ((form.getFieldValue('ageYears') as unknown) !== normalized.years) patch.ageYears = normalized.years;
+    if ((form.getFieldValue('ageMonthsPart') as unknown) !== normalized.months) patch.ageMonthsPart = normalized.months;
+    if ((form.getFieldValue('ageMonthsTotal') as unknown) !== normalized.totalMonths) patch.ageMonthsTotal = normalized.totalMonths;
+    if (form.getFieldValue('age') !== yearsFloat) patch.age = yearsFloat;
+    if (form.getFieldValue('ageDisplayText') !== nextDisplayText) patch.ageDisplayText = nextDisplayText;
+    if (form.getFieldValue('ageDisplayBackupText') !== '') patch.ageDisplayBackupText = '';
+
+    const issues = validateAge({ years: hasYears ? ageYears! : 0, months: hasMonths ? ageMonthsPart! : 0 });
+    if (issues.length > 0) {
+      console.log('[GeneralSection] 年龄输入已校验并归一化', { issues, normalized });
+    }
+
+    if (Object.keys(patch).length > 0) {
+      form.setFieldsValue(patch);
+      console.log('[GeneralSection] 未填出生日期，年龄使用手动输入', { normalized, yearsFloat });
+    }
+  }, [birthDate, recordTime, ageYears, ageMonthsPart, form]);
+
+  const ageDisplay = useMemo(() => {
+    return computeAgeDisplay(birthDate, recordTime ?? dayjs()) ?? undefined;
+  }, [birthDate, recordTime]);
 
   /**
    * 当陈述者为本人时，清空关系字段（仅在值不同时执行）
@@ -37,6 +97,56 @@ const GeneralSection: React.FC = () => {
           }
       }
   }, [historian, form]);
+
+  /**
+   * 双向同步：职业
+   * 一般项目 -> 个人史
+   */
+  useEffect(() => {
+    const personalOccupation = form.getFieldValue(['personalHistory', 'occupation']);
+    if (generalOccupation && generalOccupation !== personalOccupation) {
+      form.setFieldValue(['personalHistory', 'occupation'], generalOccupation);
+      console.log('[GeneralSection] 同步职业到个人史:', generalOccupation);
+    }
+  }, [generalOccupation, form]);
+
+  /**
+   * 双向同步：工作单位
+   * 一般项目 -> 个人史
+   */
+  useEffect(() => {
+    const personalEmployer = form.getFieldValue(['personalHistory', 'employer']);
+    if (generalEmployer && generalEmployer !== personalEmployer) {
+      form.setFieldValue(['personalHistory', 'employer'], generalEmployer);
+      console.log('[GeneralSection] 同步工作单位到个人史:', generalEmployer);
+    }
+  }, [generalEmployer, form]);
+
+  /**
+   * 双向同步：出生地
+   * 一般项目 -> 个人史
+   */
+  useEffect(() => {
+    const personalBirthplace = form.getFieldValue(['personalHistory', 'birthplace']);
+    if (generalPlaceOfBirth && generalPlaceOfBirth !== personalBirthplace) {
+      form.setFieldValue(['personalHistory', 'birthplace'], generalPlaceOfBirth);
+      console.log('[GeneralSection] 同步出生地到个人史:', generalPlaceOfBirth);
+    }
+  }, [generalPlaceOfBirth, form]);
+
+  /**
+   * 双向同步：婚姻状况
+   * 一般项目 -> 婚育史
+   */
+  useEffect(() => {
+    const maritalStatus = form.getFieldValue(['maritalHistory', 'status']);
+    // 避免循环更新，只在值确实不同时才设置
+    if (generalMaritalStatus && generalMaritalStatus !== maritalStatus) {
+      // 注意：这里不需要额外设置，因为字段路径相同，Form会自动同步
+      // 但为了确保一致性，我们记录日志
+      console.log('[GeneralSection] 婚姻状况已同步:', generalMaritalStatus);
+    }
+  }, [generalMaritalStatus, form]);
 
   return (
     <div className="section-container">
@@ -60,17 +170,114 @@ const GeneralSection: React.FC = () => {
             </Form.Item>
           </Col>
           <Col span={6}>
-             <Form.Item name="age" label="年龄" help="可自动计算或手动修正">
-               <Input suffix="岁" style={{ background: '#fff' }} placeholder="年龄" />
+             <Form.Item
+               label="年龄"
+               help={
+                 ageDisplay?.backupText
+                   ? `出生日期填写后会按年龄段策略自动换算；备用：${ageDisplay.backupText}`
+                   : '出生日期填写后会按年龄段策略自动换算'
+               }
+               required
+             >
+               {ageDisplay ? (
+                 <div style={{ width: '100%', minHeight: 32, display: 'flex', alignItems: 'center', background: '#fff', border: '1px solid #d9d9d9', borderRadius: 6, padding: '0 11px' }}>
+                   <AgeDisplayView display={ageDisplay} />
+                 </div>
+               ) : (
+                 <Space.Compact style={{ width: '100%' }}>
+                   <Form.Item
+                     name="ageYears"
+                     noStyle
+                     rules={[
+                       { required: true, message: '请输入年龄' },
+                       {
+                         validator: (_rule, value) => {
+                           if (value === null || value === undefined || value === '') return Promise.resolve();
+                           const n = typeof value === 'number' ? value : Number(String(value));
+                           if (Number.isFinite(n) && n >= 0 && n <= 150) return Promise.resolve();
+                           return Promise.reject(new Error('请输入有效年龄'));
+                         }
+                       }
+                     ]}
+                   >
+                     <InputNumber<number>
+                       style={{ width: '60%', background: '#fff' }}
+                       placeholder="岁"
+                       min={0}
+                       max={150}
+                       suffix="岁"
+                     />
+                   </Form.Item>
+                   <Form.Item
+                     name="ageMonthsPart"
+                     noStyle
+                     rules={[
+                       {
+                         validator: (_rule, value) => {
+                           if (value === null || value === undefined || value === '') return Promise.resolve();
+                           const n = typeof value === 'number' ? value : Number(String(value));
+                           if (Number.isFinite(n) && n >= 0 && n <= 1200) return Promise.resolve();
+                           return Promise.reject(new Error('请输入有效月数'));
+                         }
+                       }
+                     ]}
+                   >
+                     <InputNumber<number>
+                       style={{ width: '40%', background: '#fff' }}
+                       placeholder="月"
+                       min={0}
+                       max={1200}
+                       suffix="月"
+                     />
+                   </Form.Item>
+                 </Space.Compact>
+               )}
+               <Form.Item
+                 name="age"
+                 hidden
+                 rules={[
+                   {
+                     validator: (_rule, value) => {
+                       const birth = form.getFieldValue('birthDate');
+                       const years = form.getFieldValue('ageYears');
+                       const months = form.getFieldValue('ageMonthsPart');
+                       const hasBirth = Boolean(birth);
+                       const hasManualYears = years !== null && years !== undefined && years !== '';
+                       const hasManual = hasManualYears || (months !== null && months !== undefined && months !== '');
+                       if (!hasBirth && !hasManual) {
+                         return Promise.reject(new Error('请填写出生日期或年龄'));
+                       }
+                       if (value === null || value === undefined || value === '') {
+                         return Promise.reject(new Error('年龄换算失败，请检查输入'));
+                       }
+                       const n = typeof value === 'number' ? value : Number(String(value));
+                       if (Number.isFinite(n) && n >= 0 && n <= 150) return Promise.resolve();
+                       return Promise.reject(new Error('年龄数值异常'));
+                     }
+                   }
+                 ]}
+               >
+                 <Input />
+               </Form.Item>
+               <Form.Item name="ageDisplayText" hidden>
+                 <Input />
+               </Form.Item>
+               <Form.Item name="ageDisplayBackupText" hidden>
+                 <Input />
+               </Form.Item>
              </Form.Item>
           </Col>
           <Col span={6}>
-              <Form.Item name="ethnicity" label="民族" initialValue="汉族">
+              <Form.Item name="ethnicity" label="民族" initialValue="汉族" rules={[{ required: true, message: '请输入民族' }]}>
                 <Input placeholder="如：汉族" />
               </Form.Item>
           </Col>
           <Col span={6}>
-              <Form.Item name={['maritalHistory', 'status']} label="婚姻状况">
+              <Form.Item
+                name={['maritalHistory', 'status']}
+                label="婚姻状况"
+                rules={[{ required: true, message: '请选择婚姻状况' }]}
+              >
                   <Select placeholder="选择婚姻状况">
                       <Select.Option value="未婚">未婚</Select.Option>
                       <Select.Option value="已婚">已婚</Select.Option>
@@ -111,7 +318,12 @@ const GeneralSection: React.FC = () => {
               </Form.Item>
           </Col>
           <Col span={8}>
-              <Form.Item name={['generalInfo', 'recordTime']} label="记录时间" initialValue={dayjs()}>
+              <Form.Item
+                name={['generalInfo', 'recordTime']}
+                label="记录时间"
+                initialValue={dayjs()}
+                rules={[{ required: true, message: '请选择记录时间' }]}
+              >
                   <DatePicker showTime format="YYYY-MM-DD HH:mm" style={{ width: '100%' }} placeholder="年-月-日 时:分" />
               </Form.Item>
           </Col>
@@ -152,9 +364,14 @@ const GeneralSection: React.FC = () => {
       <Card type="inner" title="【联系信息】" size="small">
         <Row gutter={24}>
           <Col span={8}>
-               <Form.Item name="phone" label="联系电话" rules={[
+               <Form.Item
+                 name="phone"
+                 label="联系电话"
+                 rules={[
+                   { required: true, message: '请输入联系电话' },
                    { pattern: /^1[3-9]\d{9}$/, message: '请输入有效的手机号码' }
-               ]}>
+                 ]}
+               >
                    <Input placeholder="11位手机号" />
                </Form.Item>
           </Col>

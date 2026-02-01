@@ -4,5 +4,19 @@ node_modules
 .idea
 *.log
 .env
+.env.local
+.env.production
+.env.development
 coverage
 dist
+
+# Server specific
+server/.env
+server/.env.local
+server/.env.production
+server/dist
+
+# Client specific
+client/dist
+client/.env
+client/.env.local

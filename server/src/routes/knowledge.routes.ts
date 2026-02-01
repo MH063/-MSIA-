@@ -7,8 +7,6 @@ router.get('/', knowledgeController.getAllKnowledge);
 router.get('/stream', knowledgeController.streamKnowledgeUpdates);
 router.get('/symptom-mappings', knowledgeController.getSymptomMappings);
 router.get('/symptom-mapping/:symptomName', knowledgeController.getSymptomMappingByName);
-router.get('/guidelines', knowledgeController.getGuidelines);
-router.get('/guidelines/updates', knowledgeController.checkGuidelineUpdates);
 router.get('/diseases', knowledgeController.getDiseases);
 router.get('/disease/:diseaseName', knowledgeController.getDiseaseByName);
 router.get('/:key', knowledgeController.getKnowledgeByKey);

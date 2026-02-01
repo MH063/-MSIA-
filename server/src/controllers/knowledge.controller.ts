@@ -102,13 +102,25 @@ export const deleteKnowledgeBulk = async (req: Request, res: Response) => {
  */
 export const getSymptomMappings = async (req: Request, res: Response) => {
   try {
-    const { category, priority } = req.query as Record<string, string>;
-    
+    const { category, priority, bodySystem, search } = req.query as Record<string, string>;
+
     // 从数据库查询症状知识
     const where: any = {};
     if (category) where.category = category;
     if (priority) where.priority = priority;
-    
+    if (bodySystem && bodySystem !== 'all') {
+      where.bodySystems = {
+        array_contains: bodySystem
+      };
+    }
+    if (search) {
+      where.OR = [
+        { displayName: { contains: search, mode: 'insensitive' } },
+        { symptomKey: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
     const knowledgeList = await prisma.symptomKnowledge.findMany({
       where,
       select: {
@@ -122,6 +134,16 @@ export const getSymptomMappings = async (req: Request, res: Response) => {
         differentialPoints: true,
         associatedSymptoms: true,
         redFlags: true,
+        // 扩展字段
+        description: true,
+        commonCauses: true,
+        onsetPatterns: true,
+        severityScale: true,
+        relatedExams: true,
+        imageUrl: true,
+        bodySystems: true,
+        ageGroups: true,
+        prevalence: true,
         updatedAt: true,
       },
       orderBy: { priority: 'desc' },
@@ -139,6 +161,16 @@ export const getSymptomMappings = async (req: Request, res: Response) => {
       differentialPoints: (k.differentialPoints as string[]) || [],
       relatedSymptoms: (k.associatedSymptoms as string[]) || [],
       redFlags: (k.redFlags as string[]) || [],
+      // 扩展字段
+      description: k.description || '',
+      commonCauses: (k.commonCauses as string[]) || [],
+      onsetPatterns: (k.onsetPatterns as string[]) || [],
+      severityScale: (k.severityScale as any[]) || [],
+      relatedExams: (k.relatedExams as string[]) || [],
+      imageUrl: k.imageUrl || '',
+      bodySystems: (k.bodySystems as string[]) || [],
+      ageGroups: (k.ageGroups as string[]) || [],
+      prevalence: k.prevalence || 'common',
       updatedAt: k.updatedAt.toISOString(),
     }));
 
@@ -156,9 +188,9 @@ export const getSymptomMappings = async (req: Request, res: Response) => {
 export const getSymptomMappingByName = async (req: Request, res: Response) => {
   try {
     const { symptomName } = req.params;
-    
+
     const name = Array.isArray(symptomName) ? symptomName[0] : symptomName;
-    
+
     const knowledge = await prisma.symptomKnowledge.findFirst({
       where: {
         OR: [
@@ -177,6 +209,16 @@ export const getSymptomMappingByName = async (req: Request, res: Response) => {
         differentialPoints: true,
         associatedSymptoms: true,
         redFlags: true,
+        // 扩展字段
+        description: true,
+        commonCauses: true,
+        onsetPatterns: true,
+        severityScale: true,
+        relatedExams: true,
+        imageUrl: true,
+        bodySystems: true,
+        ageGroups: true,
+        prevalence: true,
         updatedAt: true,
       },
     });
@@ -197,6 +239,16 @@ export const getSymptomMappingByName = async (req: Request, res: Response) => {
       differentialPoints: (knowledge.differentialPoints as string[]) || [],
       relatedSymptoms: (knowledge.associatedSymptoms as string[]) || [],
       redFlags: (knowledge.redFlags as string[]) || [],
+      // 扩展字段
+      description: knowledge.description || '',
+      commonCauses: (knowledge.commonCauses as string[]) || [],
+      onsetPatterns: (knowledge.onsetPatterns as string[]) || [],
+      severityScale: (knowledge.severityScale as any[]) || [],
+      relatedExams: (knowledge.relatedExams as string[]) || [],
+      imageUrl: knowledge.imageUrl || '',
+      bodySystems: (knowledge.bodySystems as string[]) || [],
+      ageGroups: (knowledge.ageGroups as string[]) || [],
+      prevalence: knowledge.prevalence || 'common',
       updatedAt: knowledge.updatedAt.toISOString(),
     };
 
@@ -204,80 +256,6 @@ export const getSymptomMappingByName = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error fetching symptom mapping:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch symptom mapping' });
-  }
-};
-
-/**
- * 获取医学指南列表
- * 从数据库动态获取
- */
-export const getGuidelines = async (req: Request, res: Response) => {
-  try {
-    const { category } = req.query as Record<string, string>;
-    
-    const where: any = { isLatest: true };
-    if (category) where.category = category;
-    
-    const guidelines = await prisma.medicalGuideline.findMany({
-      where,
-      select: {
-        id: true,
-        title: true,
-        category: true,
-        version: true,
-        publishDate: true,
-        source: true,
-        summary: true,
-        keyPoints: true,
-        isLatest: true,
-        updatedAt: true,
-      },
-      orderBy: { updatedAt: 'desc' },
-    });
-
-    // 转换为前端需要的格式
-    const formattedGuidelines = guidelines.map((g) => ({
-      id: String(g.id),
-      title: g.title,
-      category: g.category || '其他',
-      version: g.version || '',
-      publishDate: g.publishDate?.toISOString().split('T')[0] || '',
-      source: g.source || '',
-      summary: g.summary || '',
-      keyPoints: (g.keyPoints as string[]) || [],
-      isLatest: g.isLatest,
-    }));
-
-    res.json({ success: true, data: formattedGuidelines });
-  } catch (error) {
-    console.error('Error fetching guidelines:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch guidelines' });
-  }
-};
-
-/**
- * 检查指南更新
- */
-export const checkGuidelineUpdates = async (req: Request, res: Response) => {
-  try {
-    // 从数据库检查最新更新时间
-    const latestKnowledge = await prisma.symptomKnowledge.findFirst({
-      orderBy: { updatedAt: 'desc' },
-      select: { updatedAt: true },
-    });
-
-    res.json({
-      success: true,
-      data: {
-        hasUpdates: false,
-        count: 0,
-        lastCheck: new Date().toISOString(),
-        lastUpdate: latestKnowledge?.updatedAt.toISOString(),
-      },
-    });
-  } catch (error) {
-    console.error('Error checking guideline updates:', error);
-    res.status(500).json({ success: false, message: 'Failed to check guideline updates' });
   }
 };
 

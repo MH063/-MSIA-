@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosHeaders } from 'axios';
 
 const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
 const isProduction = import.meta.env.PROD;
@@ -61,6 +61,56 @@ export function unwrapData<T>(res: ApiResponse<T | { data: T }>): T | undefined 
   }
   return payload as T;
 }
+
+function getNestedValue(obj: unknown, path: string[]): unknown {
+  let cur: unknown = obj;
+  for (const key of path) {
+    if (typeof cur !== 'object' || cur === null) return undefined;
+    cur = (cur as Record<string, unknown>)[key];
+  }
+  return cur;
+}
+
+export function getApiErrorMessage(err: unknown, fallback: string): string {
+  const msg1 = getNestedValue(err, ['response', 'data', 'error', 'message']);
+  if (typeof msg1 === 'string' && msg1.trim()) return msg1.trim();
+
+  const msg2 = getNestedValue(err, ['response', 'data', 'message']);
+  if (typeof msg2 === 'string' && msg2.trim()) return msg2.trim();
+
+  if (typeof err === 'object' && err !== null) {
+    const m = (err as Record<string, unknown>).message;
+    if (typeof m === 'string' && m.trim()) return m.trim();
+  }
+
+  return fallback;
+}
+
+api.interceptors.request.use(
+  (config) => {
+    try {
+      const token =
+        window.localStorage.getItem('OPERATOR_TOKEN') ||
+        window.localStorage.getItem('AUTH_TOKEN') ||
+        window.localStorage.getItem('TOKEN') ||
+        '';
+      const t = String(token || '').trim();
+      if (t) {
+        if (!config.headers) {
+          config.headers = new AxiosHeaders({ Authorization: `Bearer ${t}` });
+        } else if (config.headers instanceof AxiosHeaders) {
+          config.headers.set('Authorization', `Bearer ${t}`);
+        } else if (typeof config.headers === 'object') {
+          (config.headers as Record<string, unknown>).Authorization = `Bearer ${t}`;
+        }
+      }
+    } catch (e) {
+      console.warn('[api] 读取本地Token失败', e);
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 
 api.interceptors.response.use(
   (response) => {

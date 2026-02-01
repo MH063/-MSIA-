@@ -1,7 +1,6 @@
 import React from 'react';
 import { Menu, Progress, Typography, Button, Tooltip } from 'antd';
 import { 
-  DownloadOutlined,
   HomeOutlined,
   ArrowLeftOutlined
 } from '@ant-design/icons';
@@ -15,6 +14,7 @@ export interface SectionStatus {
   status?: 'not_started' | 'in_progress' | 'completed';
   progress?: number;
   hasError?: boolean;
+  issues?: string[];
 }
 
 interface NavigationPanelProps {
@@ -22,7 +22,6 @@ interface NavigationPanelProps {
   onSectionChange: (key: string) => void;
   sections: SectionStatus[];
   progress: number;
-  onExport?: () => void;
   onGoHome?: () => void;
   onGoInterviewStart?: () => void;
 }
@@ -32,7 +31,6 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
   onSectionChange,
   sections,
   progress,
-  onExport,
   onGoHome,
   onGoInterviewStart
 }) => {
@@ -116,8 +114,9 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
 
   const getStatusMark = (sectionKey: string, section: SectionStatus) => {
     const status = section.status || (section.isCompleted ? 'completed' : 'not_started');
-    if (status === 'completed') return { mark: '✓', color: '#52c41a' };
+    if (section.hasError) return { mark: '!', color: '#1677ff' };
     if (sectionKey === currentSection) return { mark: '•', color: '#1890ff' };
+    if (status === 'completed') return { mark: '✓', color: '#52c41a' };
     if (status === 'in_progress') return { mark: '•', color: '#faad14' };
     return { mark: '○', color: '#bfbfbf' };
   };
@@ -130,12 +129,29 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
       </span>
     );
 
+    const issuesPreview = Array.isArray(section.issues) ? section.issues.slice(0, 8) : [];
+    const tooltipTitle =
+      section.hasError && issuesPreview.length > 0
+        ? (
+          <div style={{ maxWidth: 260 }}>
+            {issuesPreview.map((issue, idx) => (
+              <div key={`${section.key}-${idx}`} style={{ marginBottom: idx === issuesPreview.length - 1 ? 0 : 6, lineHeight: 1.4 }}>
+                • {issue}
+              </div>
+            ))}
+            {Array.isArray(section.issues) && section.issues.length > 8 ? <div style={{ marginTop: 6 }}>……</div> : null}
+          </div>
+        )
+        : undefined;
+
     return {
       key: section.key,
       label: (
-        <span style={{ fontWeight: section.key === currentSection ? 500 : 400 }}>
-          {section.label}
-        </span>
+        <Tooltip title={tooltipTitle} placement="right">
+          <span style={{ fontWeight: section.key === currentSection ? 500 : 400 }}>
+            {section.label}
+          </span>
+        </Tooltip>
       ),
       icon: icon
     };
@@ -220,7 +236,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
             </div>
          </div>
          
-         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <Tooltip title="返回首页">
               <Button icon={<HomeOutlined />} onClick={onGoHome} block>首页</Button>
             </Tooltip>
@@ -228,9 +244,6 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
               <Button icon={<ArrowLeftOutlined />} onClick={onGoInterviewStart} block>列表</Button>
             </Tooltip>
          </div>
-         <Button type="primary" block icon={<DownloadOutlined />} onClick={onExport} style={{ height: '40px' }}>
-             生成病历
-         </Button>
       </div>
     </div>
   );

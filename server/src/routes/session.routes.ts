@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import * as sessionController from '../controllers/session.controller';
 import { validateBody, validateParams } from '../middleware/validate';
+import { requireOperator } from '../middleware/auth';
 import { SessionSchemas, IdParamSchema } from '../validators';
 
 const router = Router();
@@ -18,10 +19,10 @@ router.post('/', validateBody(SessionSchemas.create), sessionController.createSe
 router.get('/:id', validateParams(IdParamSchema), sessionController.getSession);
 
 // 删除会话 - 验证ID参数
-router.delete('/:id', validateParams(IdParamSchema), sessionController.deleteSession);
+router.delete('/:id', validateParams(IdParamSchema), requireOperator, sessionController.deleteSession);
 
 // 批量删除会话
-router.post('/bulk-delete', sessionController.deleteSessionsBulk);
+router.post('/bulk-delete', requireOperator, sessionController.deleteSessionsBulk);
 
 // 更新会话 - 验证ID参数和请求体
 router.patch('/:id', validateParams(IdParamSchema), validateBody(SessionSchemas.update), sessionController.updateSession);

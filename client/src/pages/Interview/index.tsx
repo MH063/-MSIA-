@@ -1,15 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Button, Space, Typography, Card, Modal, message, Tag, Tabs, Input } from 'antd';
+import { App as AntdApp, Table, Button, Space, Typography, Card, Tag, Tabs, Input } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { TablePaginationConfig, FilterValue, SorterResult, TableCurrentDataSource } from 'antd/es/table/interface';
 import { DeleteOutlined, EyeOutlined, ExclamationCircleOutlined, PlusOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
-import api, { unwrapData } from '../../utils/api';
+import api, { getApiErrorMessage, unwrapData } from '../../utils/api';
 import type { ApiResponse } from '../../utils/api';
 
 const { Title } = Typography;
-const { confirm } = Modal;
 const { Search } = Input;
 
 /**
@@ -34,13 +33,14 @@ interface SessionListItem {
 
 const InterviewOverview: React.FC = () => {
   const navigate = useNavigate();
+  const { modal, message } = AntdApp.useApp();
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<SessionListItem[]>([]);
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
   const [activeTab, setActiveTab] = useState<string>('incomplete');
   const [searchText, setSearchText] = useState<string>('');
 
-  const fetchData = async (page: number = 1, pageSize: number = 10, status: string = 'incomplete', search: string = '') => {
+  const fetchData = React.useCallback(async (page: number = 1, pageSize: number = 10, status: string = 'incomplete', search: string = '') => {
     setLoading(true);
     try {
       const res: ApiResponse<{ items: SessionListItem[]; total: number } | { data: { items: SessionListItem[]; total: number } }> = await api.get('/sessions', {
@@ -64,14 +64,14 @@ const InterviewOverview: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [message]);
 
   const pageCurrent = React.useMemo(() => pagination.current, [pagination]);
   const pageSize = React.useMemo(() => pagination.pageSize, [pagination]);
 
   useEffect(() => {
     fetchData(pageCurrent, pageSize, activeTab, searchText);
-  }, [activeTab, searchText, pageCurrent, pageSize]); // 仅依赖具体数值，避免对象引用变化导致循环
+  }, [activeTab, fetchData, pageCurrent, pageSize, searchText]); // 仅依赖具体数值，避免对象引用变化导致循环
 
   const handleTableChange = (
     pagination: TablePaginationConfig,
@@ -98,7 +98,7 @@ const InterviewOverview: React.FC = () => {
   };
 
   const handleDelete = (id: number) => {
-    confirm({
+    modal.confirm({
       title: '确认删除该问诊记录?',
       icon: <ExclamationCircleOutlined />,
       content: '删除后无法恢复，请谨慎操作。',
@@ -107,14 +107,15 @@ const InterviewOverview: React.FC = () => {
       cancelText: '取消',
       onOk: async () => {
         try {
+          console.log('[Interview] 请求永久删除问诊记录', { id });
           const res: ApiResponse = await api.delete(`/sessions/${id}`);
           if (res.success) {
-            message.success('删除成功');
+            message.success('已永久删除');
             fetchData(pagination.current, pagination.pageSize, activeTab, searchText);
           }
-        } catch (error) {
-          console.error(error);
-          message.error('删除失败');
+        } catch (error: unknown) {
+          console.error('[Interview] 永久删除失败', error);
+          message.error(getApiErrorMessage(error, '删除失败'));
         }
       },
     });

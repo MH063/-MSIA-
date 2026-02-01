@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, Form, Button, Popconfirm, message } from 'antd';
+import { App as AntdApp, Card, Form, Button, Popconfirm } from 'antd';
 import GeneralSection from './GeneralSection';
 import ChiefComplaintSection from './ChiefComplaintSection';
 import HPISection from './HPISection';
@@ -45,11 +45,14 @@ const getSectionResetFieldPaths = (sectionKey: string) => {
       ['pastHistory', 'generalHealth'],
       ['pastHistory', 'pmh_diseases'],
       ['pastHistory', 'diseaseDetails'],
+      ['pastHistory', 'noDiseaseHistory'],
       ['pastHistory', 'infectiousHistory'],
       ['pastHistory', 'pmh_other'],
       ['pastHistory', 'illnessHistory'],
       ['pastHistory', 'surgeries'],
+      ['pastHistory', 'noSurgeriesTrauma'],
       ['pastHistory', 'transfusions'],
+      ['pastHistory', 'noTransfusions'],
       ['pastHistory', 'allergies'],
       ['pastHistory', 'noAllergies'],
       ['pastHistory', 'vaccinationHistory'],
@@ -92,6 +95,7 @@ const EditorPanel: React.FC<EditorPanelProps> = ({
   disableConfirm = false,
   showResetButton = true,
 }) => {
+  const { message } = AntdApp.useApp();
   const form = Form.useFormInstance();
   const handleReset = () => {
     const keys = getSectionResetFieldPaths(currentSection);

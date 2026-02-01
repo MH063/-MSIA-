@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as d3 from 'd3';
-import { Card, Tag, Tooltip, Button, Space, Typography, Modal, List, Progress, Skeleton, Empty } from 'antd';
+import { Card, Tag, Tooltip, Button, Space, Typography, Modal, Progress, Skeleton, Empty } from 'antd';
 import { 
   BranchesOutlined, 
   ZoomInOutlined, 
@@ -444,58 +444,32 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
               padding: 8,
               border: '1px solid #f0f0f0'
             }}>
-              <List
-                size="small"
-                dataSource={differentialDiagnoses.filter(d => !excludedDiagnoses.has(d.name))}
-                renderItem={diagnosis => {
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {differentialDiagnoses.filter(d => !excludedDiagnoses.has(d.name)).map((diagnosis) => {
                   const priority = getPriorityFromConfidence(diagnosis.confidence);
                   const config = PRIORITY_CONFIG[priority];
-                  
+
                   return (
-                    <List.Item
-                      actions={[
-                        <Button 
-                          key="prioritize"
-                          type={prioritizedDiagnosis === diagnosis.name ? 'primary' : 'text'}
-                          size="small"
-                          onClick={() => handlePrioritizeDiagnosis(diagnosis.name)}
-                          icon={config.icon}
-                          style={{ 
-                            background: prioritizedDiagnosis === diagnosis.name ? config.bgColor : undefined,
-                            borderColor: prioritizedDiagnosis === diagnosis.name ? config.borderColor : undefined
-                          }}
-                        >
-                          {config.label}
-                        </Button>,
-                        <Button 
-                          key="exclude"
-                          danger
-                          type="text"
-                          size="small"
-                          onClick={() => handleExcludeDiagnosis(diagnosis.name)}
-                        >
-                          排除
-                        </Button>
-                      ]}
+                    <div
+                      key={diagnosis.name}
                       style={{ 
                         background: '#fff',
                         borderRadius: 6,
-                        marginBottom: 4,
                         border: `1px solid ${config.borderColor}`,
-                        transition: 'all 0.3s ease'
+                        transition: 'all 0.3s ease',
+                        padding: 12
                       }}
                     >
-                      <List.Item.Meta
-                        title={
-                          <Space>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                             <span style={{ fontWeight: 500 }}>{diagnosis.name}</span>
                             <Tag color={getConfidenceColor(diagnosis.confidence)}>
                               {(diagnosis.confidence * 100).toFixed(1)}%
                             </Tag>
-                          </Space>
-                        }
-                        description={
-                          <div>
+                          </div>
+
+                          <div style={{ marginTop: 6 }}>
                             <Progress 
                               percent={diagnosis.confidence * 100} 
                               size="small" 
@@ -503,9 +477,8 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
                               showInfo={true}
                               strokeColor={diagnosis.confidence > 0.7 ? '#52c41a' : diagnosis.confidence > 0.4 ? '#faad14' : '#d9d9d9'}
                               trailColor="#f0f0f0"
-                              style={{ marginTop: 4 }}
                             />
-                            <div style={{ marginTop: 6, fontSize: 12, display: 'flex', gap: 12 }}>
+                            <div style={{ marginTop: 6, fontSize: 12, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                               <Text type="secondary">
                                 <CheckCircleOutlined style={{ color: '#52c41a', marginRight: 4 }} />
                                 支持: {diagnosis.supportingSymptoms.join(', ') || '无'}
@@ -516,12 +489,35 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
                               </Text>
                             </div>
                           </div>
-                        }
-                      />
-                    </List.Item>
+                        </div>
+
+                        <Space>
+                          <Button 
+                            type={prioritizedDiagnosis === diagnosis.name ? 'primary' : 'text'}
+                            size="small"
+                            onClick={() => handlePrioritizeDiagnosis(diagnosis.name)}
+                            icon={config.icon}
+                            style={{ 
+                              background: prioritizedDiagnosis === diagnosis.name ? config.bgColor : undefined,
+                              borderColor: prioritizedDiagnosis === diagnosis.name ? config.borderColor : undefined
+                            }}
+                          >
+                            {config.label}
+                          </Button>
+                          <Button 
+                            danger
+                            type="text"
+                            size="small"
+                            onClick={() => handleExcludeDiagnosis(diagnosis.name)}
+                          >
+                            排除
+                          </Button>
+                        </Space>
+                      </div>
+                    </div>
                   );
-                }}
-              />
+                })}
+              </div>
             </div>
           </div>
         )}

@@ -72,12 +72,23 @@ model SymptomKnowledge {
   redFlags            Json?    @map("red_flags")
   physicalSigns       Json?    @map("physical_signs")
 
-  // 新增字段
+  // 基础字段
   category            String?  @db.VarChar(50)
   priority            String?  @default("medium") @db.VarChar(20)
   questions           Json?    @default("[]")
   physicalExamination Json?    @map("physical_examination") @default("[]")
   differentialPoints  Json?    @map("differential_points") @default("[]")
+
+  // 扩展字段 - 症状详情
+  description         String?  @db.Text           // 症状描述
+  commonCauses        Json?    @map("common_causes") @default("[]")      // 常见病因
+  onsetPatterns       Json?    @map("onset_patterns") @default("[]")     // 起病形式
+  severityScale       Json?    @map("severity_scale") @default("[]")     // 严重程度分级
+  relatedExams        Json?    @map("related_exams") @default("[]")      // 相关检查
+  imageUrl            String?  @map("image_url") @db.VarChar(500)         // 症状示意图
+  bodySystems         Json?    @map("body_systems") @default("[]")       // 所属人体系统
+  ageGroups           Json?    @map("age_groups") @default("[]")         // 常见年龄组
+  prevalence          String?  @db.VarChar(20)                           // 发病率级别
 
   version             Int      @default(1)
   updatedAt           DateTime @default(now()) @updatedAt @map("updated_at")
@@ -158,22 +169,4 @@ model DiagnosisRedFlag {
 
   @@unique([diagnosisId, redFlagName])
   @@map("diagnosis_red_flags")
-}
-
-// 医学指南表
-model MedicalGuideline {
-  id            Int       @id @default(autoincrement())
-  title         String    @db.VarChar(200)
-  category      String?   @db.VarChar(50)
-  version       String?   @db.VarChar(50)
-  publishDate   DateTime? @map("publish_date") @db.Date
-  source        String?   @db.VarChar(200)
-  summary       String?
-  keyPoints     Json?     @map("key_points")
-  fullContent   String?   @map("full_content")
-  isLatest      Boolean   @default(true) @map("is_latest")
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at")
-
-  @@map("medical_guidelines")
 }

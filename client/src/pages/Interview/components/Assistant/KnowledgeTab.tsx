@@ -1,9 +1,30 @@
 import React from 'react';
-import { Typography, Collapse, Tag, Empty, Spin, message } from 'antd';
+import { App as AntdApp, Typography, Collapse, Tag, Empty, Spin } from 'antd';
 import { BulbOutlined, QuestionCircleOutlined, MedicineBoxOutlined, RobotOutlined } from '@ant-design/icons';
 import { useAssistantStore } from '../../../../store/assistant.store';
 
 const { Title, Text } = Typography;
+
+const SYMPTOM_ICON_MAP: Record<string, { emoji: string; bg: string; ring: string }> = {
+  fever: { emoji: '🌡️', bg: '#fff2f0', ring: '#ffccc7' },
+  cough_and_expectoration: { emoji: '🤧', bg: '#e6f7ff', ring: '#91d5ff' },
+  diarrhea: { emoji: '💩', bg: '#fff7e6', ring: '#ffd591' },
+  nausea_vomiting: { emoji: '🤮', bg: '#fffbe6', ring: '#ffe58f' },
+  dyspnea: { emoji: '🫁', bg: '#f0f5ff', ring: '#adc6ff' },
+  vertigo: { emoji: '🌀', bg: '#f9f0ff', ring: '#d3adf7' },
+  edema: { emoji: '💧', bg: '#e6fffb', ring: '#87e8de' },
+  depression: { emoji: '🧠', bg: '#f5f5f5', ring: '#d9d9d9' },
+  hematemesis: { emoji: '🩸', bg: '#fff1f0', ring: '#ffa39e' },
+  jaundice: { emoji: '🟡', bg: '#fffbe6', ring: '#ffe58f' },
+  lumbodorsalgia: { emoji: '🦴', bg: '#fff7e6', ring: '#ffd591' },
+  arthralgia: { emoji: '🦵', bg: '#fff7e6', ring: '#ffd591' },
+  dysphagia: { emoji: '🥄', bg: '#f0f5ff', ring: '#adc6ff' },
+  hemoptysis: { emoji: '🩸', bg: '#fff1f0', ring: '#ffa39e' },
+  urinary_frequency_urgency_dysuria: { emoji: '🚽', bg: '#e6f7ff', ring: '#91d5ff' },
+  urinary_incontinence: { emoji: '💧', bg: '#e6fffb', ring: '#87e8de' },
+  emaciation: { emoji: '🥀', bg: '#f5f5f5', ring: '#d9d9d9' },
+  hematochezia: { emoji: '🩸', bg: '#fff1f0', ring: '#ffa39e' },
+};
 
 /**
  * KnowledgeTab
@@ -11,6 +32,7 @@ const { Title, Text } = Typography;
  * 通过全局状态管理获取数据，统一在Session.tsx中调用API
  */
 const KnowledgeTab: React.FC = () => {
+  const { message } = AntdApp.useApp();
   const knowledge = useAssistantStore(s => s.knowledge);
   const actions = useAssistantStore(s => s.actions);
   
@@ -46,7 +68,9 @@ const KnowledgeTab: React.FC = () => {
     );
   }
   
+  const currentSymptomKey = nameToKey[symptomContext.name] || symptomContext.name;
   const currentSymptomName = mapToName(symptomContext.name);
+  const icon = SYMPTOM_ICON_MAP[currentSymptomKey] || { emoji: '🩺', bg: '#f0f5ff', ring: '#adc6ff' };
   const relatedSource = symptomContext.relatedSymptoms || [];
   const physicalDisplay = (symptomContext.physicalSigns || []).map(mapToName);
   const redFlagsDisplay = (symptomContext.redFlags || []).map(mapToName);
@@ -66,7 +90,7 @@ const KnowledgeTab: React.FC = () => {
           ) : diagnosisSuggestions.length > 0 ? (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {diagnosisSuggestions.map((d) => (
-                <Tag color="purple" key={d}>{d}</Tag>
+                <Tag className="msia-tag" color="purple" key={d}>{d}</Tag>
               ))}
             </div>
           ) : (
@@ -118,6 +142,7 @@ const KnowledgeTab: React.FC = () => {
             <Tag 
               color="blue" 
               key={s} 
+              className="msia-tag"
               style={{ cursor: 'pointer' }}
               onClick={() => handleAddRelated(s)}
             >
@@ -131,24 +156,30 @@ const KnowledgeTab: React.FC = () => {
   
   return (
     <div className="knowledge-tab-content">
-      <div style={{ 
-        marginBottom: 16, 
-        padding: '12px', 
-        background: '#e6f7ff', 
-        borderRadius: 4, 
-        border: '1px solid #91d5ff' 
-      }}>
-        <Title level={5} style={{ marginTop: 0, color: '#0050b3' }}>
-          <MedicineBoxOutlined /> 当前症状: {currentSymptomName}
-        </Title>
-        {symptomContext.updatedAt && (
-          <div style={{ marginTop: 4, color: '#8c8c8c' }}>
-            来源更新时间：{new Date(symptomContext.updatedAt).toLocaleString()}
+      <div className="msia-filter-panel" style={{ marginBottom: 16, background: '#ffffff' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+            <div className="msia-icon-pill" style={{ background: icon.bg, borderColor: icon.ring, width: 34, height: 34, borderRadius: 12, fontSize: 18 }}>
+              {icon.emoji}
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <Title level={5} style={{ margin: 0, color: '#10239e' }}>
+                当前症状：{currentSymptomName}
+              </Title>
+              {symptomContext.updatedAt && (
+                <div style={{ marginTop: 4, color: '#8c8c8c' }}>
+                  来源更新时间：{new Date(symptomContext.updatedAt).toLocaleString()}
+                </div>
+              )}
+            </div>
           </div>
-        )}
+          <Tag className="msia-tag" color="processing" style={{ marginInlineEnd: 0 }}>
+            {currentSymptomKey}
+          </Tag>
+        </div>
         {redFlagsDisplay && redFlagsDisplay.length > 0 && (
           <div style={{ marginTop: 8 }}>
-            <Text type="danger" strong>警惕征象 (Red Flags):</Text>
+            <Text type="danger" strong>警惕征象：</Text>
             <ul style={{ paddingLeft: 20, margin: '4px 0', color: '#cf1322' }}>
               {redFlagsDisplay.map((flag, idx) => (
                 <li key={idx}>{flag}</li>

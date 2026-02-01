@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
+  App as AntdApp,
   Card, 
   Tabs, 
-  List, 
   Tag, 
   Typography, 
   Button, 
@@ -12,7 +12,6 @@ import {
   Collapse,
   Empty,
   Spin,
-  message,
   Divider,
   Skeleton,
   Alert,
@@ -25,15 +24,13 @@ import {
 import { 
   BookOutlined, 
   MedicineBoxOutlined, 
-  FileTextOutlined, 
   LinkOutlined,
   ReloadOutlined,
   ExclamationCircleOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
-  GlobalOutlined,
-  SearchOutlined,
   InfoCircleOutlined,
+  SearchOutlined,
   FireOutlined,
   StarOutlined,
   ArrowRightOutlined
@@ -43,7 +40,6 @@ import type { ApiResponse } from '../../../../utils/api';
 
 const { Text, Paragraph } = Typography;
 const { TabPane } = Tabs;
-const { Panel } = Collapse;
 const { Search } = Input;
 const { useToken } = theme;
 
@@ -62,22 +58,6 @@ interface SymptomQuestionPoint {
   relatedSymptoms: string[];
   redFlags: string[];
   updatedAt: string;
-}
-
-/**
- * 医学指南项
- */
-interface MedicalGuideline {
-  id: string;
-  title: string;
-  category: string;
-  version: string;
-  publishDate: string;
-  source: string;
-  summary: string;
-  keyPoints: string[];
-  downloadUrl?: string;
-  isLatest: boolean;
 }
 
 /**
@@ -121,7 +101,7 @@ const PRIORITY_CONFIG = {
 /**
  * IntelligentKnowledgeBase
  * 智能知识库组件 - 优化美化版
- * 包含症状问诊要点映射、医学指南更新、疾病百科等功能
+ * 包含症状问诊要点映射、疾病百科等功能
  */
 const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
   currentSymptom,
@@ -129,10 +109,10 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
   onDiseaseSelect
 }) => {
   const { token } = useToken();
+  const { message } = AntdApp.useApp();
   const [activeTab, setActiveTab] = useState('symptomMap');
   const [loading, setLoading] = useState<Record<string, boolean>>({
     symptomMap: false,
-    guidelines: false,
     diseases: false
   });
   const [searchKeyword, setSearchKeyword] = useState('');
@@ -140,12 +120,6 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
   // 症状问诊要点数据
   const [symptomMappings, setSymptomMappings] = useState<SymptomQuestionPoint[]>([]);
   const [currentMapping, setCurrentMapping] = useState<SymptomQuestionPoint | null>(null);
-  
-  // 医学指南数据
-  const [guidelines, setGuidelines] = useState<MedicalGuideline[]>([]);
-  const [guidelineCategories, setGuidelineCategories] = useState<string[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [lastUpdateTime, setLastUpdateTime] = useState<Date | null>(null);
   
   // 疾病百科数据
   const [diseaseEncyclopedia, setDiseaseEncyclopedia] = useState<DiseaseEncyclopedia[]>([]);
@@ -171,7 +145,7 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
     } finally {
       setLoading(prev => ({ ...prev, symptomMap: false }));
     }
-  }, []);
+  }, [message]);
 
   /**
    * 获取当前症状的问诊要点
@@ -204,29 +178,6 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
   }, [currentSymptom, symptomMappings]);
 
   /**
-   * 获取医学指南列表
-   */
-  const fetchGuidelines = useCallback(async () => {
-    setLoading(prev => ({ ...prev, guidelines: true }));
-    try {
-      const res = await api.get('/knowledge/guidelines') as ApiResponse<MedicalGuideline[]>;
-      const data = unwrapData<MedicalGuideline[]>(res);
-      if (data) {
-        setGuidelines(data);
-        const categories = Array.from(new Set(data.map(g => g.category)));
-        setGuidelineCategories(categories);
-        setLastUpdateTime(new Date());
-        console.log('[知识库] 医学指南加载成功', { count: data.length });
-      }
-    } catch (error) {
-      console.error('[知识库] 获取医学指南失败:', error);
-      message.error('医学指南加载失败，请稍后重试');
-    } finally {
-      setLoading(prev => ({ ...prev, guidelines: false }));
-    }
-  }, []);
-
-  /**
    * 获取疾病百科列表
    */
   const fetchDiseaseEncyclopedia = useCallback(async () => {
@@ -244,7 +195,7 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
     } finally {
       setLoading(prev => ({ ...prev, diseases: false }));
     }
-  }, []);
+  }, [message]);
 
   /**
    * 获取疾病详情
@@ -270,7 +221,7 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
     } finally {
       setDiseaseSearchLoading(false);
     }
-  }, [diseaseEncyclopedia]);
+  }, [diseaseEncyclopedia, message]);
 
   /**
    * 刷新知识库数据
@@ -282,39 +233,16 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
     });
     await Promise.all([
       fetchSymptomMappings(),
-      fetchGuidelines(),
       fetchDiseaseEncyclopedia()
     ]);
     message.success('知识库更新完成');
   };
 
-  /**
-   * 检查指南更新
-   */
-  const checkGuidelineUpdates = async () => {
-    try {
-      const res = await api.get('/knowledge/guidelines/updates') as ApiResponse<{ hasUpdates: boolean; count: number }>;
-      const data = unwrapData<{ hasUpdates: boolean; count: number }>(res);
-      if (data?.hasUpdates) {
-        message.info({
-          content: `发现 ${data.count} 条指南更新`,
-          icon: <InfoCircleOutlined />
-        });
-        fetchGuidelines();
-      } else {
-        message.success('指南已是最新版本');
-      }
-    } catch (error) {
-      console.error('[知识库] 检查指南更新失败:', error);
-    }
-  };
-
   // 初始化加载数据
   useEffect(() => {
     fetchSymptomMappings();
-    fetchGuidelines();
     fetchDiseaseEncyclopedia();
-  }, [fetchSymptomMappings, fetchGuidelines, fetchDiseaseEncyclopedia]);
+  }, [fetchSymptomMappings, fetchDiseaseEncyclopedia]);
 
   // 当前症状变化时更新映射
   useEffect(() => {
@@ -356,7 +284,7 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
           image={Empty.PRESENTED_IMAGE_SIMPLE}
         >
           {currentSymptom && (
-            <Button type="primary" icon={<SearchOutlined />}>
+            <Button type="primary" icon={<SearchOutlined />} className="msia-action-button">
               搜索相似症状
             </Button>
           )}
@@ -368,13 +296,15 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
 
     return (
       <div style={{ animation: 'fadeIn 0.3s ease-in' }}>
-        <Card 
+        <Card
+          className="msia-card"
           title={
             <Space>
               <MedicineBoxOutlined style={{ color: priorityConfig.color }} />
               <span style={{ fontSize: 16, fontWeight: 500 }}>{displayMapping.symptomName}</span>
               <Tag 
                 color={priorityConfig.color}
+                className="msia-tag"
                 style={{ 
                   backgroundColor: priorityConfig.bgColor,
                   borderColor: priorityConfig.borderColor,
@@ -388,182 +318,174 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
           }
           style={{ 
             marginBottom: 16,
-            borderRadius: 8,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
           }}
           headStyle={{ 
             background: `linear-gradient(135deg, ${priorityConfig.bgColor} 0%, #fff 100%)`,
             borderBottom: `2px solid ${priorityConfig.borderColor}`
           }}
         >
-          <Collapse 
+          <Collapse
             defaultActiveKey={['questions', 'physical', 'differential']}
             style={{ backgroundColor: 'transparent', border: 'none' }}
-          >
-            <Panel 
-              header={
-                <Space>
-                  <ExclamationCircleOutlined style={{ color: '#1890ff' }} />
-                  <Text strong>必问问题</Text>
-                  <Badge count={displayMapping.questions.length} style={{ backgroundColor: '#1890ff' }} />
-                </Space>
-              }
-              key="questions"
-              style={{ marginBottom: 8, borderRadius: 6, overflow: 'hidden' }}
-            >
-              <List
-                dataSource={displayMapping.questions}
-                renderItem={(question, index) => (
-                  <List.Item
-                    style={{ 
-                      padding: '12px 16px',
-                      backgroundColor: index % 2 === 0 ? '#fafafa' : '#fff',
-                      borderRadius: 4,
-                      marginBottom: 4
-                    }}
-                    actions={[
-                      <Tooltip title="使用此问题" key="use">
-                        <Button 
-                          type="primary"
-                          ghost
-                          size="small"
-                          icon={<ArrowRightOutlined />}
-                          onClick={() => onQuestionSelect?.(question)}
-                        >
-                          使用
-                        </Button>
-                      </Tooltip>
-                    ]}
-                  >
-                    <Space>
-                      <Badge 
-                        count={index + 1} 
-                        style={{ 
-                          backgroundColor: '#f0f0f0', 
-                          color: '#595959',
-                          fontSize: 12
-                        }} 
-                      />
-                      <Text>{question}</Text>
-                    </Space>
-                  </List.Item>
-                )}
-              />
-            </Panel>
-            
-            <Panel 
-              header={
-                <Space>
-                  <MedicineBoxOutlined style={{ color: '#52c41a' }} />
-                  <Text strong>体格检查要点</Text>
-                  <Badge count={displayMapping.physicalExamination.length} style={{ backgroundColor: '#52c41a' }} />
-                </Space>
-              }
-              key="physical"
-              style={{ marginBottom: 8, borderRadius: 6, overflow: 'hidden' }}
-            >
-              <List
-                dataSource={displayMapping.physicalExamination}
-                renderItem={(item, index) => (
-                  <List.Item
-                    style={{ 
-                      padding: '10px 16px',
-                      backgroundColor: index % 2 === 0 ? '#f6ffed' : '#fff',
-                      borderRadius: 4,
-                      marginBottom: 4
-                    }}
-                  >
-                    <Space>
-                      <CheckCircleOutlined style={{ color: '#52c41a' }} />
-                      <Text>{item}</Text>
-                    </Space>
-                  </List.Item>
-                )}
-              />
-            </Panel>
-            
-            <Panel 
-              header={
-                <Space>
-                  <CheckCircleOutlined style={{ color: '#722ed1' }} />
-                  <Text strong>鉴别诊断要点</Text>
-                  <Badge count={displayMapping.differentialPoints.length} style={{ backgroundColor: '#722ed1' }} />
-                </Space>
-              }
-              key="differential"
-              style={{ marginBottom: 8, borderRadius: 6, overflow: 'hidden' }}
-            >
-              <List
-                dataSource={displayMapping.differentialPoints}
-                renderItem={(item, index) => (
-                  <List.Item
-                    style={{ 
-                      padding: '10px 16px',
-                      backgroundColor: index % 2 === 0 ? '#f9f0ff' : '#fff',
-                      borderRadius: 4,
-                      marginBottom: 4
-                    }}
-                  >
-                    <Space>
-                      <Badge 
-                        count={index + 1} 
-                        style={{ 
-                          backgroundColor: '#722ed1',
-                          fontSize: 11
-                        }} 
-                      />
-                      <Text>{item}</Text>
-                    </Space>
-                  </List.Item>
-                )}
-              />
-            </Panel>
-            
-            {displayMapping.redFlags.length > 0 && (
-              <Panel 
-                header={
+            items={[
+              {
+                key: 'questions',
+                label: (
+                  <Space>
+                    <ExclamationCircleOutlined style={{ color: '#1890ff' }} />
+                    <Text strong>必问问题</Text>
+                    <Badge count={displayMapping.questions.length} style={{ backgroundColor: '#1890ff' }} />
+                  </Space>
+                ),
+                children: (
+                  <div>
+                    {displayMapping.questions.map((question, index) => (
+                      <div
+                        key={`${index}-${question}`}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: 12,
+                          padding: '12px 16px',
+                          backgroundColor: index % 2 === 0 ? '#fafafa' : '#fff',
+                          borderRadius: 4,
+                          marginBottom: 4
+                        }}
+                      >
+                        <Space>
+                          <Badge
+                            count={index + 1}
+                            style={{
+                              backgroundColor: '#f0f0f0',
+                              color: '#595959',
+                              fontSize: 12
+                            }}
+                          />
+                          <Text>{question}</Text>
+                        </Space>
+                        <Tooltip title="使用此问题">
+                          <Button
+                            type="primary"
+                            ghost
+                            size="small"
+                            icon={<ArrowRightOutlined />}
+                            className="msia-action-button"
+                            onClick={() => onQuestionSelect?.(question)}
+                          >
+                            使用
+                          </Button>
+                        </Tooltip>
+                      </div>
+                    ))}
+                  </div>
+                )
+              },
+              {
+                key: 'physical',
+                label: (
+                  <Space>
+                    <MedicineBoxOutlined style={{ color: '#52c41a' }} />
+                    <Text strong>体格检查要点</Text>
+                    <Badge count={displayMapping.physicalExamination.length} style={{ backgroundColor: '#52c41a' }} />
+                  </Space>
+                ),
+                children: (
+                  <div>
+                    {displayMapping.physicalExamination.map((item, index) => (
+                      <div
+                        key={`${index}-${item}`}
+                        style={{
+                          padding: '10px 16px',
+                          backgroundColor: index % 2 === 0 ? '#f6ffed' : '#fff',
+                          borderRadius: 4,
+                          marginBottom: 4
+                        }}
+                      >
+                        <Space>
+                          <CheckCircleOutlined style={{ color: '#52c41a' }} />
+                          <Text>{item}</Text>
+                        </Space>
+                      </div>
+                    ))}
+                  </div>
+                )
+              },
+              {
+                key: 'differential',
+                label: (
+                  <Space>
+                    <CheckCircleOutlined style={{ color: '#722ed1' }} />
+                    <Text strong>鉴别诊断要点</Text>
+                    <Badge count={displayMapping.differentialPoints.length} style={{ backgroundColor: '#722ed1' }} />
+                  </Space>
+                ),
+                children: (
+                  <div>
+                    {displayMapping.differentialPoints.map((item, index) => (
+                      <div
+                        key={`${index}-${item}`}
+                        style={{
+                          padding: '10px 16px',
+                          backgroundColor: index % 2 === 0 ? '#f9f0ff' : '#fff',
+                          borderRadius: 4,
+                          marginBottom: 4
+                        }}
+                      >
+                        <Space>
+                          <Badge
+                            count={index + 1}
+                            style={{
+                              backgroundColor: '#722ed1',
+                              fontSize: 11
+                            }}
+                          />
+                          <Text>{item}</Text>
+                        </Space>
+                      </div>
+                    ))}
+                  </div>
+                )
+              },
+              ...(displayMapping.redFlags.length > 0 ? [{
+                key: 'redflags',
+                label: (
                   <Space>
                     <FireOutlined style={{ color: '#ff4d4f' }} />
                     <Text strong style={{ color: '#ff4d4f' }}>警惕征象</Text>
                     <Badge count={displayMapping.redFlags.length} style={{ backgroundColor: '#ff4d4f' }} />
                   </Space>
-                }
-                key="redflags"
-                style={{ 
-                  marginBottom: 8, 
-                  borderRadius: 6, 
-                  overflow: 'hidden',
-                  border: '1px solid #ffccc7'
-                }}
-              >
-                <Alert
-                  message="以下情况需要特别关注，可能提示严重疾病"
-                  type="warning"
-                  showIcon
-                  style={{ marginBottom: 12 }}
-                />
-                <List
-                  dataSource={displayMapping.redFlags}
-                  renderItem={(item) => (
-                    <List.Item
-                      style={{ 
-                        padding: '12px 16px',
-                        backgroundColor: '#fff2f0',
-                        borderRadius: 4,
-                        marginBottom: 4,
-                        borderLeft: '3px solid #ff4d4f'
-                      }}
-                    >
-                      <Space>
-                        <ExclamationCircleOutlined style={{ color: '#ff4d4f', fontSize: 16 }} />
-                        <Text type="danger" strong>{item}</Text>
-                      </Space>
-                    </List.Item>
-                  )}
-                />
-              </Panel>
-            )}
-          </Collapse>
+                ),
+                children: (
+                  <div style={{ border: '1px solid #ffccc7', borderRadius: 6, overflow: 'hidden', padding: 12 }}>
+                    <Alert
+                      title="以下情况需要特别关注，可能提示严重疾病"
+                      type="warning"
+                      showIcon
+                      style={{ marginBottom: 12 }}
+                    />
+                    {displayMapping.redFlags.map((item) => (
+                      <div
+                        key={item}
+                        style={{
+                          padding: '12px 16px',
+                          backgroundColor: '#fff2f0',
+                          borderRadius: 4,
+                          marginBottom: 4,
+                          borderLeft: '3px solid #ff4d4f'
+                        }}
+                      >
+                        <Space>
+                          <ExclamationCircleOutlined style={{ color: '#ff4d4f', fontSize: 16 }} />
+                          <Text type="danger" strong>{item}</Text>
+                        </Space>
+                      </div>
+                    ))}
+                  </div>
+                )
+              }] : [])
+            ]}
+          />
           
           <Divider style={{ margin: '16px 0' }} />
           
@@ -599,162 +521,6 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
             </Col>
           </Row>
         </Card>
-      </div>
-    );
-  };
-
-  /**
-   * 渲染医学指南
-   */
-  const renderGuidelines = () => {
-    if (loading.guidelines) {
-      return (
-        <div style={{ padding: 24 }}>
-          <Skeleton active paragraph={{ rows: 4 }} />
-          <Divider />
-          <Skeleton active paragraph={{ rows: 4 }} />
-        </div>
-      );
-    }
-
-    const filteredGuidelines = selectedCategory === 'all' 
-      ? guidelines 
-      : guidelines.filter(g => g.category === selectedCategory);
-
-    return (
-      <div>
-        <Card 
-          size="small" 
-          style={{ marginBottom: 16, backgroundColor: '#fafafa' }}
-        >
-          <Row justify="space-between" align="middle">
-            <Col>
-              <Space wrap>
-                <Button 
-                  type={selectedCategory === 'all' ? 'primary' : 'default'}
-                  size="small"
-                  onClick={() => setSelectedCategory('all')}
-                >
-                  全部 ({guidelines.length})
-                </Button>
-                {guidelineCategories.map(category => (
-                  <Button
-                    key={category}
-                    type={selectedCategory === category ? 'primary' : 'default'}
-                    size="small"
-                    onClick={() => setSelectedCategory(category)}
-                  >
-                    {category}
-                  </Button>
-                ))}
-              </Space>
-            </Col>
-            <Col>
-              <Button 
-                icon={<ReloadOutlined />} 
-                size="small"
-                onClick={checkGuidelineUpdates}
-                type="dashed"
-              >
-                检查更新
-              </Button>
-            </Col>
-          </Row>
-        </Card>
-
-        <div style={{ marginBottom: 16 }}>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            共 <Text strong>{filteredGuidelines.length}</Text> 条指南
-            {lastUpdateTime && (
-              <span style={{ marginLeft: 8 }}>
-                | 最后更新: {lastUpdateTime.toLocaleString()}
-              </span>
-            )}
-          </Text>
-        </div>
-
-        <List
-          grid={{ gutter: 16, column: 1 }}
-          dataSource={filteredGuidelines}
-          renderItem={guideline => (
-            <List.Item>
-              <Card
-                hoverable
-                style={{ 
-                  borderRadius: 8,
-                  transition: 'all 0.3s ease',
-                  borderLeft: guideline.isLatest ? '4px solid #52c41a' : '4px solid #d9d9d9'
-                }}
-                title={
-                  <Space>
-                    <FileTextOutlined style={{ color: '#1890ff' }} />
-                    <span style={{ fontWeight: 500 }}>{guideline.title}</span>
-                    {guideline.isLatest && (
-                      <Badge 
-                        status="processing" 
-                        text={<Text type="success" strong>最新</Text>}
-                      />
-                    )}
-                  </Space>
-                }
-                extra={
-                  <Tag color="blue" style={{ fontWeight: 500 }}>{guideline.category}</Tag>
-                }
-              >
-                <Paragraph 
-                  ellipsis={{ rows: 2 }} 
-                  style={{ color: '#595959', marginBottom: 12 }}
-                >
-                  {guideline.summary}
-                </Paragraph>
-                
-                <div style={{ 
-                  backgroundColor: '#f6ffed', 
-                  padding: 12, 
-                  borderRadius: 6,
-                  marginBottom: 12
-                }}>
-                  <Text strong style={{ color: '#52c41a', fontSize: 13 }}>
-                    <StarOutlined /> 关键要点
-                  </Text>
-                  <ul style={{ margin: '8px 0 0 0', paddingLeft: 20 }}>
-                    {guideline.keyPoints.slice(0, 3).map((point, index) => (
-                      <li key={index}>
-                        <Text style={{ fontSize: 12, color: '#262626' }}>{point}</Text>
-                      </li>
-                    ))}
-                    {guideline.keyPoints.length > 3 && (
-                      <li>
-                        <Text type="secondary" style={{ fontSize: 12 }}>
-                          ...等共 {guideline.keyPoints.length} 条要点
-                        </Text>
-                      </li>
-                    )}
-                  </ul>
-                </div>
-
-                <Row justify="space-between" align="middle">
-                  <Col>
-                    <Space size="small">
-                      <Text type="secondary" style={{ fontSize: 11 }}>
-                        <GlobalOutlined /> {guideline.source}
-                      </Text>
-                      <Divider type="vertical" />
-                      <Text type="secondary" style={{ fontSize: 11 }}>
-                        版本: {guideline.version}
-                      </Text>
-                    </Space>
-                  </Col>
-                  <Col>
-                    <Text type="secondary" style={{ fontSize: 11 }}>
-                      <ClockCircleOutlined /> {guideline.publishDate}
-                    </Text>
-                  </Col>
-                </Row>
-              </Card>
-            </List.Item>
-          )}
-        />
       </div>
     );
   };
@@ -827,91 +593,93 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
               <Collapse 
                 defaultActiveKey={['definition', 'manifestations', 'diagnosis']}
                 style={{ backgroundColor: 'transparent' }}
-              >
-                <Panel 
-                  header={<Text strong style={{ fontSize: 14 }}>疾病定义</Text>} 
-                  key="definition"
-                >
-                  <Paragraph style={{ fontSize: 14, lineHeight: 1.8 }}>
-                    {selectedDisease.definition}
-                  </Paragraph>
-                  <Alert
-                    message={<Text strong>病因</Text>}
-                    description={selectedDisease.etiology}
-                    type="info"
-                    showIcon
-                    style={{ marginTop: 12 }}
-                  />
-                </Panel>
-
-                <Panel 
-                  header={
-                    <Space>
-                      <Text strong style={{ fontSize: 14 }}>临床表现</Text>
-                      <Badge count={selectedDisease.clinicalManifestations.length} style={{ backgroundColor: '#1890ff' }} />
-                    </Space>
-                  } 
-                  key="manifestations"
-                >
-                  <List
-                    dataSource={selectedDisease.clinicalManifestations}
-                    renderItem={(item, index) => (
-                      <List.Item style={{ padding: '8px 0' }}>
-                        <Space>
-                          <Badge 
-                            count={index + 1} 
-                            style={{ backgroundColor: '#1890ff' }} 
-                          />
-                          <Text>{item}</Text>
-                        </Space>
-                      </List.Item>
-                    )}
-                  />
-                </Panel>
-
-                <Panel 
-                  header={
-                    <Space>
-                      <Text strong style={{ fontSize: 14 }}>诊断标准</Text>
-                      <Badge count={selectedDisease.diagnosisCriteria.length} style={{ backgroundColor: '#52c41a' }} />
-                    </Space>
-                  } 
-                  key="diagnosis"
-                >
-                  <List
-                    dataSource={selectedDisease.diagnosisCriteria}
-                    renderItem={(item, index) => (
-                      <List.Item style={{ padding: '8px 0' }}>
-                        <Space>
-                          <Badge 
-                            count={index + 1} 
-                            style={{ backgroundColor: '#52c41a' }} 
-                          />
-                          <Text>{item}</Text>
-                        </Space>
-                      </List.Item>
-                    )}
-                  />
-                </Panel>
-
-                <Panel 
-                  header={<Text strong style={{ fontSize: 14 }}>治疗方案</Text>} 
-                  key="treatment"
-                >
-                  <Paragraph style={{ fontSize: 14, lineHeight: 1.8 }}>
-                    {selectedDisease.treatment}
-                  </Paragraph>
-                </Panel>
-
-                <Panel 
-                  header={<Text strong style={{ fontSize: 14 }}>预后</Text>} 
-                  key="prognosis"
-                >
-                  <Paragraph style={{ fontSize: 14, lineHeight: 1.8 }}>
-                    {selectedDisease.prognosis}
-                  </Paragraph>
-                </Panel>
-              </Collapse>
+                items={[
+                  {
+                    key: 'definition',
+                    label: <Text strong style={{ fontSize: 14 }}>疾病定义</Text>,
+                    children: (
+                      <div>
+                        <Paragraph style={{ fontSize: 14, lineHeight: 1.8 }}>
+                          {selectedDisease.definition}
+                        </Paragraph>
+                        <Alert
+                          title={<Text strong>病因</Text>}
+                          description={selectedDisease.etiology}
+                          type="info"
+                          showIcon
+                          style={{ marginTop: 12 }}
+                        />
+                      </div>
+                    )
+                  },
+                  {
+                    key: 'manifestations',
+                    label: (
+                      <Space>
+                        <Text strong style={{ fontSize: 14 }}>临床表现</Text>
+                        <Badge count={selectedDisease.clinicalManifestations.length} style={{ backgroundColor: '#1890ff' }} />
+                      </Space>
+                    ),
+                    children: (
+                      <div>
+                        {selectedDisease.clinicalManifestations.map((item, index) => (
+                          <div key={`${index}-${item}`} style={{ padding: '8px 0' }}>
+                            <Space>
+                              <Badge 
+                                count={index + 1} 
+                                style={{ backgroundColor: '#1890ff' }} 
+                              />
+                              <Text>{item}</Text>
+                            </Space>
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  },
+                  {
+                    key: 'diagnosis',
+                    label: (
+                      <Space>
+                        <Text strong style={{ fontSize: 14 }}>诊断标准</Text>
+                        <Badge count={selectedDisease.diagnosisCriteria.length} style={{ backgroundColor: '#52c41a' }} />
+                      </Space>
+                    ),
+                    children: (
+                      <div>
+                        {selectedDisease.diagnosisCriteria.map((item, index) => (
+                          <div key={`${index}-${item}`} style={{ padding: '8px 0' }}>
+                            <Space>
+                              <Badge 
+                                count={index + 1} 
+                                style={{ backgroundColor: '#52c41a' }} 
+                              />
+                              <Text>{item}</Text>
+                            </Space>
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  },
+                  {
+                    key: 'treatment',
+                    label: <Text strong style={{ fontSize: 14 }}>治疗方案</Text>,
+                    children: (
+                      <Paragraph style={{ fontSize: 14, lineHeight: 1.8 }}>
+                        {selectedDisease.treatment}
+                      </Paragraph>
+                    )
+                  },
+                  {
+                    key: 'prognosis',
+                    label: <Text strong style={{ fontSize: 14 }}>预后</Text>,
+                    children: (
+                      <Paragraph style={{ fontSize: 14, lineHeight: 1.8 }}>
+                        {selectedDisease.prognosis}
+                      </Paragraph>
+                    )
+                  }
+                ]}
+              />
 
               {relatedDiseases.length > 0 && (
                 <div style={{ 
@@ -983,11 +751,9 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
             image={Empty.PRESENTED_IMAGE_SIMPLE}
           />
         ) : (
-          <List
-            grid={{ gutter: 16, column: 2 }}
-            dataSource={filteredDiseases}
-            renderItem={disease => (
-              <List.Item>
+          <Row gutter={[16, 16]}>
+            {filteredDiseases.map((disease) => (
+              <Col key={disease.id} xs={24} md={12}>
                 <Card
                   hoverable
                   onClick={() => fetchDiseaseDetail(disease.name)}
@@ -1019,9 +785,9 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
                     </div>
                   )}
                 </Card>
-              </List.Item>
-            )}
-          />
+              </Col>
+            ))}
+          </Row>
         )}
       </div>
     );
@@ -1029,12 +795,13 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
 
   return (
     <Card
+      className="msia-card"
       title={
         <Space>
           <BookOutlined style={{ color: token.colorPrimary, fontSize: 18 }} />
           <span style={{ fontSize: 16, fontWeight: 600 }}>智能知识库</span>
           {currentSymptom && (
-            <Tag color="processing" style={{ fontSize: 12 }}>
+            <Tag color="processing" className="msia-tag" style={{ fontSize: 12 }}>
               当前: {currentSymptom}
             </Tag>
           )}
@@ -1047,6 +814,7 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
             size="small"
             onClick={handleRefresh}
             type="dashed"
+            className="msia-action-button"
           >
             刷新
           </Button>
@@ -1054,8 +822,6 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
       }
       style={{ 
         height: '100%',
-        borderRadius: 8,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
       }}
       headStyle={{
         background: 'linear-gradient(135deg, #f0f5ff 0%, #fff 100%)',
@@ -1079,26 +845,6 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
           key="symptomMap"
         >
           {renderSymptomMapping()}
-        </TabPane>
-        
-        <TabPane 
-          tab={
-            <span>
-              <FileTextOutlined />
-              医学指南
-              <Badge 
-                count={guidelines.length} 
-                style={{ 
-                  marginLeft: 4, 
-                  backgroundColor: '#52c41a',
-                  fontSize: 10
-                }} 
-              />
-            </span>
-          } 
-          key="guidelines"
-        >
-          {renderGuidelines()}
         </TabPane>
         
         <TabPane 

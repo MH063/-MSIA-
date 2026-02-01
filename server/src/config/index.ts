@@ -32,8 +32,7 @@ export const databaseConfig = {
 export const corsConfig = {
   allowedOrigins: process.env.ALLOWED_ORIGINS?.split(',') || [
     'http://localhost:8000',
-    'http://localhost:3000',
-    'http://localhost:5173',
+    'http://localhost:8100',
   ],
   maxAge: 86400, // 24小时
 };

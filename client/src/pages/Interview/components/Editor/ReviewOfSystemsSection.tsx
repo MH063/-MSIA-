@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Form, Input, Checkbox, Typography, Collapse } from 'antd';
 import api, { unwrapData } from '../../../../utils/api';
 import type { ApiResponse } from '../../../../utils/api';
@@ -69,6 +69,17 @@ const systemsConfig = [
 ];
 
 const ReviewOfSystemsSection: React.FC = () => {
+  const form = Form.useFormInstance();
+  const rosNone = Form.useWatch(['reviewOfSystems', 'none'], form);
+
+  useEffect(() => {
+    if (!rosNone) return;
+    const curr = form.getFieldValue('reviewOfSystems') as Record<string, unknown> | undefined;
+    if (!curr || typeof curr !== 'object') return;
+    const isOnlyNone = (v: Record<string, unknown>) => Object.keys(v).length === 1 && v.none === true;
+    if (isOnlyNone(curr)) return;
+    form.setFieldValue('reviewOfSystems', { none: true });
+  }, [form, rosNone]);
   /**
    * 使用后端映射将系统症状的勾选值统一为键（key），显示为中文名称（label）
    * 这样保证表单存储与知识库/接口一致性，同时叙述生成中可通过 key→name 还原中文
@@ -103,6 +114,10 @@ const ReviewOfSystemsSection: React.FC = () => {
         请询问患者是否有以下系统的相关症状，如有请勾选并补充详情。
       </Typography.Paragraph>
 
+      <Form.Item name={['reviewOfSystems', 'none']} valuePropName="checked">
+        <Checkbox>无系统回顾异常</Checkbox>
+      </Form.Item>
+
       <Collapse
         defaultActiveKey={systemsConfig.map(s => s.key)}
         items={systemsConfig.map(system => ({
@@ -114,13 +129,27 @@ const ReviewOfSystemsSection: React.FC = () => {
                   name={['reviewOfSystems', system.key, 'symptoms']} 
                   label="常见症状"
               >
-                <Checkbox.Group options={optionsBySystem[system.key] || system.symptoms.map(name => ({ label: name, value: name }))} />
+                <Checkbox.Group
+                  options={optionsBySystem[system.key] || system.symptoms.map(name => ({ label: name, value: name }))}
+                  onChange={() => {
+                    if (form.getFieldValue(['reviewOfSystems', 'none'])) {
+                      form.setFieldValue(['reviewOfSystems', 'none'], false);
+                    }
+                  }}
+                />
               </Form.Item>
               <Form.Item 
                   name={['reviewOfSystems', system.key, 'details']} 
                   label="详情补充"
               >
-                <Input placeholder="如有其他症状或具体描述，请在此补充" />
+                <Input
+                  placeholder="如有其他症状或具体描述，请在此补充"
+                  onChange={() => {
+                    if (form.getFieldValue(['reviewOfSystems', 'none'])) {
+                      form.setFieldValue(['reviewOfSystems', 'none'], false);
+                    }
+                  }}
+                />
               </Form.Item>
             </div>
           )

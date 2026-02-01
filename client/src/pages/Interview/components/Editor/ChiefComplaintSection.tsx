@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Form, Input, AutoComplete, Row, Col, Typography, Card, Space, Button, message, Tag, Radio, InputNumber } from 'antd';
+import { App as AntdApp, Form, Input, AutoComplete, Row, Col, Typography, Card, Space, Button, Tag, Radio, InputNumber } from 'antd';
 import { RobotOutlined, BulbOutlined, EditOutlined, SoundOutlined } from '@ant-design/icons';
 import type { FormInstance } from 'antd';
 import api, { unwrapData } from '../../../../utils/api';
@@ -28,6 +28,7 @@ interface ChiefComplaintSectionProps {
 }
 
 const ChiefComplaintSection: React.FC<ChiefComplaintSectionProps> = ({ form }) => {
+  const { message } = AntdApp.useApp();
   // 拉取后端映射，生成症状名称候选
   const mappingQuery = useQuery({
     queryKey: ['mapping', 'symptoms'],
@@ -330,7 +331,10 @@ const ChiefComplaintSection: React.FC<ChiefComplaintSectionProps> = ({ form }) =
           name={['chiefComplaint', 'text']}
           label="完整主诉"
           help="建议不超过20字，包含主要症状及持续时间"
-          rules={[{ max: 20, message: '主诉不能超过20个字' }]}
+          rules={[
+            { required: true, message: '请输入完整主诉' },
+            { max: 20, message: '主诉不能超过20个字' }
+          ]}
         >
           <TextArea 
             rows={2} 

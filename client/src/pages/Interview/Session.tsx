@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Form, message, Spin, Modal, Button, Space, Tooltip, Popconfirm } from 'antd';
-import { ArrowLeftOutlined, ArrowRightOutlined, EyeOutlined, SaveOutlined, UndoOutlined } from '@ant-design/icons';
+import { App as AntdApp, Form, Spin, Modal, Button, Space, Tooltip, Popconfirm } from 'antd';
+import { ArrowLeftOutlined, ArrowRightOutlined, EyeOutlined, UndoOutlined } from '@ant-design/icons';
 import dayjs, { type Dayjs } from 'dayjs';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -21,6 +21,12 @@ interface FormValues {
   name?: string;
   gender?: string;
   age?: number;
+  ageUnit?: '岁' | '月' | '岁月';
+  ageYears?: number;
+  ageMonthsTotal?: number;
+  ageMonthsPart?: number;
+  ageDisplayText?: string;
+  ageDisplayBackupText?: string;
   birthDate?: DateValue;
   ethnicity?: string;
   nativePlace?: string;
@@ -87,9 +93,14 @@ interface FormValues {
     surgeries?: { date?: DateValue; location?: string; name?: string; outcome?: string }[];
     transfusions?: { date?: DateValue; reason?: string; amount?: string; reaction?: string }[];
     allergies?: { allergen?: string; substance?: string; reaction?: string; severity?: string }[];
+    noDiseaseHistory?: boolean;
+    noSurgeriesTrauma?: boolean;
+    noTransfusions?: boolean;
     noAllergies?: boolean;
   };
   personalHistory?: {
+    birthplace?: string;
+    residence?: string;
     smoking_status?: string;
     smokingHistory?: string;
     cigarettesPerDay?: number;
@@ -168,7 +179,8 @@ interface FormValues {
     specialistDepartment?: string;
   };
   auxiliaryExams?: {
-      exams?: { name: string; date: DateValue; result: string; image?: string }[];
+      none?: boolean;
+      exams?: { name?: string; date?: DateValue; institution?: string; result?: string; image?: string }[];
       summary?: string;
   };
 }
@@ -238,52 +250,6 @@ const getFallbackSymptomMappings = (): { nameToKey: Record<string, string>; keyT
   };
 };
 
-/**
- * 生成降级诊断建议
- * 当API调用失败时使用本地常见症状-疾病映射
- */
-const generateFallbackDiagnoses = (symptoms: string[]): string[] => {
-  const symptomDiseaseMap: Record<string, string[]> = {
-    '头痛': ['偏头痛', '紧张性头痛', '高血压', '颅内病变'],
-    '胸痛': ['冠心病', '心绞痛', '心肌梗死', '胸膜炎', '肋间神经痛'],
-    '腹痛': ['急性胃肠炎', '消化性溃疡', '胆囊炎', '阑尾炎', '肠梗阻'],
-    '发热': ['上呼吸道感染', '肺炎', '流感', '尿路感染'],
-    '咳嗽': ['急性支气管炎', '肺炎', '慢性阻塞性肺病', '支气管哮喘'],
-    '心悸': ['心律失常', '冠心病', '甲状腺功能亢进', '贫血'],
-    '恶心': ['急性胃肠炎', '消化不良', '胃炎', '肝炎'],
-    '呕吐': ['急性胃肠炎', '肠梗阻', '颅内压增高', '妊娠反应'],
-    '腹泻': ['急性胃肠炎', '食物中毒', '肠易激综合征', '炎症性肠病'],
-    '便秘': ['功能性便秘', '肠梗阻', '甲状腺功能减退', '药物副作用'],
-    '头晕': ['高血压', '低血压', '贫血', '颈椎病', '耳石症'],
-    '乏力': ['贫血', '甲状腺功能减退', '糖尿病', '慢性疲劳综合征'],
-    '消瘦': ['糖尿病', '甲状腺功能亢进', '恶性肿瘤', '结核'],
-    '水肿': ['心力衰竭', '肾病综合征', '肝硬化', '甲状腺功能减退'],
-    '皮疹': ['过敏性皮炎', '湿疹', '荨麻疹', '药物疹', '病毒感染'],
-    '关节痛': ['类风湿关节炎', '骨关节炎', '痛风', '系统性红斑狼疮'],
-    '腰痛': ['腰椎间盘突出', '腰肌劳损', '肾结石', '骨质疏松'],
-    '呼吸困难': ['哮喘', '慢性阻塞性肺病', '心力衰竭', '肺栓塞'],
-    '失眠': ['神经衰弱', '焦虑症', '抑郁症', '睡眠呼吸暂停'],
-    '多饮': ['糖尿病', '尿崩症', '干燥综合征'],
-    '多尿': ['糖尿病', '尿路感染', '前列腺增生', '尿崩症'],
-  };
-
-  const suggestions = new Set<string>();
-  
-  symptoms.forEach(symptom => {
-    const diseases = symptomDiseaseMap[symptom];
-    if (diseases) {
-      diseases.forEach(d => suggestions.add(d));
-    }
-  });
-
-  // 如果没有匹配到，返回通用建议
-  if (suggestions.size === 0) {
-    return ['建议进一步检查明确诊断', '请结合体格检查和辅助检查', '必要时请专科会诊'];
-  }
-
-  return Array.from(suggestions).slice(0, 6);
-};
-
 type SessionRes = {
   patient?: {
     birthDate?: string;
@@ -317,6 +283,7 @@ const Session: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [form] = Form.useForm();
+  const { modal, message } = AntdApp.useApp();
   const setModule = useAssistantStore(s => s.setModule);
   const setProgress = useAssistantStore(s => s.setProgress);
   const setPanel = useAssistantStore(s => s.setPanel);
@@ -357,7 +324,7 @@ const Session: React.FC = () => {
       }
     };
     load();
-  }, [setKnowledgeMappings]);
+  }, [setKnowledgeMappings, message]);
   
   const [loading, setLoading] = useState(false);
   const [isValidId, setIsValidId] = useState<boolean | null>(null);
@@ -377,6 +344,9 @@ const Session: React.FC = () => {
   })));
   const [progress, setLocalProgress] = useState(0);
   const autoSaveDebounceRef = useRef<number | null>(null);
+  const linkageCheckDebounceRef = useRef<number | null>(null);
+  const basicCheckDebounceRef = useRef<number | null>(null);
+  const isHydratingRef = useRef(false);
   
   const labelBySectionKey = React.useMemo<Record<string, string>>(
     () => Object.fromEntries(SECTIONS.map(s => [s.key, s.label])),
@@ -386,6 +356,8 @@ const Session: React.FC = () => {
   useEffect(() => {
     return () => {
       if (autoSaveDebounceRef.current) window.clearTimeout(autoSaveDebounceRef.current);
+      if (linkageCheckDebounceRef.current) window.clearTimeout(linkageCheckDebounceRef.current);
+      if (basicCheckDebounceRef.current) window.clearTimeout(basicCheckDebounceRef.current);
     };
   }, []);
 
@@ -415,11 +387,14 @@ const Session: React.FC = () => {
         ['pastHistory', 'generalHealth'],
         ['pastHistory', 'pmh_diseases'],
         ['pastHistory', 'diseaseDetails'],
+        ['pastHistory', 'noDiseaseHistory'],
         ['pastHistory', 'infectiousHistory'],
         ['pastHistory', 'pmh_other'],
         ['pastHistory', 'illnessHistory'],
         ['pastHistory', 'surgeries'],
+        ['pastHistory', 'noSurgeriesTrauma'],
         ['pastHistory', 'transfusions'],
+        ['pastHistory', 'noTransfusions'],
         ['pastHistory', 'allergies'],
         ['pastHistory', 'noAllergies'],
         ['pastHistory', 'vaccinationHistory'],
@@ -476,6 +451,15 @@ const Session: React.FC = () => {
   }, []);
 
   const handleSectionChange = async (key: string) => {
+    try {
+      const snapshot = form.getFieldsValue(true) as FormValues;
+      computeCompletion(snapshot, { level: 'deep', focusedSectionKey: currentSection });
+      console.log('[Session] 板块切换前深度检测完成', { section: currentSection });
+      computeCompletion(snapshot, { level: 'linkage', focusedSectionKey: currentSection });
+      console.log('[Session] 板块切换前关联检测完成', { section: currentSection });
+    } catch (e) {
+      console.error('[Session] 板块切换前深度检测失败', e);
+    }
     // 先保存当前板块数据
     if (isValidId && id && id !== 'new') {
       try {
@@ -520,6 +504,48 @@ const Session: React.FC = () => {
   }, []);
 
   const getPendingItemsForSection = React.useCallback((sectionKey: string) => {
+    if (sectionKey === 'auxiliary_exam') {
+      const ae = form.getFieldValue(['auxiliaryExams']) as unknown;
+      const obj = (ae && typeof ae === 'object') ? (ae as Record<string, unknown>) : {};
+      const isNone = Boolean(obj.none);
+      const summary = typeof obj.summary === 'string' ? obj.summary : '';
+      const exams = (obj.exams as unknown) || [];
+      const hasSummary = summary.trim().length > 0;
+      const hasExam = Array.isArray(exams) && exams.some((ex) => {
+        if (!ex || typeof ex !== 'object') return false;
+        const r = ex as Record<string, unknown>;
+        const name = typeof r.name === 'string' ? r.name.trim() : '';
+        return name.length > 0 && Boolean(r.date);
+      });
+      if (isNone || hasSummary || hasExam) return [];
+      return ['填写综述或添加记录，或勾选无辅助检查'];
+    }
+
+    if (sectionKey === 'past_history') {
+      const ph = (form.getFieldValue(['pastHistory']) as unknown) || {};
+      const obj = (ph && typeof ph === 'object') ? (ph as Record<string, unknown>) : {};
+
+      const generalHealthOk = hasAssistantValue(obj.generalHealth);
+      const diseaseOk =
+        Boolean(obj.noDiseaseHistory) ||
+        hasAssistantValue(obj.pmh_diseases) ||
+        hasAssistantValue(obj.illnessHistory) ||
+        hasAssistantValue(obj.infectiousHistory) ||
+        hasAssistantValue(obj.pmh_other);
+
+      const allergyOk = Boolean(obj.noAllergies) || hasAssistantValue(obj.allergies);
+      const surgeryOk = Boolean(obj.noSurgeriesTrauma) || hasAssistantValue(obj.surgeries);
+      const transfusionOk = Boolean(obj.noTransfusions) || hasAssistantValue(obj.transfusions);
+
+      const missing: string[] = [];
+      if (!generalHealthOk) missing.push('既往健康状况');
+      if (!diseaseOk) missing.push('疾病史');
+      if (!allergyOk) missing.push('过敏史');
+      if (!surgeryOk) missing.push('手术史');
+      if (!transfusionOk) missing.push('输血史');
+      return missing;
+    }
+
     type FieldPath = string | number | (string | number)[];
     const map: Record<string, Array<{ label: string; path: FieldPath }>> = {
       general: [
@@ -542,12 +568,6 @@ const Session: React.FC = () => {
         { label: '程度', path: ['presentIllness', 'severity'] },
         { label: '演变', path: ['presentIllness', 'hpi_evolution'] },
         { label: '诊治经过', path: ['presentIllness', 'treatmentHistory'] },
-      ],
-      past_history: [
-        { label: '既往健康状况', path: ['pastHistory', 'generalHealth'] },
-        { label: '过敏史', path: ['pastHistory', 'allergies'] },
-        { label: '手术史', path: ['pastHistory', 'surgeries'] },
-        { label: '输血史', path: ['pastHistory', 'transfusions'] },
       ],
       personal_history: [
         { label: '居住地', path: ['personalHistory', 'residence'] },
@@ -584,13 +604,27 @@ const Session: React.FC = () => {
 
   const updateAssistantPanelForSection = React.useCallback((sectionKey: string, notify: boolean) => {
     const pendingItems = getPendingItemsForSection(sectionKey);
+    const shouldShowNoneTip =
+      sectionKey === 'past_history' &&
+      pendingItems.some(x => x === '疾病史' || x === '过敏史' || x === '手术史' || x === '输血史');
     const validationText = pendingItems.length > 0
-      ? `当前模块待补充：${pendingItems.join('、')}`
+      ? `${`当前模块待补充：${pendingItems.join('、')}`}${shouldShowNoneTip ? '；如无相关史可勾选否认' : ''}`
       : '当前模块已填写较完整';
+
+    const tips = (() => {
+      if (sectionKey !== 'past_history') return undefined;
+      const t: string[] = [];
+      if (pendingItems.includes('疾病史')) t.push('无既往疾病可勾选否认疾病史');
+      if (pendingItems.includes('过敏史')) t.push('无过敏史可勾选否认过敏史');
+      if (pendingItems.includes('手术史')) t.push('无手术外伤史可勾选否认手术外伤史');
+      if (pendingItems.includes('输血史')) t.push('无输血史可勾选否认输血史');
+      return t.length > 0 ? t : undefined;
+    })();
 
     setPanel({
       pendingItems,
-      validationText
+      validationText,
+      tips,
     });
     if (notify) setNewMessage(true);
     console.log('[Session] 助手面板刷新', { sectionKey, pendingCount: pendingItems.length });
@@ -683,30 +717,32 @@ const Session: React.FC = () => {
 
       const sessionId = (() => {
         const n = Number(id);
-        return Number.isFinite(n) ? n : null;
+        return Number.isFinite(n) && n > 0 ? n : null;
       })();
       if (sessionId && names.length > 0) {
         try {
-          const sRes = await api.post('/diagnosis/suggest', { symptoms: names, age: watchedAge, gender: watchedGender, sessionId }) as ApiResponse<string[]>;
+          const ageYearsFromForm = form.getFieldValue('ageYears');
+          const normalizedAge = (() => {
+            if (typeof ageYearsFromForm === 'number' && Number.isFinite(ageYearsFromForm)) return ageYearsFromForm;
+            if (typeof watchedAge === 'number' && Number.isFinite(watchedAge)) return Math.max(0, Math.floor(watchedAge));
+            return undefined;
+          })();
+          const sRes = await api.post('/diagnosis/suggest', { symptoms: names, age: normalizedAge, gender: watchedGender, sessionId }) as ApiResponse<string[]>;
           const suggestions = unwrapData<string[]>(sRes);
           if (Array.isArray(suggestions) && suggestions.length > 0) {
             setDiagnosisSuggestions(suggestions);
             setPanel({ diseases: suggestions });
             console.log('[Session] 诊断建议更新', { count: suggestions.length });
           } else {
-            // 降级方案：使用本地常见疾病列表
-            const fallbackSuggestions = generateFallbackDiagnoses(names);
-            setDiagnosisSuggestions(fallbackSuggestions);
-            setPanel({ diseases: fallbackSuggestions });
-            console.log('[Session] 使用本地降级诊断建议', { count: fallbackSuggestions.length });
+            setDiagnosisSuggestions([]);
+            setPanel({ diseases: [] });
+            console.log('[Session] 诊断建议为空', { symptomCount: names.length });
           }
         } catch (e) {
-          console.warn('[Session] 获取诊断建议失败，使用本地降级方案', e);
-          // 降级方案：使用本地常见疾病列表
-          const fallbackSuggestions = generateFallbackDiagnoses(names);
-          setDiagnosisSuggestions(fallbackSuggestions);
-          setPanel({ diseases: fallbackSuggestions });
-          message.warning('诊断建议获取失败，已使用本地备选方案');
+          console.warn('[Session] 获取诊断建议失败', e);
+          setDiagnosisSuggestions([]);
+          setPanel({ diseases: [] });
+          message.warning('诊断建议获取失败');
         }
       } else {
         setDiagnosisSuggestions([]);
@@ -720,7 +756,7 @@ const Session: React.FC = () => {
     } finally {
       setKnowledgeLoading(false);
     }
-  }, [form, id, setDiagnosisSuggestions, setKnowledgeContext, setKnowledgeError, setKnowledgeLoading, setNewMessage, setPanel, watchedAge, watchedGender]);
+  }, [form, id, message, setDiagnosisSuggestions, setKnowledgeContext, setKnowledgeError, setKnowledgeLoading, setNewMessage, setPanel, watchedAge, watchedGender]);
 
   useEffect(() => {
     updateAssistantPanelForSection(currentSection, false);
@@ -746,7 +782,7 @@ const Session: React.FC = () => {
 
   const assistantOpenHelp = useCallback(() => {
     const pending = getPendingItemsForSection(currentSection);
-    Modal.info({
+    modal.info({
       title: '智能问诊助手帮助',
       content: (
         <div>
@@ -757,7 +793,7 @@ const Session: React.FC = () => {
       okText: '知道了'
     });
     console.log('[Session] 打开助手帮助', { currentSection, pendingCount: pending.length });
-  }, [currentSection, getPendingItemsForSection, labelBySectionKey]);
+  }, [currentSection, getPendingItemsForSection, labelBySectionKey, modal]);
 
   const assistantRemindRedFlags = useCallback(() => {
     const flags = knowledgeContext?.redFlags || [];
@@ -768,7 +804,7 @@ const Session: React.FC = () => {
     } else {
       message.info('暂无红旗征提示');
     }
-  }, [knowledgeContext?.redFlags, setNewMessage, setPanel]);
+  }, [knowledgeContext?.redFlags, message, setNewMessage, setPanel]);
 
   const assistantGuideReviewOfSystems = useCallback(() => {
     const qs = knowledgeContext?.questions || [];
@@ -779,7 +815,7 @@ const Session: React.FC = () => {
     } else {
       message.info('暂无引导要点');
     }
-  }, [knowledgeContext?.questions, setNewMessage, setPanel]);
+  }, [knowledgeContext?.questions, message, setNewMessage, setPanel]);
 
   /**
    * 智能补全既往史
@@ -799,23 +835,19 @@ const Session: React.FC = () => {
     
     diseases.forEach(disease => {
       if (!updatedDetails[disease]) {
-        updatedDetails[disease] = {
-          year: new Date().getFullYear() - Math.floor(Math.random() * 5 + 1),
-          control: '控制良好',
-          medication: '规律用药'
-        };
+        updatedDetails[disease] = {};
       }
     });
 
     form.setFieldValue(['pastHistory', 'diseaseDetails'], updatedDetails);
     setPanel({ 
-      tips: [`已完善 ${diseases.length} 项疾病详情`, '请根据实际情况修改具体信息'],
-      validationText: '既往史智能补全完成，请核对信息准确性'
+      tips: [`已创建 ${diseases.length} 项疾病详情字段`, '请根据实际情况补充确诊年份、控制情况与用药情况'],
+      validationText: '既往史字段已准备完成，请补充真实信息'
     });
     setNewMessage(true);
-    message.success('既往史智能补全完成');
+    message.success('既往史字段已创建');
     console.log('[Session] 既往史智能补全', { diseases: diseases.length });
-  }, [form, setNewMessage, setPanel]);
+  }, [form, message, setNewMessage, setPanel]);
 
   /**
    * 校验婚育史信息
@@ -858,7 +890,7 @@ const Session: React.FC = () => {
       message.success('婚育史校验通过');
     }
     console.log('[Session] 婚育史校验', { validations: validations.length });
-  }, [form, setNewMessage, setPanel]);
+  }, [form, message, setNewMessage, setPanel]);
 
   /**
    * 生成家族史摘要
@@ -880,17 +912,21 @@ const Session: React.FC = () => {
     if (familyHistory.genetic) parts.push(`遗传病史：${familyHistory.genetic}`);
     if (familyHistory.similar) parts.push(`类似疾病：${familyHistory.similar}`);
 
-    const summary = parts.length > 0 ? parts.join('；') : '暂无家族史记录';
+    if (parts.length === 0) {
+      message.info('请先补充家族成员健康状况后再生成摘要');
+      return;
+    }
+    const summary = parts.join('；');
     
     form.setFieldValue(['familyHistory', 'summary'], summary);
     setPanel({ 
       familySummary: summary,
-      tips: parts.length > 0 ? ['家族史摘要已生成'] : ['请完善家族史各成员信息']
+      tips: ['家族史摘要已生成']
     });
     setNewMessage(true);
     message.success('家族史摘要生成完成');
     console.log('[Session] 家族史摘要生成', { parts: parts.length });
-  }, [form, setNewMessage, setPanel]);
+  }, [form, message, setNewMessage, setPanel]);
 
   /**
    * 检测家族史冲突
@@ -925,7 +961,7 @@ const Session: React.FC = () => {
       message.success('家族史冲突检测通过');
     }
     console.log('[Session] 家族史冲突检测', { conflicts: conflicts.length });
-  }, [form, setNewMessage, setPanel]);
+  }, [form, message, setNewMessage, setPanel]);
 
   /**
    * 遗传风险评估
@@ -968,7 +1004,7 @@ const Session: React.FC = () => {
     setNewMessage(true);
     message.success('遗传风险评估完成');
     console.log('[Session] 遗传风险评估', { riskLevel, factors: riskFactors.length });
-  }, [form, setNewMessage, setPanel]);
+  }, [form, message, setNewMessage, setPanel]);
 
   /**
    * 职业暴露提示
@@ -1006,7 +1042,7 @@ const Session: React.FC = () => {
     setNewMessage(true);
     message.success('职业暴露提示已生成');
     console.log('[Session] 职业暴露提示', { occupation, exposures: exposures.length });
-  }, [form, setNewMessage, setPanel]);
+  }, [form, message, setNewMessage, setPanel]);
 
   /**
    * 妊娠红旗征提示
@@ -1047,7 +1083,7 @@ const Session: React.FC = () => {
     setNewMessage(true);
     message.success('妊娠红旗征提示已生成');
     console.log('[Session] 妊娠红旗征提示', { flags: redFlags.length });
-  }, [form, setNewMessage, setPanel]);
+  }, [form, message, setNewMessage, setPanel]);
 
   /**
    * 个人史智能提示
@@ -1122,6 +1158,7 @@ const Session: React.FC = () => {
     assistantShowPregnancyRedFlags,
     assistantShowPersonalHints,
     form,
+    message,
     setActions,
     setNewMessage,
   ]);
@@ -1130,7 +1167,8 @@ const Session: React.FC = () => {
    * 计算表单完成度
    * 使用加权算法，根据各板块重要性和填写完整度计算总体进度
    */
-  const computeCompletion = useCallback((values: FormValues) => {
+  const computeCompletion = useCallback((values: FormValues, options?: { level?: 'basic' | 'deep' | 'linkage'; focusedSectionKey?: string }) => {
+    const level = options?.level || 'basic';
     /**
      * 检查值是否有效
      */
@@ -1145,6 +1183,42 @@ const Session: React.FC = () => {
       }
       if (typeof x === 'string') return x.trim().length > 0 && !/^[-—无暂无]+$/u.test(x.trim());
       return Boolean(x);
+    };
+
+    /**
+     * 判断文本是否表达“无/否认/未见”等明确阴性
+     */
+    const isExplicitNone = (x: unknown): boolean => {
+      const s = typeof x === 'string' ? x.trim() : '';
+      if (!s) return false;
+      return /^(无|暂无|否认|未见|未发现|未曾|未行|未予|无特殊|无明显异常)/u.test(s);
+    };
+
+    /**
+     * 判断手机号是否为11位数字
+     */
+    const isPhone11 = (x: unknown): boolean => {
+      const s = typeof x === 'string' ? x.trim() : '';
+      if (!s) return false;
+      return /^\d{11}$/u.test(s);
+    };
+
+    /**
+     * 判断年龄是否为合理范围
+     */
+    const isValidAge = (x: unknown): boolean => {
+      if (typeof x !== 'number' || !Number.isFinite(x)) return false;
+      return x >= 0 && x <= 150;
+    };
+
+    /**
+     * 判断日期/时间是否可解析且有效
+     */
+    const isValidDateTime = (x: unknown): boolean => {
+      if (x === null || x === undefined) return false;
+      if (dayjs.isDayjs(x)) return x.isValid();
+      if (typeof x === 'string' || typeof x === 'number' || x instanceof Date) return dayjs(x).isValid();
+      return false;
     };
 
     type FieldPath = string | number | (string | number)[];
@@ -1220,107 +1294,223 @@ const Session: React.FC = () => {
     };
 
     /**
-     * 计算单个板块的完成度（0-1之间）
+     * 依据“问诊导航系统状态检查算法设计方案”计算板块状态与进度
      */
-    const calculateSectionProgress = (key: string): number => {
-      switch (key) {
-        case 'general': {
-          const requiredFields = [values.name, values.gender, values.age, values.historian];
-          const optionalFields = [
-            values.phone,
-            values.address,
-            values.occupation,
-            values.ethnicity,
-            values.placeOfBirth,
-            values.nativePlace,
-          ];
-          const requiredScore = requiredFields.filter(hasValidValue).length / requiredFields.length;
-          const optionalScore = optionalFields.filter(hasValidValue).length / optionalFields.length * 0.2;
-          return Math.min(1, requiredScore + optionalScore);
-        }
-        case 'chief_complaint': {
-          if (hasValidValue(values.chiefComplaint?.text)) return 1;
-          if (hasValidValue(values.chiefComplaint?.symptom)) return 1;
-          return 0;
-        }
-        case 'hpi': {
-          const pi = values.presentIllness || {};
-          const evolution = pi.hpi_evolution ?? pi.evolution ?? pi.narrative;
-          const keyFields = [
-            pi.onsetMode,
-            pi.onsetTime,
-            pi.location,
-            pi.severity,
-            pi.treatmentHistory,
-            evolution,
-          ];
-          const filledCount = keyFields.filter(hasValidValue).length;
-          return filledCount / keyFields.length;
-        }
-        case 'past_history': {
-          const ph = values.pastHistory || {};
-          const hasDiseases =
-            hasValidValue(ph.pmh_diseases) ||
-            hasValidValue(ph.illnessHistory) ||
-            hasValidValue(ph.infectiousHistory) ||
-            hasValidValue(ph.pmh_other);
-          const hasAllergies =
-            (Array.isArray(ph.allergies) && ph.allergies.length > 0) ||
-            Boolean(ph.noAllergies);
-          const hasGeneralHealth = hasValidValue(ph.generalHealth);
-          const scores = [hasGeneralHealth, hasDiseases, hasAllergies];
-          return scores.filter(Boolean).length / scores.length;
-        }
-        case 'personal_history': {
-          const pe = values.personalHistory || {};
-          const hasSmoking = hasValidValue(pe.smoking_status);
-          const hasAlcohol = hasValidValue(pe.alcohol_status);
-          const hasHabits = hasValidValue(pe.living_habits);
-          const scores = [hasSmoking, hasAlcohol, hasHabits];
-          return scores.filter(Boolean).length / scores.length;
-        }
-        case 'marital_history': {
-          // 婚育史：婚姻状况、月经史（女性）、生育史
-          const mh = values.maritalHistory;
-          const men = values.menstrualHistory;
-          const fh = values.fertilityHistory;
-          const hasMarital = hasValidValue(mh?.status);
-          const hasMenstrual = values.gender !== '女' || hasValidValue(men?.age) || men?.isMenopause;
-          const hasFertility = hasValidValue(fh) || values.gender !== '女';
-          const scores = [hasMarital, hasMenstrual, hasFertility];
-          return scores.filter(Boolean).length / scores.length;
-        }
-        case 'family_history': {
-          const fh = values.familyHistory || {};
-          const hasParents = hasValidValue(fh.father) || hasValidValue(fh.mother);
-          const hasGenetic = hasValidValue(fh.genetic) || hasValidValue(fh.similar);
-          const hasSummary = hasValidValue(fh.summary);
-          return hasParents || hasGenetic || hasSummary ? 1 : 0;
-        }
-        case 'review_of_systems': {
-          const ros = values.reviewOfSystems || {};
-          const systems = Object.values(ros);
-          return systems.some(sys => hasValidValue(sys)) ? 1 : 0;
-        }
-        case 'physical_exam': {
-          const vs = values.physicalExam?.vitalSigns || {};
-          const vitalFields = [vs.temperature, vs.pulse, vs.respiration, vs.systolicBP, vs.diastolicBP];
-          const vitalScore = vitalFields.filter(hasValidValue).length / vitalFields.length;
-          const hasGeneral = hasValidValue(values.physicalExam?.general?.description);
-          return Math.min(1, vitalScore + (hasGeneral ? 0.2 : 0));
-        }
-        case 'specialist': {
-          const hasSpecialist = hasValidValue(values.physicalExam?.specialist);
-          const hasDept = hasValidValue(values.physicalExam?.specialistDepartment);
-          return hasSpecialist || hasDept ? 1 : 0;
-        }
-        case 'auxiliary_exam': {
-          const ae = values.auxiliaryExams || {};
-          return hasValidValue(ae.exams) || hasValidValue(ae.summary) ? 1 : 0;
-        }
-        default:
-          return 0;
+    const checkSection = (key: string): { progress: number; completed: boolean; started: boolean } => {
+      const started = isSectionStarted(key);
+      const passRate = (items: boolean[]): number => {
+        if (items.length === 0) return 0;
+        const ok = items.filter(Boolean).length;
+        return ok / items.length;
+      };
+
+      const thresholdMap: Record<string, number> = {
+        general: 0.95,
+        chief_complaint: 0.85,
+        hpi: 0.8,
+        past_history: 0.9,
+        personal_history: 0.75,
+        marital_history: 0.7,
+        family_history: 0.6,
+        review_of_systems: 0.7,
+        physical_exam: 0.8,
+        specialist: 0.7,
+        auxiliary_exam: 0.7,
+      };
+      const startThreshold = 0.3;
+
+      if (key === 'general') {
+        const identityOk = hasValidValue(values.name) && hasValidValue(values.gender) && isValidAge(values.age);
+        const timeOk = isValidDateTime(values.birthDate) && isValidDateTime(values.generalInfo?.recordTime);
+        const contactOk = isPhone11(values.phone);
+        const auxOk = hasValidValue(values.ethnicity) && hasValidValue(values.maritalHistory?.status);
+
+        const checks = [identityOk, timeOk, contactOk, auxOk];
+        const progress = passRate(checks);
+        const completed = progress >= 1;
+        return { progress, completed, started: started || progress >= startThreshold };
       }
+
+      if (key === 'chief_complaint') {
+        const cc = values.chiefComplaint || {};
+        const text = String(cc.text || '').trim();
+        const symptom = String(cc.symptom || '').trim();
+        const durationOk = typeof cc.durationNum === 'number' && Number.isFinite(cc.durationNum) && cc.durationNum > 0 && hasValidValue(cc.durationUnit);
+
+        const structuredPart = symptom.length > 0 && durationOk;
+        const naturalPart = text.length > 0 && text.length <= 20;
+        const logicValidation = level === 'basic' ? structuredPart : (symptom.length === 0 ? false : text.includes(symptom));
+        const qualityCheck = level === 'basic'
+          ? Boolean(text)
+          : /\d+(\.\d+)?\s*(天|日|周|月|年|小时|h|d|w|m|y)/iu.test(text);
+
+        const dims = [structuredPart, naturalPart, logicValidation, qualityCheck];
+        const progress = passRate(dims);
+
+        const completedBasic = text.length > 0 && structuredPart && text.length <= 20;
+        const completedDeep = naturalPart && dims.filter(Boolean).length >= 3;
+        const completed = level === 'basic' ? completedBasic : completedDeep;
+
+        return { progress, completed, started: started || progress >= startThreshold };
+      }
+
+      if (key === 'hpi') {
+        const pi = values.presentIllness || {};
+        const evolutionText = (pi.hpi_evolution ?? pi.evolution ?? pi.narrative) as unknown;
+        const evolutionOk = hasValidValue(evolutionText) || isExplicitNone(evolutionText);
+
+        const timelineOk = hasValidValue(pi.onsetTime) && (level === 'basic' ? true : (hasValidValue(pi.treatmentHistory) || evolutionOk));
+        const symptomDescOk = hasValidValue(pi.location) || hasValidValue(pi.quality) || hasValidValue(pi.severity) || hasValidValue(pi.durationDetails) || hasValidValue(pi.factors);
+        const associatedOk = hasValidValue(pi.associatedSymptoms) || hasValidValue(pi.associatedSymptomsDetails) || hasValidValue(pi.negativeSymptoms);
+        const treatmentOk = hasValidValue(pi.treatmentHistory) || isExplicitNone(pi.treatmentHistory) || /未(诊治|治疗|就诊)/u.test(String(pi.treatmentHistory || '').trim());
+
+        const checks = [timelineOk, symptomDescOk, evolutionOk, associatedOk, treatmentOk];
+        const progress = passRate(checks);
+
+        const completedBasic = checks.filter(Boolean).length >= 3 && hasValidValue(pi.onsetTime);
+        const completedDeep = checks.filter(Boolean).length >= 4;
+        const completed = level === 'basic' ? completedBasic : completedDeep;
+
+        return { progress, completed, started: started || progress >= startThreshold };
+      }
+
+      if (key === 'past_history') {
+        const ph = values.pastHistory || {};
+        const generalHealthOk = hasValidValue(ph.generalHealth);
+
+        const diseasesArr = Array.isArray(ph.pmh_diseases) ? ph.pmh_diseases : [];
+        const diseasesOk =
+          Boolean(ph.noDiseaseHistory) ||
+          diseasesArr.length > 0 ||
+          hasValidValue(ph.illnessHistory) ||
+          hasValidValue(ph.infectiousHistory) ||
+          hasValidValue(ph.pmh_other) ||
+          isExplicitNone(ph.illnessHistory) ||
+          isExplicitNone(ph.infectiousHistory) ||
+          isExplicitNone(ph.pmh_other) ||
+          diseasesArr.some(x => String(x || '').trim() === '无');
+
+        const allergiesArr = Array.isArray(ph.allergies) ? ph.allergies : [];
+        const allergiesOk =
+          Boolean(ph.noAllergies) ||
+          allergiesArr.length > 0 ||
+          hasValidValue(ph.pmh_allergies) ||
+          hasValidValue(ph.allergyDetails) ||
+          isExplicitNone(ph.pmh_allergies) ||
+          isExplicitNone(ph.allergyDetails) ||
+          isExplicitNone(ph.allergyHistory);
+
+        const surgeriesArr = Array.isArray(ph.surgeries) ? ph.surgeries : [];
+        const surgeriesOk =
+          Boolean(ph.noSurgeriesTrauma) ||
+          surgeriesArr.length > 0 ||
+          hasValidValue(ph.surgeryHistory) ||
+          hasValidValue(ph.pmh_trauma_surgery) ||
+          isExplicitNone(ph.surgeryHistory) ||
+          isExplicitNone(ph.pmh_trauma_surgery);
+
+        const transfusionsArr = Array.isArray(ph.transfusions) ? ph.transfusions : [];
+        const transfusionsOk =
+          Boolean(ph.noTransfusions) ||
+          transfusionsArr.length > 0 ||
+          hasValidValue(ph.transfusionHistory) ||
+          isExplicitNone(ph.transfusionHistory) ||
+          /否认输血史/u.test(String(ph.transfusionHistory || '').trim());
+
+        const checks = [generalHealthOk, diseasesOk, allergiesOk, surgeriesOk, transfusionsOk];
+        const progress = passRate(checks);
+        const completed = checks.every(Boolean);
+        return { progress, completed, started: started || progress >= startThreshold };
+      }
+
+      if (key === 'personal_history') {
+        const pe = values.personalHistory || {};
+        const birthplaceOk = hasValidValue((pe as unknown as { birthplace?: unknown }).birthplace) || hasValidValue(values.placeOfBirth);
+        const residenceOk = hasValidValue(pe.residence);
+        const basicInfoOk = birthplaceOk && residenceOk;
+
+        const habitsOk = hasValidValue(pe.smoking_status) && hasValidValue(pe.alcohol_status);
+        const workOk = hasValidValue(pe.work_cond) || isExplicitNone(pe.work_cond) || /无特殊/u.test(String(pe.work_cond || '').trim());
+
+        const checks = [basicInfoOk, habitsOk, workOk];
+        const progress = passRate(checks);
+        const completed = checks.filter(Boolean).length >= 3;
+        return { progress, completed, started: started || progress >= startThreshold };
+      }
+
+      if (key === 'marital_history') {
+        const mh = values.maritalHistory;
+        const men = values.menstrualHistory;
+        const fh = values.fertilityHistory;
+        const hasMarital = hasValidValue(mh?.status);
+        const isFemale = values.gender === '女';
+        const femaleNeeds = isFemale && typeof values.age === 'number' ? values.age >= 12 && values.age <= 50 : isFemale;
+        const hasMenstrual = !femaleNeeds || hasValidValue(men?.age) || isValidDateTime(men?.lmp_date) || hasValidValue(men?.cycle) || Boolean(men?.isMenopause);
+        const hasFertility = !femaleNeeds || hasValidValue(fh?.summary) || typeof fh?.living === 'number' || typeof fh?.term === 'number';
+        const checks = [hasMarital, hasMenstrual, hasFertility];
+        const progress = passRate(checks);
+        const completed = progress >= (thresholdMap[key] || 0.8);
+        return { progress, completed, started: started || progress >= startThreshold };
+      }
+
+      if (key === 'family_history') {
+        const fh = values.familyHistory || {};
+        const parentsOk = hasValidValue(fh.father) || hasValidValue(fh.mother) || isExplicitNone(fh.father) || isExplicitNone(fh.mother);
+        const geneticOk = hasValidValue(fh.genetic) || hasValidValue(fh.similar) || isExplicitNone(fh.genetic) || isExplicitNone(fh.similar);
+        const summaryOk = hasValidValue(fh.summary);
+        const checks = [parentsOk, geneticOk, summaryOk];
+        const progress = passRate(checks);
+        const completed = progress >= (thresholdMap[key] || 0.6);
+        return { progress, completed, started: started || progress >= startThreshold };
+      }
+
+      if (key === 'review_of_systems') {
+        const ros = values.reviewOfSystems || {};
+        const systems = Object.values(ros);
+        const hasAny = systems.some(sys => hasValidValue(sys?.symptoms) || hasValidValue(sys?.details));
+        const progress = hasAny ? 1 : 0;
+        const completed = progress >= (thresholdMap[key] || 0.7);
+        return { progress, completed, started: started || progress >= startThreshold };
+      }
+
+      if (key === 'physical_exam') {
+        const vs = values.physicalExam?.vitalSigns || {};
+        const vitalFields = [vs.temperature, vs.pulse, vs.respiration, vs.systolicBP, vs.diastolicBP];
+        const vitalOk = vitalFields.filter(hasValidValue).length >= 3;
+        const generalOk = hasValidValue(values.physicalExam?.general?.description);
+        const otherOk =
+          hasValidValue(values.physicalExam?.skinMucosa) ||
+          hasValidValue(values.physicalExam?.neck) ||
+          hasValidValue(values.physicalExam?.abdomen) ||
+          hasValidValue(values.physicalExam?.neurological);
+        const checks = [vitalOk, generalOk, otherOk];
+        const progress = passRate(checks);
+        const completed = progress >= (thresholdMap[key] || 0.8);
+        return { progress, completed, started: started || progress >= startThreshold };
+      }
+
+      if (key === 'specialist') {
+        const hasSpecialist = hasValidValue(values.physicalExam?.specialist);
+        const hasDept = hasValidValue(values.physicalExam?.specialistDepartment);
+        const progress = hasSpecialist || hasDept ? 1 : 0;
+        const completed = progress >= (thresholdMap[key] || 0.7);
+        return { progress, completed, started: started || progress >= startThreshold };
+      }
+
+      if (key === 'auxiliary_exam') {
+        const ae = values.auxiliaryExams || {};
+        const exams = Array.isArray(ae.exams) ? ae.exams : [];
+        const hasExam = exams.some(ex => hasValidValue(ex?.name) && isValidDateTime(ex?.date));
+        const hasSummary = hasValidValue(ae.summary);
+        const noneOk = Boolean(ae.none);
+        const checks = [noneOk || hasSummary || hasExam];
+        const progress = passRate(checks);
+        const completed = progress >= (thresholdMap[key] || 0.7);
+        return { progress, completed, started: started || progress >= startThreshold };
+      }
+
+      const progress = 0;
+      return { progress, completed: false, started };
     };
 
     // 各板块权重配置
@@ -1343,13 +1533,14 @@ const Session: React.FC = () => {
     let weightedProgress = 0;
 
     const nextSections: SectionStatus[] = SECTIONS.map(s => {
-      const sectionProgress = calculateSectionProgress(s.key);
+      const r = checkSection(s.key);
+      const sectionProgress = r.progress;
       const weight = sectionWeights[s.key] || 1;
       totalWeight += weight;
       weightedProgress += sectionProgress * weight;
 
-      const completed = sectionProgress >= 0.8;
-      const started = isSectionStarted(s.key);
+      const completed = r.completed;
+      const started = r.started;
       
       return {
         key: s.key,
@@ -1361,12 +1552,304 @@ const Session: React.FC = () => {
     });
 
     const nextProgress = totalWeight > 0 ? (weightedProgress / totalWeight) * 100 : 0;
-    
-    setSections(nextSections);
+
+    const linkageIssues: Record<string, string[]> = {};
+    const addIssue = (sectionKey: string, issue: string) => {
+      const k = String(sectionKey || '').trim();
+      const msg = String(issue || '').trim();
+      if (!k || !msg) return;
+      if (!linkageIssues[k]) linkageIssues[k] = [];
+      if (!linkageIssues[k].includes(msg)) linkageIssues[k].push(msg);
+    };
+
+    if (level === 'linkage') {
+      if (isValidAge(values.age) && isValidDateTime(values.birthDate)) {
+        const refTime = values.generalInfo?.recordTime ?? new Date();
+        const birth = dayjs(values.birthDate as unknown as string);
+        const ref = dayjs(refTime);
+        const monthDiff = ref.isValid() && birth.isValid() ? ref.diff(birth, 'month', true) : NaN;
+        const computedYears = Number.isFinite(monthDiff) ? Math.round((monthDiff / 12) * 100) / 100 : NaN;
+        if (Number.isFinite(computedYears) && Math.abs(computedYears - Number(values.age)) > 1) {
+          addIssue('general', `年龄与出生日期推算不一致（推算约${computedYears}岁）`);
+        }
+      }
+
+      const { keyToName, nameToKey } = useAssistantStore.getState().knowledge;
+      const normalizeSymptom = (input: string): string => {
+        return String(input || '')
+          .replace(/[“”"']/g, '')
+          .replace(/[。；;]$/g, '')
+          .trim();
+      };
+      const deriveMainSymptom = (text: string): string => {
+        const cleaned = normalizeSymptom(text);
+        if (!cleaned) return '';
+        const cutIdx = cleaned.search(/\d/u);
+        const head = (cutIdx >= 0 ? cleaned.slice(0, cutIdx) : cleaned)
+          .replace(/[，,].*$/u, '')
+          .replace(/^(反复发作|反复|持续|间断|阵发|突发|发作性)/u, '')
+          .trim();
+        return head;
+      };
+
+      const cc = values.chiefComplaint || {};
+      const ccSymptom = normalizeSymptom(String(cc.symptom || '')) || deriveMainSymptom(String(cc.text || ''));
+      const pi = values.presentIllness || {};
+      const piText = [
+        pi.location,
+        pi.severity,
+        pi.durationDetails,
+        pi.factors,
+        pi.treatmentHistory,
+        pi.hpi_evolution,
+        pi.evolution,
+        pi.narrative,
+        pi.associatedSymptomsDetails,
+        pi.negativeSymptoms,
+      ].map(x => String(x || '').trim()).filter(Boolean).join(' ');
+      if (ccSymptom && hasValidValue(piText) && !piText.includes(ccSymptom)) {
+        addIssue('chief_complaint', `主诉症状“${ccSymptom}”未在现病史内容中体现`);
+        addIssue('hpi', `现病史内容未体现主诉症状“${ccSymptom}”`);
+      }
+
+      const associated = Array.isArray(pi.associatedSymptoms) ? pi.associatedSymptoms : [];
+      const ros = values.reviewOfSystems || {};
+      const systems = Object.values(ros);
+      const hasAnyRos = systems.some(sys => hasValidValue(sys?.symptoms) || hasValidValue(sys?.details));
+      if ((associated.length > 0 || hasValidValue(pi.negativeSymptoms)) && !hasAnyRos) {
+        addIssue('review_of_systems', '现病史已记录伴随/阴性症状，但系统回顾未填写');
+      }
+
+      const durationToDays = (num: number, unit: string): number => {
+        const u = String(unit || '').trim();
+        if (!Number.isFinite(num) || num <= 0) return 0;
+        if (u === '分钟') return num / (60 * 24);
+        if (u === '小时') return num / 24;
+        if (u === '天' || u === '日') return num;
+        if (u === '周' || u === '星期') return num * 7;
+        if (u === '月') return num * 30;
+        if (u === '年') return num * 365;
+        return 0;
+      };
+      const parseOnsetDate = (input: unknown, ref: unknown): dayjs.Dayjs | null => {
+        const raw = String(input || '').trim();
+        if (!raw) return null;
+        const direct = dayjs(raw);
+        if (direct.isValid()) return direct;
+        const m = raw.match(/(\d+(?:\.\d+)?)\s*(分钟|小时|天|日|周|星期|月|年)\s*前/u);
+        if (m) {
+          const n = Number(m[1]);
+          const unit = String(m[2] || '');
+          const days = durationToDays(n, unit);
+          if (days <= 0) return null;
+          const base = isValidDateTime(ref) ? dayjs(ref as unknown as string) : dayjs();
+          return base.subtract(days, 'day');
+        }
+        const m2 = raw.match(/^近\s*(\d+(?:\.\d+)?)\s*(分钟|小时|天|日|周|星期|月|年)/u);
+        if (m2) {
+          const n = Number(m2[1]);
+          const unit = String(m2[2] || '');
+          const days = durationToDays(n, unit);
+          if (days <= 0) return null;
+          const base = isValidDateTime(ref) ? dayjs(ref as unknown as string) : dayjs();
+          return base.subtract(days, 'day');
+        }
+        return null;
+      };
+
+      const refTime = values.generalInfo?.recordTime ?? new Date();
+      const ccDurNum = typeof cc.durationNum === 'number' && Number.isFinite(cc.durationNum) ? cc.durationNum : 0;
+      const ccDurDays = durationToDays(ccDurNum, String(cc.durationUnit || ''));
+      const onsetDate = parseOnsetDate(pi.onsetTime, refTime);
+      if (ccDurDays > 0 && onsetDate) {
+        const onsetDays = dayjs(refTime).diff(onsetDate, 'day', true);
+        const diff = Math.abs(onsetDays - ccDurDays);
+        const tolerance = Math.max(2, ccDurDays * 0.5);
+        if (Number.isFinite(onsetDays) && onsetDays >= 0 && diff > tolerance) {
+          addIssue('chief_complaint', `主诉病程约${ccDurNum}${String(cc.durationUnit || '')}，现病史起病时间推算约${Math.round(onsetDays)}天`);
+          addIssue('hpi', `现病史起病时间与主诉病程不一致（差异约${Math.round(diff)}天）`);
+        }
+      }
+
+      const ph = values.pastHistory || {};
+      if (ph.noAllergies) {
+        const filled =
+          (Array.isArray(ph.allergies) && ph.allergies.length > 0) ||
+          hasValidValue(ph.pmh_allergies) ||
+          hasValidValue(ph.allergyDetails) ||
+          hasValidValue(ph.allergyHistory);
+        if (filled) addIssue('past_history', '既往史已勾选无过敏史，但仍填写了过敏信息');
+      }
+
+      const extractTokens = (text: string): string[] => {
+        const raw = String(text || '').replace(/\r/g, '\n');
+        return raw
+          .split(/[\n,，、;；\s]+/u)
+          .map(s => s.trim())
+          .filter(s => s.length >= 2 && s.length <= 12);
+      };
+      const allergyTokens = new Set<string>();
+      const allergiesArr = Array.isArray(ph.allergies) ? ph.allergies : [];
+      for (const a of allergiesArr) {
+        if (!a || typeof a !== 'object') continue;
+        const r = a as Record<string, unknown>;
+        for (const t of extractTokens(String(r.substance || r.allergen || ''))) allergyTokens.add(t);
+      }
+      for (const t of extractTokens(String(ph.pmh_allergies || ''))) allergyTokens.add(t);
+      for (const t of extractTokens(String(ph.allergyDetails || ''))) allergyTokens.add(t);
+      for (const t of extractTokens(String(ph.allergyHistory || ''))) allergyTokens.add(t);
+
+      const tx = String(pi.treatmentHistory || '').trim();
+      if (tx && allergyTokens.size > 0) {
+        for (const token of Array.from(allergyTokens)) {
+          if (token && tx.includes(token)) {
+            addIssue('past_history', `既往史提示对“${token}”过敏，但现病史诊治经过提到该内容`);
+            addIssue('hpi', `诊治经过提到“${token}”，请确认是否与既往过敏史冲突`);
+          }
+        }
+      }
+
+      const rosNone = Boolean((ros as Record<string, unknown>)?.none);
+      if (rosNone && ccSymptom) {
+        addIssue('review_of_systems', `系统回顾勾选无异常，但主诉为“${ccSymptom}”`);
+        addIssue('chief_complaint', `主诉为“${ccSymptom}”时，系统回顾勾选无异常需复核`);
+      }
+      if (rosNone && associated.length > 0) {
+        addIssue('review_of_systems', '系统回顾勾选无异常，但现病史已选择伴随症状');
+        addIssue('hpi', '现病史已选择伴随症状，请同步核对系统回顾');
+      }
+
+      const symptomToSystems: Record<string, string[]> = {
+        '发热': ['general'],
+        '发冷': ['general'],
+        '乏力': ['general', 'hematologic', 'endocrine'],
+        '盗汗': ['general'],
+        '体重减轻': ['general'],
+        '体重增加': ['general'],
+        '皮疹': ['skin'],
+        '瘙痒': ['skin'],
+        '色素沉着': ['skin'],
+        '脱发': ['skin'],
+        '多毛': ['skin'],
+        '头痛': ['head_eent', 'neurological'],
+        '头晕': ['head_eent', 'neurological', 'hematologic'],
+        '视力障碍': ['head_eent'],
+        '听力下降': ['head_eent'],
+        '耳鸣': ['head_eent'],
+        '鼻出血': ['head_eent', 'hematologic'],
+        '咽痛': ['head_eent'],
+        '声音嘶哑': ['head_eent'],
+        '咳嗽': ['respiratory'],
+        '咳痰': ['respiratory'],
+        '咯血': ['respiratory'],
+        '胸痛': ['respiratory', 'cardiovascular'],
+        '呼吸困难': ['respiratory', 'cardiovascular'],
+        '哮喘': ['respiratory'],
+        '心悸': ['cardiovascular'],
+        '胸闷': ['cardiovascular'],
+        '水肿': ['cardiovascular', 'urinary'],
+        '晕厥': ['cardiovascular', 'neurological'],
+        '气短': ['cardiovascular'],
+        '夜间阵发性呼吸困难': ['cardiovascular'],
+        '食欲不振': ['digestive'],
+        '恶心': ['digestive'],
+        '呕吐': ['digestive'],
+        '腹痛': ['digestive'],
+        '腹胀': ['digestive'],
+        '腹泻': ['digestive'],
+        '便秘': ['digestive'],
+        '呕血': ['digestive'],
+        '黑便': ['digestive'],
+        '黄疸': ['digestive'],
+        '尿频': ['urinary'],
+        '尿急': ['urinary'],
+        '尿痛': ['urinary'],
+        '血尿': ['urinary'],
+        '排尿困难': ['urinary'],
+        '尿量改变': ['urinary'],
+        '颜面水肿': ['urinary'],
+        '腰痛': ['urinary'],
+        '皮肤出血点': ['hematologic'],
+        '瘀斑': ['hematologic'],
+        '牙龈出血': ['hematologic'],
+        '多饮': ['endocrine'],
+        '多食': ['endocrine'],
+        '多尿': ['endocrine', 'urinary'],
+        '体重改变': ['endocrine'],
+        '怕热': ['endocrine'],
+        '怕冷': ['endocrine'],
+        '多汗': ['endocrine'],
+        '毛发改变': ['endocrine'],
+        '抽搐': ['neurological'],
+        '意识障碍': ['neurological'],
+        '失眠': ['neurological'],
+        '记忆力下降': ['neurological'],
+        '肢体麻木': ['neurological'],
+        '瘫痪': ['neurological'],
+        '关节痛': ['musculoskeletal'],
+        '关节肿胀': ['musculoskeletal'],
+        '关节僵硬': ['musculoskeletal'],
+        '肌肉痛': ['musculoskeletal'],
+        '肌肉萎缩': ['musculoskeletal'],
+        '运动受限': ['musculoskeletal'],
+      };
+
+      const rosRec = ros && typeof ros === 'object' ? (ros as Record<string, unknown>) : {};
+      const hasRosSelection = (sysKey: string, symptomKey: string, symptomName: string): boolean => {
+        const sys = rosRec[sysKey];
+        if (!sys || typeof sys !== 'object') return false;
+        const r = sys as Record<string, unknown>;
+        const arr = Array.isArray(r.symptoms) ? (r.symptoms as unknown[]) : [];
+        const text = String(r.details || '').trim();
+        const mappedKey = nameToKey?.[symptomName];
+        return arr.includes(symptomKey) || (mappedKey ? arr.includes(mappedKey) : false) || arr.includes(symptomName) || (text ? text.includes(symptomName) : false);
+      };
+
+      if (ccSymptom && !rosNone) {
+        const sysKeys = symptomToSystems[ccSymptom] || [];
+        if (sysKeys.length > 0) {
+          const symptomKey = String(nameToKey?.[ccSymptom] || ccSymptom);
+          const ok = sysKeys.some(sysKey => hasRosSelection(sysKey, symptomKey, ccSymptom));
+          if (!ok) {
+            addIssue('review_of_systems', `系统回顾未体现主诉症状“${ccSymptom}”`);
+            addIssue('hpi', `主诉症状“${ccSymptom}”建议在系统回顾中对应记录`);
+          }
+        }
+      }
+
+      if (associated.length > 0 && !rosNone) {
+        for (const k of associated) {
+          const name = String(keyToName?.[k] || k || '').trim();
+          const sysKeys = symptomToSystems[name] || [];
+          if (sysKeys.length === 0) continue;
+          const ok = sysKeys.some(sysKey => hasRosSelection(sysKey, k, name));
+          if (!ok) {
+            addIssue('review_of_systems', `系统回顾未体现现病史伴随症状“${name}”`);
+            addIssue('hpi', `伴随症状“${name}”建议在系统回顾中对应记录`);
+          }
+        }
+      }
+    }
+
+    setSections((prev) => {
+      const prevMap = new Map(prev.map(s => [s.key, s]));
+      const shouldUpdateIssues = level === 'linkage';
+      return nextSections.map((s) => {
+        const prevS = prevMap.get(s.key);
+        const nextHasError = shouldUpdateIssues ? Boolean(linkageIssues[s.key] && linkageIssues[s.key].length > 0) : prevS?.hasError;
+        const nextIssues = shouldUpdateIssues ? (linkageIssues[s.key] || []) : prevS?.issues;
+        return {
+          ...s,
+          hasError: nextHasError,
+          issues: nextIssues,
+        };
+      });
+    });
     setLocalProgress(nextProgress);
     setProgress(nextProgress);
     
-    console.log('[Session] 进度计算完成', { 
+    console.log('[Session] 进度计算完成', {
+      level,
       progress: Math.round(nextProgress), 
       completedSections: nextSections.filter(s => s.isCompleted).length 
     });
@@ -1720,6 +2203,15 @@ const Session: React.FC = () => {
       return items;
     })();
 
+    const ageText = (() => {
+      const displayText = typeof val.ageDisplayText === 'string' ? val.ageDisplayText.trim() : '';
+      if (displayText) return displayText;
+      const years = typeof val.ageYears === 'number' && Number.isFinite(val.ageYears) ? val.ageYears : undefined;
+      if (years != null) return `${years}岁`;
+      if (val.age != null) return `${Math.round(Number(val.age) * 100) / 100}岁`;
+      return '';
+    })();
+
     const md = [
       '# 医疗记录',
       '',
@@ -1732,7 +2224,7 @@ const Session: React.FC = () => {
       '| 项目 | 内容 | 项目 | 内容 |',
       '|---|---|---|---|',
       `| 姓名 | ${escapeTableCell(val.name)} | 性别 | ${escapeTableCell(val.gender)} |`,
-      `| 年龄 | ${escapeTableCell(val.age != null ? `${val.age}` : '')} | 民族 | ${escapeTableCell(val.ethnicity)} |`,
+      `| 年龄 | ${escapeTableCell(ageText)} | 民族 | ${escapeTableCell(val.ethnicity)} |`,
       `| 婚姻状况 | ${escapeTableCell(val.maritalHistory?.status)} | 出生地 | ${escapeTableCell(val.placeOfBirth)} |`,
       `| 职业 | ${escapeTableCell(val.occupation)} | 联系电话 | ${escapeTableCell(val.phone)} |`,
       `| 住址 | ${escapeTableCell(val.address)} | 病史陈述者 | ${escapeTableCell(val.historian ? `${val.historian}${val.reliability ? `（${val.reliability}）` : ''}` : '')} |`,
@@ -1818,17 +2310,27 @@ const Session: React.FC = () => {
       ...(chronicTable ? [chronicTable] : []),
       '## 手术外伤史',
       '',
-      ...(surgeryLines.length > 0 ? surgeryLines.map(s => `- ${escapeMarkdownText(escapeHtml(s))}`) : ['- 未记录']),
+      ...(surgeryLines.length > 0
+        ? surgeryLines.map(s => `- ${escapeMarkdownText(escapeHtml(s))}`)
+        : pastRec.noSurgeriesTrauma
+          ? ['- 否认手术外伤史']
+          : ['- 未记录']),
       '',
       '## 过敏史',
       '',
       ...(allergyText
         ? [`> 过敏史：${escapeHtml(allergyText)}`]
-        : ['- 否认药物及食物过敏史']),
+        : pastRec.noAllergies
+          ? ['- 否认药物及食物过敏史']
+          : ['- 未记录']),
       '',
       '## 输血史',
       '',
-      ...(transfusionLines.length > 0 ? transfusionLines.map(s => `- ${escapeHtml(s)}`) : ['- 否认输血史']),
+      ...(transfusionLines.length > 0
+        ? transfusionLines.map(s => `- ${escapeHtml(s)}`)
+        : pastRec.noTransfusions
+          ? ['- 否认输血史']
+          : ['- 未记录']),
       '',
       '## 传染病史',
       '',
@@ -2006,7 +2508,20 @@ const Session: React.FC = () => {
     lines.push('');
 
     lines.push('基本信息');
-    lines.push(`姓名：${val.name || '未填写'}  性别：${val.gender || '未填写'}  年龄：${val.age != null ? `${val.age}岁` : '未填写'}`);
+    const ageText = (() => {
+      const displayText = typeof val.ageDisplayText === 'string' ? val.ageDisplayText.trim() : '';
+      if (displayText) return displayText;
+      const unit = val.ageUnit;
+      const years = typeof val.ageYears === 'number' && Number.isFinite(val.ageYears) ? val.ageYears : undefined;
+      const monthsTotal = typeof val.ageMonthsTotal === 'number' && Number.isFinite(val.ageMonthsTotal) ? val.ageMonthsTotal : undefined;
+      const monthsPart = typeof val.ageMonthsPart === 'number' && Number.isFinite(val.ageMonthsPart) ? val.ageMonthsPart : undefined;
+      if (unit === '月' && monthsTotal != null) return `${monthsTotal}月`;
+      if (unit === '岁月' && (years != null || monthsPart != null)) return `${years ?? 0}岁${monthsPart ?? 0}月`;
+      if (unit === '岁' && years != null) return `${years}岁`;
+      if (val.age != null) return `${Math.round(Number(val.age) * 100) / 100}岁`;
+      return '';
+    })();
+    lines.push(`姓名：${val.name || '未填写'}  性别：${val.gender || '未填写'}  年龄：${ageText || '未填写'}`);
     lines.push(`民族：${val.ethnicity || '未填写'}  婚姻状况：${val.maritalHistory?.status || '未填写'}  出生地：${val.placeOfBirth || '未填写'}`);
     lines.push(`职业：${val.occupation || '未填写'}  联系电话：${val.phone || '未填写'}  住址：${val.address || '未填写'}`);
     const admissionTime = val.generalInfo?.admissionTime;
@@ -2197,18 +2712,23 @@ const Session: React.FC = () => {
              pastHistory: pastHistory
                ? {
                    ...pastHistory,
-                   surgeries: pastHistory.surgeries?.map(s => ({
-                     ...s,
-                     date: s?.date
-                       ? (dayjs.isDayjs(s.date) ? s.date : dayjs(s.date))
-                       : undefined,
-                   })),
-                   transfusions: pastHistory.transfusions?.map(t => ({
-                     ...t,
-                     date: t?.date
-                       ? (dayjs.isDayjs(t.date) ? t.date : dayjs(t.date))
-                       : undefined,
-                   })),
+                   surgeries: Array.isArray(pastHistory.surgeries)
+                     ? pastHistory.surgeries.map(s => ({
+                         ...s,
+                         date: s?.date
+                           ? (dayjs.isDayjs(s.date) ? s.date : dayjs(s.date))
+                           : undefined,
+                       }))
+                     : [],
+                   transfusions: Array.isArray(pastHistory.transfusions)
+                     ? pastHistory.transfusions.map(t => ({
+                         ...t,
+                         date: t?.date
+                           ? (dayjs.isDayjs(t.date) ? t.date : dayjs(t.date))
+                           : undefined,
+                       }))
+                     : [],
+                   allergies: Array.isArray(pastHistory.allergies) ? pastHistory.allergies : [],
                  }
                : undefined,
              personalHistory: data.personalHistory,
@@ -2230,21 +2750,27 @@ const Session: React.FC = () => {
              auxiliaryExams: auxiliaryExams
                ? {
                    ...auxiliaryExams,
-                   exams: auxiliaryExams.exams?.map(ex => ({
-                     ...ex,
-                     date: ex?.date
-                       ? (dayjs.isDayjs(ex.date) ? ex.date : dayjs(ex.date))
-                       : undefined,
-                   })),
+                   exams: Array.isArray(auxiliaryExams.exams)
+                     ? auxiliaryExams.exams.map(ex => ({
+                         ...ex,
+                         date: ex?.date
+                           ? (dayjs.isDayjs(ex.date) ? ex.date : dayjs(ex.date))
+                           : undefined,
+                       }))
+                     : [],
                  }
                : undefined,
           };
 
+          isHydratingRef.current = true;
           form.setFieldsValue(formData);
           console.log('[Session] 数据加载完成', formData);
           // 使用 formData 直接计算完成度，避免 setFieldsValue 异步导致的获取不到最新值
-          computeCompletion(formData as FormValues);
+          computeCompletion(formData as FormValues, { level: 'deep' });
           setLastSavedAt(Date.now());
+          window.setTimeout(() => {
+            isHydratingRef.current = false;
+          }, 0);
         } else {
           setIsValidId(false);
           message.error('未找到该会话记录');
@@ -2258,7 +2784,7 @@ const Session: React.FC = () => {
       }
     };
     load();
-  }, [id, form, computeCompletion]);
+  }, [id, form, computeCompletion, message]);
 
   const normalizePayload = useCallback((input: unknown): unknown => {
     const seen = new WeakSet<object>();
@@ -2285,6 +2811,7 @@ const Session: React.FC = () => {
   const handleSave = useCallback(async (isAutoSave = false, silent = false) => {
     try {
       const values = form.getFieldsValue(true) as FormValues;
+      computeCompletion(values, { level: 'deep' });
       if (!isAutoSave) setLoading(true);
 
       // Separate patient and session data
@@ -2352,7 +2879,34 @@ const Session: React.FC = () => {
     } finally {
       if (!isAutoSave) setLoading(false);
     }
-  }, [id, form, normalizePayload]);
+  }, [id, form, normalizePayload, computeCompletion, message]);
+
+  const handleArchive = useCallback(async () => {
+    if (!isValidId || !id || id === 'new') return;
+    if (String(sessionStatus || '').toLowerCase() === 'archived') return;
+    setLoading(true);
+    try {
+      await handleSave(true, true);
+      await api.patch(`/sessions/${id}`, { status: 'archived' });
+      setSessionStatus('archived');
+      message.success('已归档');
+      console.log('[Session] 归档成功', { id });
+    } catch (err) {
+      const e = err as unknown;
+      const asRecord = (v: unknown): Record<string, unknown> | null =>
+        v && typeof v === 'object' ? (v as Record<string, unknown>) : null;
+      const rec = asRecord(e);
+      const response = rec ? asRecord(rec.response) : null;
+      console.error('[Session] 归档失败', {
+        message: rec?.message,
+        status: response?.status,
+        data: response?.data,
+      });
+      message.error('归档失败');
+    } finally {
+      setLoading(false);
+    }
+  }, [id, isValidId, message, sessionStatus, handleSave]);
 
   // Auto-save logic
   useEffect(() => {
@@ -2366,6 +2920,7 @@ const Session: React.FC = () => {
 
   const handlePreview = () => {
     const val = form.getFieldsValue(true);
+    computeCompletion(val as FormValues, { level: 'linkage' });
     const md = generateReportMarkdown(val);
     setPreviewContent(md);
     setPreviewPlainText(generateReportPlainText(val));
@@ -2402,7 +2957,7 @@ const Session: React.FC = () => {
     const keys = getSectionResetFieldPaths(currentSection);
     if (keys.length === 0) return;
     form.resetFields(keys as (string | number | (string | number)[])[]);
-    computeCompletion(form.getFieldsValue(true) as FormValues);
+    computeCompletion(form.getFieldsValue(true) as FormValues, { level: 'basic' });
     message.success('已清空本板块内容');
     console.log('[Session] 已重置板块', currentSection);
   };
@@ -2419,7 +2974,6 @@ const Session: React.FC = () => {
           onSectionChange={handleSectionChange}
           sections={sections}
           progress={progress}
-          onExport={handlePreview}
           onGoHome={() => navigate('/')}
           onGoInterviewStart={() => navigate('/sessions')}
         />
@@ -2450,9 +3004,34 @@ const Session: React.FC = () => {
                   form={form}
                   layout="vertical"
                   onValuesChange={(changedValues) => {
-                    computeCompletion(form.getFieldsValue(true) as FormValues);
-                    if (!isValidId) return;
+                    if (isHydratingRef.current) return;
+                    if (basicCheckDebounceRef.current) window.clearTimeout(basicCheckDebounceRef.current);
+                    basicCheckDebounceRef.current = window.setTimeout(() => {
+                      computeCompletion(form.getFieldsValue(true) as FormValues, { level: 'basic' });
+                    }, 200);
                     const changed = changedValues as unknown;
+                    const shouldLinkageCheck = (() => {
+                      if (!changed || typeof changed !== 'object') return false;
+                      const r = changed as Record<string, unknown>;
+                      return (
+                        Object.prototype.hasOwnProperty.call(r, 'chiefComplaint') ||
+                        Object.prototype.hasOwnProperty.call(r, 'presentIllness') ||
+                        Object.prototype.hasOwnProperty.call(r, 'pastHistory') ||
+                        Object.prototype.hasOwnProperty.call(r, 'reviewOfSystems') ||
+                        Object.prototype.hasOwnProperty.call(r, 'age') ||
+                        Object.prototype.hasOwnProperty.call(r, 'gender') ||
+                        Object.prototype.hasOwnProperty.call(r, 'birthDate') ||
+                        Object.prototype.hasOwnProperty.call(r, 'generalInfo')
+                      );
+                    })();
+                    if (shouldLinkageCheck) {
+                      if (linkageCheckDebounceRef.current) window.clearTimeout(linkageCheckDebounceRef.current);
+                      linkageCheckDebounceRef.current = window.setTimeout(() => {
+                        computeCompletion(form.getFieldsValue(true) as FormValues, { level: 'linkage', focusedSectionKey: currentSection });
+                        console.log('[Session] 关联检测已刷新', { section: currentSection });
+                      }, 900);
+                    }
+                    if (!isValidId) return;
                     if (changed && typeof changed === 'object' && Object.prototype.hasOwnProperty.call(changed as Record<string, unknown>, 'presentIllness')) {
                       if (autoSaveDebounceRef.current) window.clearTimeout(autoSaveDebounceRef.current);
                       autoSaveDebounceRef.current = window.setTimeout(() => {
@@ -2518,8 +3097,17 @@ const Session: React.FC = () => {
           <div className="interview-editor-footer">
             <div className="interview-editor-footer-inner">
               <Space size={12}>
-                <Button icon={<SaveOutlined />} onClick={() => handleSave(false)}>保存</Button>
-                <Button type="primary" icon={<EyeOutlined />} onClick={handlePreview}>预览</Button>
+                <Button type="primary" icon={<EyeOutlined />} onClick={handlePreview}>预览病历</Button>
+                <Popconfirm
+                  title="确定将该问诊记录归档吗？"
+                  okText="归档"
+                  cancelText="取消"
+                  onConfirm={() => void handleArchive()}
+                >
+                  <Button disabled={!isValidId || !id || id === 'new' || String(sessionStatus || '').toLowerCase() === 'archived'}>
+                    归档记录
+                  </Button>
+                </Popconfirm>
                 <Popconfirm
                   title="确定要清空本板块所有已填写内容吗？"
                   okText="确定"

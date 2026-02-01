@@ -1038,11 +1038,21 @@ export const getDashboardStats = async (req: Request, res: Response) => {
 export const deleteSession = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        await sessionService.deleteSession(Number(id));
-        res.json({ success: true, message: 'Session deleted successfully' });
-    } catch (error) {
+        const sessionId = Number(id);
+        const operator = (req as any).operator as import('../middleware/auth').OperatorIdentity | undefined;
+        if (!operator) {
+            res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: '缺少操作人信息' } });
+            return;
+        }
+
+        const result = await sessionService.deleteSessionPermanently({ sessionId, operator });
+        res.json({ success: true, data: { deletedId: result.deletedId } });
+    } catch (error: any) {
         console.error('Error deleting session:', error);
-        res.status(500).json({ success: false, message: 'Failed to delete session' });
+        const statusCode = Number(error?.statusCode) || 500;
+        const code = String(error?.errorCode || 'INTERNAL_ERROR');
+        const message = String(error?.message || '删除失败');
+        res.status(statusCode).json({ success: false, error: { code, message } });
     }
 };
 
@@ -1056,10 +1066,23 @@ export const deleteSessionsBulk = async (req: Request, res: Response) => {
             res.status(400).json({ success: false, message: '缺少有效的ID列表' });
             return;
         }
+        const operator = (req as any).operator as import('../middleware/auth').OperatorIdentity | undefined;
+        if (!operator) {
+            res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: '缺少操作人信息' } });
+            return;
+        }
+        if (operator.role !== 'admin') {
+            res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: '仅管理员可批量永久删除' } });
+            return;
+        }
         const normalizedIds = ids.map(Number).filter(id => Number.isFinite(id));
         console.log('[Controller] Bulk delete sessions ids:', normalizedIds);
-        const result = await sessionService.deleteSessionsBulk(normalizedIds);
-        res.json({ success: true, data: { deletedCount: result.count } });
+        let deletedCount = 0;
+        for (const sessionId of normalizedIds) {
+            await sessionService.deleteSessionPermanently({ sessionId, operator });
+            deletedCount += 1;
+        }
+        res.json({ success: true, data: { deletedCount } });
     } catch (error) {
         console.error('Error bulk deleting sessions:', error);
         res.status(500).json({ success: false, message: 'Failed to bulk delete sessions' });

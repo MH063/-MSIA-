@@ -1,14 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Button, Space, Typography, Card, Modal, message, Tag } from 'antd';
+import { App as AntdApp, Table, Button, Space, Typography, Card, Tag } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { DeleteOutlined, EyeOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
-import api, { unwrapData } from '../../utils/api';
+import api, { getApiErrorMessage, unwrapData } from '../../utils/api';
 import type { ApiResponse } from '../../utils/api';
 
 const { Title } = Typography;
-const { confirm } = Modal;
 
 /**
  * 病历列表页
@@ -27,6 +26,7 @@ interface SessionListItem {
 }
 const SessionList: React.FC = () => {
   const navigate = useNavigate();
+  const { modal, message } = AntdApp.useApp();
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<SessionListItem[]>([]);
   const [selectedRowKeys, setSelectedRowKeys] = useState<number[]>([]);
@@ -61,7 +61,7 @@ const SessionList: React.FC = () => {
    */
 
   const handleDelete = (id: number) => {
-    confirm({
+    modal.confirm({
       title: '确认删除该问诊记录?',
       icon: <ExclamationCircleOutlined />,
       okText: '确认删除',
@@ -69,14 +69,15 @@ const SessionList: React.FC = () => {
       cancelText: '取消',
       onOk: async () => {
         try {
+          console.log('[SessionList] 请求永久删除问诊记录', { id });
           const res: ApiResponse = await api.delete(`/sessions/${id}`);
           if (res.success) {
-            message.success('删除成功');
+            message.success('已永久删除');
             fetchData(pagination.current, pagination.pageSize);
           }
-        } catch (error) {
-          console.error(error);
-          message.error('删除失败');
+        } catch (error: unknown) {
+          console.error('[SessionList] 永久删除失败', error);
+          message.error(getApiErrorMessage(error, '删除失败'));
         }
       },
     });
@@ -87,7 +88,7 @@ const SessionList: React.FC = () => {
    */
   const handleBulkDelete = () => {
     if (selectedRowKeys.length === 0) return;
-    confirm({
+    modal.confirm({
       title: `确认批量删除选中的 ${selectedRowKeys.length} 条问诊记录?`,
       icon: <ExclamationCircleOutlined />,
       content: '删除后无法恢复，请谨慎操作。',
@@ -96,16 +97,17 @@ const SessionList: React.FC = () => {
       cancelText: '取消',
       onOk: async () => {
         try {
+          console.log('[SessionList] 请求批量永久删除问诊记录', { ids: selectedRowKeys });
           const res: ApiResponse<{ deletedCount: number }> = await api.post('/sessions/bulk-delete', { ids: selectedRowKeys });
           if (res?.success) {
             const count = res?.data?.deletedCount ?? 0;
-            message.success(`成功删除 ${count} 条记录`);
+            message.success(`已永久删除${count}条记录`);
             setSelectedRowKeys([]);
             fetchData(pagination.current, pagination.pageSize);
           }
-        } catch (error) {
-          console.error(error);
-          message.error('批量删除失败');
+        } catch (error: unknown) {
+          console.error('[SessionList] 批量永久删除失败', error);
+          message.error(getApiErrorMessage(error, '批量删除失败'));
         }
       },
     });

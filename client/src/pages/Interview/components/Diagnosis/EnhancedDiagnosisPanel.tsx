@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
+  App as AntdApp,
   Card, 
   Row, 
   Col, 
@@ -9,11 +10,9 @@ import {
   Button, 
   Space, 
   Badge, 
-  List,
   Progress,
   Empty,
   Skeleton,
-  message,
   Alert,
   Tooltip
 } from 'antd';
@@ -89,6 +88,7 @@ const EnhancedDiagnosisPanel: React.FC<EnhancedDiagnosisPanelProps> = ({
   onDiagnosisSelect,
   onAddAssociatedSymptom
 }) => {
+  const { message } = AntdApp.useApp();
   const [activeTab, setActiveTab] = useState('graph');
   const [loading, setLoading] = useState(false);
   
@@ -156,7 +156,7 @@ const EnhancedDiagnosisPanel: React.FC<EnhancedDiagnosisPanelProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [currentSymptom, associatedSymptoms, redFlags, patientInfo, sessionId]);
+  }, [currentSymptom, associatedSymptoms, redFlags, patientInfo, sessionId, message]);
 
   useEffect(() => {
     fetchEnhancedDiagnoses();
@@ -250,7 +250,7 @@ const EnhancedDiagnosisPanel: React.FC<EnhancedDiagnosisPanelProps> = ({
     return (
       <div>
         <Alert
-          message="置信度评分说明"
+          title="置信度评分说明"
           description="基于症状匹配度、患者特征、医学知识库等多维度计算得出，数值越高表示诊断可能性越大"
           type="info"
           showIcon
@@ -488,7 +488,7 @@ const EnhancedDiagnosisPanel: React.FC<EnhancedDiagnosisPanelProps> = ({
     return (
       <div>
         <Alert
-          message="症状关联分析"
+          title="症状关联分析"
           description="基于医学知识库和临床数据，展示症状之间的关联强度和可能的鉴别诊断"
           type="info"
           showIcon
@@ -496,11 +496,9 @@ const EnhancedDiagnosisPanel: React.FC<EnhancedDiagnosisPanelProps> = ({
           style={{ marginBottom: 16, borderRadius: 8 }}
         />
 
-        <List
-          grid={{ gutter: 16, column: 2 }}
-          dataSource={symptomAssociations}
-          renderItem={association => (
-            <List.Item>
+        <Row gutter={[16, 16]}>
+          {symptomAssociations.map((association) => (
+            <Col key={association.symptom} xs={24} md={12}>
               <Card 
                 size="small" 
                 title={
@@ -585,9 +583,9 @@ const EnhancedDiagnosisPanel: React.FC<EnhancedDiagnosisPanelProps> = ({
                   </div>
                 )}
               </Card>
-            </List.Item>
-          )}
-        />
+            </Col>
+          ))}
+        </Row>
       </div>
     );
   };
@@ -612,41 +610,41 @@ const EnhancedDiagnosisPanel: React.FC<EnhancedDiagnosisPanelProps> = ({
     return (
       <div style={{ background: '#fafafa', borderRadius: 8, padding: 8 }}>
         <Alert
-          message="已排除的诊断"
+          title="已排除的诊断"
           description="被排除的诊断将不会显示在症状关联图谱和置信度分析中，可以随时恢复"
           type="warning"
           showIcon
           style={{ marginBottom: 16, borderRadius: 8 }}
         />
-        <List
-          dataSource={Array.from(excludedDiagnoses)}
-          renderItem={diagnosisName => (
-            <List.Item
-              actions={[
-                <Button 
-                  key="restore"
-                  type="link"
-                  size="small"
-                  icon={<ReloadOutlined />}
-                  onClick={() => handleRestoreDiagnosis(diagnosisName)}
-                >
-                  恢复
-                </Button>
-              ]}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {Array.from(excludedDiagnoses).map((diagnosisName) => (
+            <div
+              key={diagnosisName}
               style={{ 
                 background: '#fff',
                 borderRadius: 6,
-                marginBottom: 4,
-                padding: '8px 12px'
+                padding: '8px 12px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 12
               }}
             >
               <Space>
                 <CloseCircleOutlined style={{ color: '#ff4d4f' }} />
                 <Text delete type="secondary">{diagnosisName}</Text>
               </Space>
-            </List.Item>
-          )}
-        />
+              <Button 
+                type="link"
+                size="small"
+                icon={<ReloadOutlined />}
+                onClick={() => handleRestoreDiagnosis(diagnosisName)}
+              >
+                恢复
+              </Button>
+            </div>
+          ))}
+        </div>
       </div>
     );
   };

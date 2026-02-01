@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Form, Input, Radio, Checkbox, Row, Col, Typography, Card, Select, Collapse, Timeline, Button, Space, Modal, message, InputNumber } from 'antd';
+import { App as AntdApp, Form, Input, Radio, Checkbox, Row, Col, Typography, Card, Select, Collapse, Timeline, Button, Space, Modal, InputNumber } from 'antd';
 import { ClockCircleOutlined, PlusOutlined, SyncOutlined, ArrowUpOutlined, ArrowDownOutlined, DeleteOutlined } from '@ant-design/icons';
 import api, { unwrapData, type ApiResponse } from '../../../../utils/api';
 import { buildHpiNarrative } from '../../../../utils/narrative';
@@ -70,6 +70,7 @@ const SeverityBlocks: React.FC<{ value?: string; onChange?: (v: string) => void 
  * 现病史编辑分节：包含起病、症状特点、伴随症状、诊治经过与一般情况
  */
 const HPISection: React.FC = () => {
+  const { message } = AntdApp.useApp();
   const form = Form.useFormInstance();
   const mappingQuery = useQuery({
     queryKey: ['mapping', 'symptoms'],
@@ -494,7 +495,11 @@ const HPISection: React.FC = () => {
                     </Form.Item>
                   </Col>
                   <Col span={8}>
-                    <Form.Item name={['presentIllness', 'onsetTime']} label="确切时间">
+                    <Form.Item
+                      name={['presentIllness', 'onsetTime']}
+                      label="确切时间"
+                      rules={[{ required: true, message: '请填写起病时间' }]}
+                    >
                       <Input placeholder="如：2023年10月25日晨起时 / 5天前午饭后" prefix={<ClockCircleOutlined />} />
                     </Form.Item>
                   </Col>
@@ -515,7 +520,11 @@ const HPISection: React.FC = () => {
               <div id="hpi-panel-2">
                 <Row gutter={24}>
                   <Col span={12}>
-                    <Form.Item name={['presentIllness', 'location']} label="部位">
+                    <Form.Item
+                      name={['presentIllness', 'location']}
+                      label="部位"
+                      rules={[{ required: true, message: '请填写主要症状部位/特点' }]}
+                    >
                       <Input placeholder="疼痛/不适具体部位，是否放射（可在此补充）" />
                     </Form.Item>
                   </Col>

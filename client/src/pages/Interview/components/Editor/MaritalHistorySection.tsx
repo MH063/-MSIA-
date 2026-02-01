@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Form, Input, InputNumber, Card, Row, Col, Select } from 'antd';
 import MenstrualHistorySection from './MenstrualHistorySection';
 
@@ -8,13 +8,32 @@ const MaritalHistorySection: React.FC = () => {
   const form = Form.useFormInstance();
   const gender = Form.useWatch('gender', form);
   const isFemale = gender === '女';
+  
+  // 监听婚姻状况字段，用于双向同步
+  const maritalStatus = Form.useWatch(['maritalHistory', 'status'], form);
+
+  /**
+   * 双向同步：婚姻状况
+   * 婚育史 -> 一般项目
+   * 由于两个模块使用相同的字段路径 ['maritalHistory', 'status']，
+   * Form 会自动处理同步，这里添加日志记录
+   */
+  useEffect(() => {
+    if (maritalStatus) {
+      console.log('[MaritalHistorySection] 婚姻状况变更:', maritalStatus);
+    }
+  }, [maritalStatus]);
 
   return (
     <div className="section-container">
       <Card type="inner" title="婚姻状况 (Marital Status)" size="small" style={{ marginBottom: 24 }}>
         <Row gutter={24}>
           <Col span={8}>
-            <Form.Item name={['maritalHistory', 'status']} label="婚姻状况">
+            <Form.Item
+              name={['maritalHistory', 'status']}
+              label="婚姻状况"
+              rules={[{ required: true, message: '请选择婚姻状况' }]}
+            >
               <Select placeholder="请选择">
                 <Option value="未婚">未婚</Option>
                 <Option value="已婚">已婚</Option>

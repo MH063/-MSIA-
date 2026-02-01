@@ -113,11 +113,26 @@ export const SessionSchemas = {
     ),
 
     // session fields
-    historian: z.string().max(50).optional(),
-    reliability: z.string().max(50).optional(),
-    historianRelationship: z.string().max(50).optional(),
-    generalInfo: z.record(z.string(), z.any()).optional(),
-    status: z.string().max(50).optional(),
+    historian: z.preprocess(
+      (v) => (v === null || v === undefined || v === '' ? undefined : v),
+      z.string().max(50).optional()
+    ),
+    reliability: z.preprocess(
+      (v) => (v === null || v === undefined || v === '' ? undefined : v),
+      z.string().max(50).optional()
+    ),
+    historianRelationship: z.preprocess(
+      (v) => (v === null || v === undefined || v === '' ? undefined : v),
+      z.string().max(50).optional()
+    ),
+    generalInfo: z.preprocess(
+      (v) => (v === null || v === undefined ? undefined : v),
+      z.record(z.string(), z.any()).optional()
+    ),
+    status: z.preprocess(
+      (v) => (v === null || v === undefined || v === '' ? undefined : v),
+      z.string().max(50).optional()
+    ),
 
     chiefComplaint: z
       .object({
@@ -173,20 +188,59 @@ export const SessionSchemas = {
         ),
       })
       .optional(),
-    presentIllness: z.record(z.string(), z.any()).optional(),
-    pastHistory: z.record(z.string(), z.any()).optional(),
-    personalHistory: z.record(z.string(), z.any()).optional(),
-    maritalHistory: z.record(z.string(), z.any()).optional(),
-    menstrualHistory: z.record(z.string(), z.any()).optional(),
-    fertilityHistory: z.record(z.string(), z.any()).optional(),
-    familyHistory: z.record(z.string(), z.any()).optional(),
-    reviewOfSystems: z.record(z.string(), z.any()).optional(),
-    physicalExam: z.record(z.string(), z.any()).optional(),
-    specialistExam: z.record(z.string(), z.any()).optional(),
-    auxiliaryExams: z.record(z.string(), z.any()).optional(),
+    presentIllness: z.preprocess(
+      (v) => (v === null || v === undefined ? undefined : v),
+      z.record(z.string(), z.any()).optional()
+    ),
+    pastHistory: z.preprocess(
+      (v) => (v === null || v === undefined ? undefined : v),
+      z.record(z.string(), z.any()).optional()
+    ),
+    personalHistory: z.preprocess(
+      (v) => (v === null || v === undefined ? undefined : v),
+      z.record(z.string(), z.any()).optional()
+    ),
+    maritalHistory: z.preprocess(
+      (v) => (v === null || v === undefined ? undefined : v),
+      z.record(z.string(), z.any()).optional()
+    ),
+    menstrualHistory: z.preprocess(
+      (v) => (v === null || v === undefined ? undefined : v),
+      z.record(z.string(), z.any()).optional()
+    ),
+    fertilityHistory: z.preprocess(
+      (v) => (v === null || v === undefined ? undefined : v),
+      z.record(z.string(), z.any()).optional()
+    ),
+    familyHistory: z.preprocess(
+      (v) => (v === null || v === undefined ? undefined : v),
+      z.record(z.string(), z.any()).optional()
+    ),
+    reviewOfSystems: z.preprocess(
+      (v) => (v === null || v === undefined ? undefined : v),
+      z.record(z.string(), z.any()).optional()
+    ),
+    physicalExam: z.preprocess(
+      (v) => (v === null || v === undefined ? undefined : v),
+      z.record(z.string(), z.any()).optional()
+    ),
+    specialistExam: z.preprocess(
+      (v) => (v === null || v === undefined ? undefined : v),
+      z.record(z.string(), z.any()).optional()
+    ),
+    auxiliaryExams: z.preprocess(
+      (v) => (v === null || v === undefined ? undefined : v),
+      z.record(z.string(), z.any()).optional()
+    ),
 
-    specialist: z.record(z.string(), z.any()).optional(),
-    auxiliaryExam: z.record(z.string(), z.any()).optional(),
+    specialist: z.preprocess(
+      (v) => (v === null || v === undefined ? undefined : v),
+      z.record(z.string(), z.any()).optional()
+    ),
+    auxiliaryExam: z.preprocess(
+      (v) => (v === null || v === undefined ? undefined : v),
+      z.record(z.string(), z.any()).optional()
+    ),
   })
     .passthrough(),
 

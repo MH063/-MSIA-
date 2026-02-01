@@ -1,17 +1,51 @@
-import React from 'react';
-import { Form, Input, Row, Col, Typography, Card, Button, DatePicker } from 'antd';
+import React, { useEffect } from 'react';
+import { Form, Input, Row, Col, Typography, Card, Button, DatePicker, Checkbox } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 
 const { Title } = Typography;
 const { TextArea } = Input;
 
 const AuxiliaryExamSection: React.FC = () => {
+  const form = Form.useFormInstance();
+  const none = Form.useWatch(['auxiliaryExams', 'none'], form);
+
+  useEffect(() => {
+    if (!none) return;
+    const curr = form.getFieldValue('auxiliaryExams') as Record<string, unknown> | undefined;
+    if (!curr || typeof curr !== 'object') {
+      form.setFieldValue('auxiliaryExams', { none: true });
+      return;
+    }
+    const next: Record<string, unknown> = { ...curr, none: true, summary: undefined, exams: [] };
+    form.setFieldValue('auxiliaryExams', next);
+  }, [form, none]);
+
   // 使用 Form.List 管理辅助检查数组
   return (
     <div className="section-container">
       <Title level={4} style={{ marginBottom: 24 }}>辅助检查 (Auxiliary Examination)</Title>
       
-      <Form.Item name={['auxiliaryExams', 'summary']} label="辅助检查综述" help="可在此处粘贴完整的检查报告摘要">
+      <Form.Item name={['auxiliaryExams', 'none']} valuePropName="checked">
+        <Checkbox>无辅助检查</Checkbox>
+      </Form.Item>
+
+      <Form.Item
+        name={['auxiliaryExams', 'summary']}
+        label="辅助检查综述"
+        help="可在此处粘贴完整的检查报告摘要"
+        rules={[
+          {
+            validator: async (_rule, value) => {
+              const isNone = Boolean(form.getFieldValue(['auxiliaryExams', 'none']));
+              const exams = form.getFieldValue(['auxiliaryExams', 'exams']) as unknown;
+              const hasExam = Array.isArray(exams) && exams.length > 0;
+              const hasSummary = typeof value === 'string' && value.trim().length > 0;
+              if (isNone || hasExam || hasSummary) return;
+              throw new Error('请填写辅助检查综述、添加记录或勾选“无辅助检查”');
+            }
+          }
+        ]}
+      >
         <TextArea rows={3} placeholder="如：血常规正常，胸部CT示双肺纹理增多..." />
       </Form.Item>
       

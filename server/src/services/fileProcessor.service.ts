@@ -6,6 +6,7 @@ import { createHash } from 'crypto';
 import { eventBus } from './eventBus.service';
 
 export class FileProcessorService {
+  private static readonly PROCESSOR_VERSION = '2026-02-01-2';
   private queue: Array<{ filePath: string; rootDir: string }> = [];
   private processing = 0;
   private maxConcurrency = 2;
@@ -64,7 +65,15 @@ export class FileProcessorService {
         where: { filePath: relativePath }
       });
 
-      if (existingSource && existingSource.hash === hash && existingSource.status === 'processed') {
+      const sourceMeta = (existingSource?.metadata || null) as Record<string, unknown> | null;
+      const metaVersion = sourceMeta ? String(sourceMeta['processorVersion'] || '') : '';
+      const canSkip =
+        existingSource &&
+        existingSource.hash === hash &&
+        existingSource.status === 'processed' &&
+        metaVersion === FileProcessorService.PROCESSOR_VERSION;
+
+      if (canSkip) {
         // No change
         console.log(`[FileProcessor] Skipping unchanged file: ${relativePath}`);
         return;
@@ -166,75 +175,196 @@ export class FileProcessorService {
     // Check if it's a symptom definition
     if (data.symptomKey && data.displayName) {
       const sections = this.parseMarkdownSections(body);
+      const requiredQuestions = this.toStringArray(sections.requiredQuestions);
+      const associatedSymptoms = this.toStringArray(sections.associatedSymptoms);
+      const redFlags = this.toStringArray(sections.redFlags);
+      const physicalSigns = this.toStringArray(sections.physicalSigns);
       
       await prisma.symptomKnowledge.upsert({
         where: { symptomKey: data.symptomKey },
         update: {
           displayName: data.displayName,
-          requiredQuestions: sections.requiredQuestions || [],
-          associatedSymptoms: sections.associatedSymptoms || [],
-          redFlags: sections.redFlags || [],
-          physicalSigns: sections.physicalSigns || [],
+          requiredQuestions,
+          associatedSymptoms,
+          redFlags,
+          physicalSigns,
+          category: (data as any).category || undefined,
+          priority: (data as any).priority || undefined,
+          questions: requiredQuestions,
+          physicalExamination: physicalSigns,
+          differentialPoints: this.toStringArray((data as any).differentialPoints),
           sourceFileId: sourceId,
           version: { increment: 1 }
         },
         create: {
           symptomKey: data.symptomKey,
           displayName: data.displayName,
-          requiredQuestions: sections.requiredQuestions || [],
-          associatedSymptoms: sections.associatedSymptoms || [],
-          redFlags: sections.redFlags || [],
-          physicalSigns: sections.physicalSigns || [],
+          requiredQuestions,
+          associatedSymptoms,
+          redFlags,
+          physicalSigns,
+          category: (data as any).category || undefined,
+          priority: (data as any).priority || undefined,
+          questions: requiredQuestions,
+          physicalExamination: physicalSigns,
+          differentialPoints: this.toStringArray((data as any).differentialPoints),
           sourceFileId: sourceId
         }
+      });
+
+      console.log(`[FileProcessor] Markdown upserted: ${String(data.symptomKey)}`, {
+        requiredQuestions: requiredQuestions.length,
+        associatedSymptoms: associatedSymptoms.length,
+        redFlags: redFlags.length,
+        physicalSigns: physicalSigns.length,
       });
       
       // Update metadata in source
       await prisma.knowledgeSource.update({
         where: { id: sourceId },
-        data: { metadata: data as any }
+        data: { metadata: { ...(data as any), processorVersion: FileProcessorService.PROCESSOR_VERSION } as any }
       });
     }
   }
 
   private async processJson(sourceId: number, content: string) {
-    const data = JSON.parse(content);
+    const data = JSON.parse(String(content || '').replace(/^\uFEFF/, ''));
     
     if (Array.isArray(data)) {
         // Bulk import
+        let imported = 0;
         for (const item of data) {
             if (item.symptomKey && item.displayName) {
                 await this.upsertSymptom(sourceId, item);
+                imported += 1;
             }
         }
+        await prisma.knowledgeSource.update({
+          where: { id: sourceId },
+          data: {
+            metadata: {
+              processorVersion: FileProcessorService.PROCESSOR_VERSION,
+              importedCount: imported,
+              mode: 'bulk',
+            } as any
+          }
+        });
+        console.log(`[FileProcessor] JSON bulk imported`, { sourceId, importedCount: imported });
     } else if (data.symptomKey && data.displayName) {
         // Single import
         await this.upsertSymptom(sourceId, data);
+        await prisma.knowledgeSource.update({
+          where: { id: sourceId },
+          data: {
+            metadata: {
+              processorVersion: FileProcessorService.PROCESSOR_VERSION,
+              symptomKey: String(data.symptomKey),
+              displayName: String(data.displayName),
+              mode: 'single',
+            } as any
+          }
+        });
+        console.log(`[FileProcessor] JSON single imported`, {
+          sourceId,
+          symptomKey: String(data.symptomKey),
+          displayName: String(data.displayName),
+        });
     }
   }
 
   private async upsertSymptom(sourceId: number, data: any) {
+      const symptomKey = String(data?.symptomKey || '').trim();
+      const displayName = String(data?.displayName || '').trim();
+      if (!symptomKey || !displayName) return;
+
+      const requiredQuestions = this.toStringArray(
+        data?.requiredQuestions ?? data?.questions ?? []
+      );
+      const questions = this.toStringArray(data?.questions ?? data?.requiredQuestions ?? []);
+
+      const associatedSymptoms = this.toStringArray(data?.associatedSymptoms);
+      const redFlags = this.toStringArray(data?.redFlags);
+
+      const physicalSigns = this.toStringArray(
+        data?.physicalSigns ?? data?.physicalExamination ?? []
+      );
+      const physicalExamination = this.toStringArray(
+        data?.physicalExamination ?? data?.physicalSigns ?? []
+      );
+
+      const differentialPoints = this.toStringArray(
+        data?.differentialPoints ?? data?.differentialDiagnosis ?? []
+      );
+
+      const commonCauses = this.toStringArray(data?.commonCauses);
+      const onsetPatterns = this.toStringArray(data?.onsetPatterns);
+      const relatedExams = this.toStringArray(data?.relatedExams);
+      const bodySystems = this.toStringArray(data?.bodySystems);
+      const ageGroups = this.toStringArray(data?.ageGroups);
+
       await prisma.symptomKnowledge.upsert({
-        where: { symptomKey: data.symptomKey },
+        where: { symptomKey },
         update: {
-          displayName: data.displayName,
-          requiredQuestions: data.requiredQuestions || [],
-          associatedSymptoms: data.associatedSymptoms || [],
-          redFlags: data.redFlags || [],
-          physicalSigns: data.physicalSigns || [],
+          displayName,
+          requiredQuestions,
+          associatedSymptoms,
+          redFlags,
+          physicalSigns,
+          category: typeof data?.category === 'string' ? data.category : undefined,
+          priority: typeof data?.priority === 'string' ? data.priority : undefined,
+          questions,
+          physicalExamination,
+          differentialPoints,
+          description: typeof data?.description === 'string' ? data.description : undefined,
+          commonCauses,
+          onsetPatterns,
+          severityScale: Array.isArray(data?.severityScale) ? data.severityScale : undefined,
+          relatedExams,
+          imageUrl: typeof data?.imageUrl === 'string' ? data.imageUrl : undefined,
+          bodySystems,
+          ageGroups,
+          prevalence: typeof data?.prevalence === 'string' ? data.prevalence : undefined,
           sourceFileId: sourceId,
           version: { increment: 1 }
         },
         create: {
-          symptomKey: data.symptomKey,
-          displayName: data.displayName,
-          requiredQuestions: data.requiredQuestions || [],
-          associatedSymptoms: data.associatedSymptoms || [],
-          redFlags: data.redFlags || [],
-          physicalSigns: data.physicalSigns || [],
+          symptomKey,
+          displayName,
+          requiredQuestions,
+          associatedSymptoms,
+          redFlags,
+          physicalSigns,
+          category: typeof data?.category === 'string' ? data.category : undefined,
+          priority: typeof data?.priority === 'string' ? data.priority : undefined,
+          questions,
+          physicalExamination,
+          differentialPoints,
+          description: typeof data?.description === 'string' ? data.description : undefined,
+          commonCauses,
+          onsetPatterns,
+          severityScale: Array.isArray(data?.severityScale) ? data.severityScale : undefined,
+          relatedExams,
+          imageUrl: typeof data?.imageUrl === 'string' ? data.imageUrl : undefined,
+          bodySystems,
+          ageGroups,
+          prevalence: typeof data?.prevalence === 'string' ? data.prevalence : undefined,
           sourceFileId: sourceId
         }
       });
+  }
+
+  private toStringArray(value: unknown): string[] {
+    if (!value) return [];
+    if (Array.isArray(value)) {
+      return value
+        .map((v) => String(v ?? '').trim())
+        .filter((v) => v.length > 0);
+    }
+    if (typeof value === 'string') {
+      const s = value.trim();
+      return s ? [s] : [];
+    }
+    return [];
   }
 
   private parseMarkdownSections(body: string) {

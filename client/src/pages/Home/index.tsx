@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Typography, Card, Row, Col, Statistic, Avatar, Space, Badge } from 'antd';
+import { Button, Typography, Card, Row, Col, Statistic, Avatar, Space, Progress, Tag } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { 
   MedicineBoxOutlined, 
@@ -19,7 +19,7 @@ import type { ApiResponse } from '../../utils/api';
 dayjs.extend(relativeTime);
 dayjs.locale('zh-cn');
 
-const { Title, Text, Paragraph } = Typography;
+const { Title, Paragraph } = Typography;
 
 const Home: React.FC = () => {
   const navigate = useNavigate();
@@ -47,13 +47,17 @@ const Home: React.FC = () => {
   const fetchData = React.useCallback(async () => {
     setLoading(true);
     try {
+        console.log('[Home] 获取首页统计数据');
         const res: ApiResponse<Stats | { data: Stats }> = await api.get('/sessions/stats');
         if (res?.success) {
             const payload = unwrapData<Stats>(res);
-            if (payload) setStats(payload);
+            if (payload) {
+              console.log('[Home] 首页统计数据获取成功', payload);
+              setStats(payload);
+            }
         }
     } catch (err) {
-        console.error(err);
+        console.error('[Home] 首页统计数据获取失败', err);
     } finally {
         setLoading(false);
     }
@@ -83,41 +87,49 @@ const Home: React.FC = () => {
     return map[status] || status;
   };
 
+  const getStatusTagColor = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return 'green';
+      case 'archived':
+        return 'blue';
+      case 'draft':
+        return 'gold';
+      default:
+        return 'default';
+    }
+  };
+
+  const totalDone = stats.archivedCount + stats.completedCount;
+  const archivedPercent = totalDone > 0 ? Math.round((stats.archivedCount / totalDone) * 100) : 0;
+
   return (
-    <div style={{ padding: '0 12px' }}>
-      {/* 顶部欢迎 Banner */}
+    <div className="home-page">
       <Card 
-        style={{ 
-          marginBottom: 24, 
-          background: 'linear-gradient(135deg, #1890ff 0%, #0050b3 100%)',
-          color: 'white'
-        }}
+        className="home-banner"
         variant="borderless"
-        styles={{ body: { padding: '32px' } }}
+        styles={{ body: { padding: 32 } }}
       >
-        <Row align="middle" gutter={24}>
-          <Col flex="1">
-            <Title level={2} style={{ color: 'white', margin: 0 }}>
-              欢迎使用医学生智能问诊辅助系统 (MSIA)
+        <Row align="middle" gutter={[24, 16]} className="home-banner-row">
+          <Col xs={24} md={16}>
+            <Title level={2} className="home-banner-title">
+              欢迎使用医学生智能问诊辅助系统（MSIA）
             </Title>
-            <Paragraph style={{ color: 'rgba(255,255,255,0.85)', marginTop: 12, fontSize: 16 }}>
+            <Paragraph className="home-banner-desc">
               今天是 {dayjs().format('YYYY年MM月DD日')}，系统运行正常。准备好开始今天的问诊练习了吗？
             </Paragraph>
           </Col>
-          <Col>
-            <Space size="large">
-              <Statistic 
-                title={<span style={{ color: 'rgba(255,255,255,0.65)' }}>今日已问诊</span>} 
-                value={stats.todayCount} 
-                loading={loading}
-                styles={{ content: { color: 'white' } }}
-              />
-              <Statistic 
-                title={<span style={{ color: 'rgba(255,255,255,0.65)' }}>系统状态</span>} 
-                value="在线" 
-                styles={{ content: { color: '#52c41a' } }}
-              />
-            </Space>
+          <Col xs={24} md={8}>
+            <div className="home-banner-kpis">
+              <div className="home-banner-kpi">
+                <div className="home-banner-kpi-label">今日已问诊</div>
+                <div className="home-banner-kpi-value">{loading ? '—' : stats.todayCount}</div>
+              </div>
+              <div className="home-banner-kpi">
+                <div className="home-banner-kpi-label">系统状态</div>
+                <div className="home-banner-kpi-value home-banner-kpi-online">在线</div>
+              </div>
+            </div>
           </Col>
         </Row>
       </Card>
@@ -127,90 +139,131 @@ const Home: React.FC = () => {
         <Col xs={24} lg={16}>
           <Card 
             title={<Space><MedicineBoxOutlined /><span>工作台</span></Space>}
-            variant="borderless"
-            style={{ height: '100%' }}
+            variant="outlined"
+            className="home-card"
           >
             <Row gutter={[24, 24]}>
               <Col span={24}>
                 <Card 
-                  hoverable 
-                  style={{ 
-                    background: '#f0f5ff', 
-                    borderColor: '#adc6ff',
-                    cursor: 'pointer'
-                  }}
+                  hoverable
+                  className="home-start-card"
                   onClick={() => navigate('/interview/new')}
                 >
                   <Row align="middle">
                     <Col flex="1">
-                      <Title level={4} style={{ color: '#1d39c4' }}>开始新问诊</Title>
-                      <Text type="secondary">创建新的标准问诊会话，录入患者信息并开始问诊流程。</Text>
+                      <div className="home-start-title">开始新问诊</div>
+                      <div className="home-start-desc">创建新的标准问诊会话，录入患者信息并开始问诊流程。</div>
                     </Col>
                     <Col>
-                      <Button type="primary" shape="circle" icon={<ArrowRightOutlined />} size="large" />
+                      <Button type="primary" size="large" shape="round" icon={<ArrowRightOutlined />}>
+                        立即开始
+                      </Button>
                     </Col>
                   </Row>
                 </Card>
               </Col>
               
-              <Col span={12}>
-                <Card hoverable title="我的病历" extra={<a onClick={() => navigate('/interview')} style={{ cursor: 'pointer' }}>查看全部</a>}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-                    <div>
-                      <Text type="secondary">已归档</Text>
-                      <div style={{ fontSize: 20, fontWeight: 600 }}>{stats.archivedCount}</div>
+              <Col xs={24} md={12}>
+                <Card
+                  hoverable
+                  title="我的病历"
+                  className="home-subcard"
+                  extra={
+                    <Button type="link" onClick={() => navigate('/interview')} style={{ padding: 0 }}>
+                      查看全部
+                    </Button>
+                  }
+                >
+                  <div className="home-records-top">
+                    <div className="home-records-metrics">
+                      <div className="home-metric">
+                        <div className="home-metric-label">已归档</div>
+                        <div className="home-metric-value home-metric-primary">{loading ? '—' : stats.archivedCount}</div>
+                      </div>
+                      <div className="home-metric">
+                        <div className="home-metric-label">已完成</div>
+                        <div className="home-metric-value">{loading ? '—' : stats.completedCount}</div>
+                      </div>
                     </div>
-                    <div>
-                      <Text type="secondary">已完成</Text>
-                      <div style={{ fontSize: 20, fontWeight: 600 }}>{stats.completedCount}</div>
+                    <div className="home-records-progress">
+                      <Progress
+                        type="dashboard"
+                        percent={archivedPercent}
+                        size={92}
+                        strokeColor={{ '0%': '#52c41a', '100%': '#1677ff' }}
+                        railColor="#f0f0f0"
+                        format={() => `${archivedPercent}%`}
+                      />
+                      <div className="home-progress-caption">归档占比</div>
                     </div>
                   </div>
                   {stats.recentSessions && stats.recentSessions.length > 0 ? (
-                      <div>
-                          {stats.recentSessions.slice(0, 3).map((item: Session, idx: number) => (
-                              <div key={item.id} 
-                                   style={{ display: 'flex', alignItems: 'center', padding: '10px 0', borderBottom: idx !== Math.min(2, stats.recentSessions.length - 1) ? '1px solid #f0f0f0' : 'none', cursor: 'pointer' }}
-                                   onClick={() => navigate(`/interview/${item.id}`)}>
-                                  <div style={{ marginRight: 12, fontSize: 18 }}>{getStatusIcon(item.status)}</div>
-                                  <div style={{ flex: 1 }}>
-                                      <div style={{ fontWeight: 500 }}>
-                                          {item.patient?.name || '未知患者'}
-                                          <Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>{getStatusText(item.status)}</Text>
-                                      </div>
-                                      <div style={{ color: 'rgba(0, 0, 0, 0.45)' }}>{dayjs(item.createdAt).fromNow()}</div>
-                                  </div>
-                              </div>
-                          ))}
-                      </div>
+                    <div className="home-list">
+                      {stats.recentSessions.slice(0, 3).map((item: Session) => (
+                        <div
+                          key={item.id}
+                          className="home-list-item"
+                          onClick={() => navigate(`/interview/${item.id}`)}
+                        >
+                          <div className="home-list-icon">{getStatusIcon(item.status)}</div>
+                          <div className="home-list-main">
+                            <div className="home-list-title">
+                              <span className="home-patient-name">{item.patient?.name || '未知患者'}</span>
+                              <Tag color={getStatusTagColor(item.status)} className="home-status-tag">
+                                {getStatusText(item.status)}
+                              </Tag>
+                            </div>
+                            <div className="home-list-subtitle">{dayjs(item.createdAt).fromNow()}</div>
+                          </div>
+                          <ArrowRightOutlined className="home-list-arrow" />
+                        </div>
+                      ))}
+                    </div>
                   ) : (
-                      <div style={{ textAlign: 'center', padding: '20px 0', color: '#ccc' }}>
-                          <FileTextOutlined style={{ fontSize: 32, marginBottom: 8 }} />
-                          <p>暂无病历记录</p>
-                      </div>
+                    <div className="home-empty">
+                      <FileTextOutlined className="home-empty-icon" />
+                      <div>暂无病历记录</div>
+                    </div>
                   )}
                 </Card>
               </Col>
               
-              <Col span={12}>
-                <Card hoverable title="知识库" extra={<Button type="link" onClick={() => navigate('/knowledge')} style={{ padding: 0 }}>浏览</Button>}>
+              <Col xs={24} md={12}>
+                <Card
+                  hoverable
+                  title="知识库"
+                  className="home-subcard"
+                  extra={
+                    <Button type="link" onClick={() => navigate('/knowledge')} style={{ padding: 0 }}>
+                      浏览
+                    </Button>
+                  }
+                >
                   {stats.knowledgeCount > 0 ? (
-                    <div style={{ padding: '0' }}>
-                      <div style={{ textAlign: 'center', marginBottom: 12 }}>
-                        <div style={{ fontSize: 24, fontWeight: 'bold' }}>{stats.knowledgeCount}</div>
-                        <div style={{ color: '#8c8c8c' }}>知识库条目</div>
+                    <div className="home-knowledge">
+                      <div className="home-knowledge-top">
+                        <Statistic
+                          title="知识库条目"
+                          value={stats.knowledgeCount}
+                          loading={loading}
+                          styles={{ content: { fontSize: 28, fontWeight: 700 } }}
+                        />
+                        <div className="home-knowledge-icon">
+                          <ScheduleOutlined />
+                        </div>
                       </div>
-                      <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 8 }}>
-                        {stats.recentKnowledge.map((k: Knowledge) => (
-                           <div key={k.id} style={{ fontSize: 13, color: '#595959', marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                             • {k.displayName}
-                           </div>
+                      <div className="home-knowledge-list">
+                        {stats.recentKnowledge.slice(0, 6).map((k: Knowledge) => (
+                          <div key={k.id} className="home-knowledge-item" title={k.displayName}>
+                            {k.displayName}
+                          </div>
                         ))}
                       </div>
                     </div>
                   ) : (
-                    <div style={{ textAlign: 'center', padding: '20px 0', color: '#ccc' }}>
-                      <ScheduleOutlined style={{ fontSize: 32, marginBottom: 8 }} />
-                      <p>知识库暂无内容</p>
+                    <div className="home-empty">
+                      <ScheduleOutlined className="home-empty-icon" />
+                      <div>知识库暂无内容</div>
                     </div>
                   )}
                 </Card>
@@ -224,23 +277,26 @@ const Home: React.FC = () => {
           <Space orientation="vertical" style={{ width: '100%' }} size={24}>
             <Card 
               title={<Space><UserOutlined /><span>值班信息</span></Space>}
-              variant="borderless"
+              variant="outlined"
+              className="home-card"
             >
-              <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
-                <Avatar size="large" icon={<UserOutlined />} style={{ backgroundColor: '#87d068', marginRight: 16 }} />
-                <div>
-                  <Text strong>当前用户</Text>
-                  <br />
-                  <Text type="secondary">医学生 (实习)</Text>
+              <div className="home-duty-header">
+                <Avatar size="large" icon={<UserOutlined />} className="home-duty-avatar" />
+                <div className="home-duty-user">
+                  <div className="home-duty-name">当前用户</div>
+                  <div className="home-duty-role">医学生（实习）</div>
                 </div>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderTop: '1px solid #f0f0f0' }}>
-                <Text>科室</Text>
-                <Text strong>全科医学</Text>
+              <div className="home-duty-row">
+                <div className="home-duty-label">科室</div>
+                <div className="home-duty-value">全科医学</div>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderTop: '1px solid #f0f0f0' }}>
-                <Text>状态</Text>
-                <Badge status="processing" text="工作中" />
+              <div className="home-duty-row">
+                <div className="home-duty-label">状态</div>
+                <div className="home-duty-status">
+                  <span className="home-status-dot" />
+                  <span>工作中</span>
+                </div>
               </div>
             </Card>
           </Space>
