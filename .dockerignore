@@ -1,0 +1,75 @@
+# ============================================
+# Docker 构建忽略文件
+# ============================================
+
+# 依赖目录
+node_modules
+npm-debug.log
+yarn-error.log
+pnpm-debug.log
+
+# 构建输出
+dist
+build
+*.tsbuildinfo
+
+# 测试文件
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+__tests__
+coverage
+.nyc_output
+
+# 开发环境文件
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# IDE 和编辑器
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# 版本控制
+.git
+.gitignore
+.gitattributes
+
+# 文档
+README.md
+CHANGELOG.md
+docs
+*.md
+
+# CI/CD
+.github
+.gitlab-ci.yml
+.travis.yml
+
+# Docker 相关（避免递归）
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# 日志
+logs
+*.log
+
+# 临时文件
+tmp
+temp
+*.tmp
+
+# 上传文件（开发环境）
+uploads/*
+!uploads/.gitkeep
+
+# Prisma 生成文件（会在容器中重新生成）
+server/node_modules/.prisma
+server/node_modules/@prisma/client
