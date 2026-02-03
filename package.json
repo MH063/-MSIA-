@@ -6,8 +6,7 @@
     "server"
   ],
   "scripts": {
-    "_postinstall": "npm --prefix server ci || npm --prefix server install && npm --prefix server run build",
-    "test:full-flow-v3": "powershell -ExecutionPolicy Bypass -File ./test-full-flow-v3.ps1"
+    "_postinstall": "npm --prefix server ci || npm --prefix server install && npm --prefix server run build"
   },
   "dependencies": {
     "@prisma/client": "^7.3.0",
