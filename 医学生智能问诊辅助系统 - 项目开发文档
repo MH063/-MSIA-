@@ -96,7 +96,7 @@ MedStudent Interview Assistant (MSIA) - 医学生智能问诊辅助系统
 - **ORM**: Prisma 7
 
 **数据库 (Database)**：
-- **RDBMS**: PostgreSQL 16
+- **RDBMS**: PostgreSQL 18
 - **Connection**: pg + @prisma/adapter-pg
 
 **部署 (Deployment)**：
@@ -318,7 +318,7 @@ npm run build
 
 ### 环境要求
 - Node.js 20+
-- PostgreSQL 16+
+- PostgreSQL 18+
 - Docker 20.10+ (可选)
 
 ### 文档版本

@@ -3,7 +3,7 @@
 [![React](https://img.shields.io/badge/React-19-blue)](https://reactjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-20-green)](https://nodejs.org/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue)](https://www.postgresql.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-blue)](https://www.postgresql.org/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue)](https://www.docker.com/)
 
 > MedStudent Interview Assistant - 基于 Web 的智能引导式问诊辅助工具
@@ -46,7 +46,7 @@
 - Node.js + Express 5
 - TypeScript 5
 - Prisma 7 ORM
-- PostgreSQL 16 数据库
+- PostgreSQL 18 数据库
 
 **部署**
 - Docker + Docker Compose
@@ -57,7 +57,7 @@
 ### 环境要求
 
 - Node.js 20+
-- PostgreSQL 16+
+- PostgreSQL 18+
 - Docker 20.10+ (可选，推荐)
 
 ### Docker 部署（推荐）

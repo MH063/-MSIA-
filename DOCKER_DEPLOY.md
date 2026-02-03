@@ -7,7 +7,7 @@
 本项目是医学生智能问诊辅助系统（MSIA），包含以下组件：
 - **前端（Client）**：React + Vite + TypeScript
 - **后端（Server）**：Node.js + Express + Prisma + PostgreSQL
-- **数据库（DB）**：PostgreSQL 16
+- **数据库（DB）**：PostgreSQL 18
 
 ### 二、Docker 文件结构
 

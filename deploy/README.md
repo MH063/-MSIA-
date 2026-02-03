@@ -2,8 +2,8 @@
 
 ## 系统要求
 
-- Node.js 18+
-- PostgreSQL 14+
+- Node.js 20+
+- PostgreSQL 18+
 - Nginx (生产环境)
 - Linux 服务器 (Ubuntu 20.04+ 推荐)
 
