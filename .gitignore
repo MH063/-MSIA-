@@ -10,6 +10,11 @@ node_modules
 coverage
 dist
 
+# SSH Keys and sensitive files
+.ssh_key
+*.pem
+*.key
+
 # Server specific
 server/.env
 server/.env.local

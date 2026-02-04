@@ -81,6 +81,7 @@ services:
     build:
       context: ./client
       dockerfile: Dockerfile
+      target: production
     container_name: msia_client
     restart: unless-stopped
     ports:

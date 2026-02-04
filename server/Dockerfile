@@ -4,7 +4,7 @@
 # ============================================
 
 # 构建阶段
-FROM node:20-alpine AS builder
+FROM m.daocloud.io/docker.io/library/node:20-alpine AS builder
 
 # 设置工作目录
 WORKDIR /app
@@ -14,7 +14,7 @@ COPY package*.json ./
 COPY prisma ./prisma/
 
 # 安装依赖
-RUN npm ci
+RUN npm install
 
 # 复制源代码
 COPY . .
@@ -26,7 +26,7 @@ RUN npx prisma generate
 RUN npm run build
 
 # 生产阶段
-FROM node:20-alpine AS production
+FROM m.daocloud.io/docker.io/library/node:20-alpine AS production
 
 # 安装必要的系统依赖
 RUN apk add --no-cache dumb-init postgresql-client netcat-openbsd
@@ -43,7 +43,7 @@ COPY package*.json ./
 COPY prisma ./prisma/
 
 # 只安装生产依赖
-RUN npm ci --only=production && \
+RUN npm install --only=production && \
     npm cache clean --force
 
 # 生成 Prisma 客户端（生产环境）

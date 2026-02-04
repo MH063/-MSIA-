@@ -333,26 +333,29 @@ const NewInterview: React.FC = () => {
   }, [form, message]);
 
   /**
-   * 步骤切换验证
+   * handleStepChange
+   * 步骤切换前验证当前步骤的必填项，而不是目标步骤的字段
+   * 修复点击“下一步”时提示下一步未填的误判问题
    */
-  const handleStepChange = async (step: number) => {
-    // 验证当前步骤的必填字段
-    const currentFields = step === 0 
-      ? ['name', 'gender', 'ethnicity']
-      : step === 1 
-        ? ['phone']
-        : [];
-    
-    if (currentFields.length > 0) {
+  const handleStepChange = async (nextStep: number) => {
+    const getRequiredFieldsByStep = (s: number): string[] => {
+      if (s === 0) return ['name', 'gender', 'ethnicity', 'maritalStatus'];
+      if (s === 1) return ['phone', 'recordTime'];
+      return [];
+    };
+    const requiredNow = getRequiredFieldsByStep(currentStep);
+    if (requiredNow.length > 0) {
       try {
-        await form.validateFields(currentFields);
+        console.log('[NewInterview] 验证当前步骤必填项', { currentStep, requiredNow });
+        await form.validateFields(requiredNow);
       } catch {
+        console.warn('[NewInterview] 当前步骤未完成，阻止切换', { currentStep, requiredNow });
         message.warning('请完成当前步骤的必填项');
         return;
       }
     }
-    
-    setCurrentStep(step);
+    console.log('[NewInterview] 步骤切换通过', { from: currentStep, to: nextStep });
+    setCurrentStep(nextStep);
   };
 
   const { useBreakpoint } = Grid;
@@ -445,8 +448,8 @@ const NewInterview: React.FC = () => {
           <Steps 
             current={currentStep} 
             onChange={handleStepChange}
-            direction="horizontal"
-            labelPlacement="horizontal"
+            orientation="horizontal"
+            titlePlacement="horizontal"
             size="default"
             items={formSteps.map(step => ({
               title: step.title,
