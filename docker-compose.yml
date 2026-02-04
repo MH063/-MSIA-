@@ -8,7 +8,7 @@ version: '3.8'
 services:
   # PostgreSQL 数据库服务
   db:
-    image: postgres:16-alpine
+    image: registry.cn-hangzhou.aliyuncs.com/postgres/postgres:16-alpine
     container_name: msia_db
     restart: unless-stopped
     environment:
