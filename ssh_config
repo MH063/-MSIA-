@@ -1,0 +1,13 @@
+# SSH配置文件
+# 医学生智能问诊辅助系统服务器
+
+Host msia-server
+    HostName 121.196.232.211
+    User MH
+    IdentityFile ~/.ssh/msia_server
+    IdentitiesOnly yes
+
+Host 121.196.232.211
+    User MH
+    IdentityFile ~/.ssh/msia_server
+    IdentitiesOnly yes

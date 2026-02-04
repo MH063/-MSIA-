@@ -1,10 +1,11 @@
 import React, { useEffect, useRef } from 'react';
-import { Form, Checkbox, Input, Row, Col, Typography, Card, Radio, Space, InputNumber, Button, DatePicker, Select } from 'antd';
+import { Form, Checkbox, Input, Row, Col, Typography, Card, Radio, Space, InputNumber, Button, DatePicker, Select, Grid } from 'antd';
 import { PlusOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import type { FormInstance } from 'antd';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
+const { useBreakpoint } = Grid;
 
 const commonDiseases = [
   '高血压', '糖尿病', '冠心病', '脑卒中', '慢性阻塞性肺疾病(COPD)', 
@@ -16,6 +17,8 @@ interface PastHistorySectionProps {
 }
 
 const PastHistorySection: React.FC<PastHistorySectionProps> = ({ form }) => {
+  const screens = useBreakpoint();
+  const isMobile = !screens.md;
   const EMPTY_ARR = React.useMemo<string[]>(() => [], []);
   type DiseaseDetail = { year?: number; control?: string; medication?: string };
   const EMPTY_OBJ = React.useMemo<Record<string, DiseaseDetail>>(() => ({}), []);
@@ -156,7 +159,7 @@ const PastHistorySection: React.FC<PastHistorySectionProps> = ({ form }) => {
          <Form.Item name={['pastHistory', 'pmh_diseases']} label="常见慢性病">
             <Checkbox.Group>
                 <Row>
-                    {commonDiseases.map(d => <Col span={8} key={d}><Checkbox value={d}>{d}</Checkbox></Col>)}
+                    {commonDiseases.map(d => <Col xs={12} sm={8} md={8} key={d}><Checkbox value={d}>{d}</Checkbox></Col>)}
                 </Row>
             </Checkbox.Group>
          </Form.Item>
@@ -169,17 +172,37 @@ const PastHistorySection: React.FC<PastHistorySectionProps> = ({ form }) => {
          {selectedDiseases.map((d: string) => (
              <div key={d} style={{ marginBottom: 12, background: '#f5f5f5', padding: 8, borderRadius: 4 }}>
                  <Text strong>{d}详情：</Text>
-                 <Space>
-                     <Form.Item name={['pastHistory', 'diseaseDetails', d, 'year']} noStyle>
-                       <InputNumber placeholder="确诊年份" style={{ width: 120 }} />
-                     </Form.Item>
-                     <Form.Item name={['pastHistory', 'diseaseDetails', d, 'control']} noStyle>
-                       <Input placeholder="控制情况" style={{ width: 180 }} allowClear />
-                     </Form.Item>
-                     <Form.Item name={['pastHistory', 'diseaseDetails', d, 'medication']} noStyle>
-                       <Input placeholder="用药情况" style={{ width: 220 }} allowClear />
-                     </Form.Item>
-                 </Space>
+                 {isMobile ? (
+                   <Row gutter={[8, 8]} style={{ marginTop: 8 }}>
+                     <Col xs={24}>
+                       <Form.Item name={['pastHistory', 'diseaseDetails', d, 'year']} style={{ marginBottom: 0 }}>
+                         <InputNumber placeholder="确诊年份" style={{ width: '100%' }} />
+                       </Form.Item>
+                     </Col>
+                     <Col xs={24}>
+                       <Form.Item name={['pastHistory', 'diseaseDetails', d, 'control']} style={{ marginBottom: 0 }}>
+                         <Input placeholder="控制情况" allowClear />
+                       </Form.Item>
+                     </Col>
+                     <Col xs={24}>
+                       <Form.Item name={['pastHistory', 'diseaseDetails', d, 'medication']} style={{ marginBottom: 0 }}>
+                         <Input placeholder="用药情况" allowClear />
+                       </Form.Item>
+                     </Col>
+                   </Row>
+                 ) : (
+                   <Space>
+                       <Form.Item name={['pastHistory', 'diseaseDetails', d, 'year']} noStyle>
+                         <InputNumber placeholder="确诊年份" style={{ width: 120 }} />
+                       </Form.Item>
+                       <Form.Item name={['pastHistory', 'diseaseDetails', d, 'control']} noStyle>
+                         <Input placeholder="控制情况" style={{ width: 180 }} allowClear />
+                       </Form.Item>
+                       <Form.Item name={['pastHistory', 'diseaseDetails', d, 'medication']} noStyle>
+                         <Input placeholder="用药情况" style={{ width: 220 }} allowClear />
+                       </Form.Item>
+                   </Space>
+                 )}
              </div>
          ))}
          <Form.Item name={['pastHistory', 'infectiousHistory']} label="传染病史">
@@ -201,31 +224,47 @@ const PastHistorySection: React.FC<PastHistorySectionProps> = ({ form }) => {
                {!noSurgeriesTrauma && (
                  <>
                    {fields.map(({ key, name, ...restField }) => (
-                     <Space key={key} style={{ display: 'flex', marginBottom: 8 }} align="baseline">
+                     <Space
+                       key={key}
+                       style={{ display: 'flex', marginBottom: 8, width: '100%' }}
+                       align={isMobile ? 'start' : 'baseline'}
+                       direction={isMobile ? 'vertical' : 'horizontal'}
+                     >
                        <Form.Item
                          {...restField}
                          name={[name, 'date']}
+                         style={isMobile ? { marginBottom: 0, width: '100%' } : { marginBottom: 0 }}
                        >
-                         <DatePicker placeholder="时间" picker="month" />
+                         <DatePicker
+                           placeholder="时间"
+                           picker="month"
+                           style={isMobile ? { width: '100%' } : undefined}
+                           placement="bottomLeft"
+                           classNames={{ popup: { root: isMobile ? 'msia-mobile-picker' : undefined } }}
+                           getPopupContainer={(trigger) => (isMobile ? document.body : trigger.parentElement ?? document.body)}
+                         />
                        </Form.Item>
                        <Form.Item
                          {...restField}
                          name={[name, 'location']}
+                         style={isMobile ? { marginBottom: 0, width: '100%' } : { marginBottom: 0 }}
                        >
-                         <Input placeholder="地点/医院" />
+                         <Input placeholder="地点/医院" style={isMobile ? { width: '100%' } : undefined} />
                        </Form.Item>
                        <Form.Item
                          {...restField}
                          name={[name, 'name']}
                          rules={[{ required: true, message: '请输入手术/外伤名称' }]}
+                         style={isMobile ? { marginBottom: 0, width: '100%' } : { marginBottom: 0 }}
                        >
-                         <Input placeholder="手术/外伤名称" />
+                         <Input placeholder="手术/外伤名称" style={isMobile ? { width: '100%' } : undefined} />
                        </Form.Item>
                        <Form.Item
                          {...restField}
                          name={[name, 'outcome']}
+                         style={isMobile ? { marginBottom: 0, width: '100%' } : { marginBottom: 0 }}
                        >
-                         <Input placeholder="预后情况" />
+                         <Input placeholder="预后情况" style={isMobile ? { width: '100%' } : undefined} />
                        </Form.Item>
                        <MinusCircleOutlined onClick={() => remove(name)} />
                      </Space>
@@ -262,30 +301,45 @@ const PastHistorySection: React.FC<PastHistorySectionProps> = ({ form }) => {
                {!noTransfusions && (
                  <>
                    {fields.map(({ key, name, ...restField }) => (
-                     <Space key={key} style={{ display: 'flex', marginBottom: 8 }} align="baseline">
+                     <Space
+                       key={key}
+                       style={{ display: 'flex', marginBottom: 8, width: '100%' }}
+                       align={isMobile ? 'start' : 'baseline'}
+                       direction={isMobile ? 'vertical' : 'horizontal'}
+                     >
                        <Form.Item
                          {...restField}
                          name={[name, 'date']}
+                         style={isMobile ? { marginBottom: 0, width: '100%' } : { marginBottom: 0 }}
                        >
-                         <DatePicker placeholder="输血时间" />
+                         <DatePicker
+                           placeholder="输血时间"
+                           style={isMobile ? { width: '100%' } : undefined}
+                           placement="bottomLeft"
+                           classNames={{ popup: { root: isMobile ? 'msia-mobile-picker' : undefined } }}
+                           getPopupContainer={(trigger) => (isMobile ? document.body : trigger.parentElement ?? document.body)}
+                         />
                        </Form.Item>
                        <Form.Item
                          {...restField}
                          name={[name, 'reason']}
+                         style={isMobile ? { marginBottom: 0, width: '100%' } : { marginBottom: 0 }}
                        >
-                         <Input placeholder="原因" />
+                         <Input placeholder="原因" style={isMobile ? { width: '100%' } : undefined} />
                        </Form.Item>
                        <Form.Item
                          {...restField}
                          name={[name, 'amount']}
+                         style={isMobile ? { marginBottom: 0, width: '100%' } : { marginBottom: 0 }}
                        >
-                         <Input placeholder="量/成分" />
+                         <Input placeholder="量/成分" style={isMobile ? { width: '100%' } : undefined} />
                        </Form.Item>
                        <Form.Item
                          {...restField}
                          name={[name, 'reaction']}
+                         style={isMobile ? { marginBottom: 0, width: '100%' } : { marginBottom: 0 }}
                        >
-                         <Input placeholder="不良反应" />
+                         <Input placeholder="不良反应" style={isMobile ? { width: '100%' } : undefined} />
                        </Form.Item>
                        <MinusCircleOutlined onClick={() => remove(name)} />
                      </Space>

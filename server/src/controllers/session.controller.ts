@@ -2,6 +2,9 @@ import { Request, Response } from 'express';
 import * as sessionService from '../services/session.service';
 import * as knowledgeService from '../services/knowledge.service';
 import prisma from '../prisma';
+import fs from 'fs';
+import PDFDocument from 'pdfkit';
+import { Document, Packer, Paragraph, TextRun } from 'docx';
 
 /**
  * 创建会话
@@ -931,6 +934,238 @@ export const generateReport = async (req: Request, res: Response) => {
 };
 
 /**
+ * sanitizeDownloadFilename
+ * 生成安全的下载文件名（过滤Windows不允许字符，限制长度）
+ */
+function sanitizeDownloadFilename(name: string): string {
+  const raw = String(name || '').trim() || '病历';
+  return raw
+    .replace(/[\\/:*?"<>|]/gu, '_')
+    .replace(/\s+/gu, ' ')
+    .trim()
+    .slice(0, 120);
+}
+
+function formatDateForFilename(d: Date): string {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}${mm}${dd}`;
+}
+
+function buildAttachmentContentDisposition(filename: string): string {
+  const safe = String(filename || '').trim() || 'download';
+  const dot = safe.lastIndexOf('.');
+  const ext = dot > 0 && dot >= safe.length - 10 ? safe.slice(dot) : '';
+  const base = ext ? safe.slice(0, dot) : safe;
+
+  const asciiBase = sanitizeDownloadFilename(base)
+    .replace(/[^\x20-\x7E]/gu, '_')
+    .replace(/["\r\n]/gu, '_')
+    .trim();
+
+  const fallbackBase = asciiBase.replace(/_+/gu, '_').replace(/^_+|_+$/gu, '');
+  const fallback = (fallbackBase || 'download') + ext;
+  return `attachment; filename="${fallback}"; filename*=UTF-8''${encodeURIComponent(safe)}`;
+}
+
+/**
+ * resolvePdfFontPath
+ * 在不同操作系统上尝试找到可用的中文字体文件路径，供PDF生成使用
+ */
+function resolvePdfFontPath(): string | null {
+  const candidates = [
+    'C:\\\\Windows\\\\Fonts\\\\msyh.ttc',
+    'C:\\\\Windows\\\\Fonts\\\\msyh.ttf',
+    'C:\\\\Windows\\\\Fonts\\\\simhei.ttf',
+    'C:\\\\Windows\\\\Fonts\\\\simsun.ttc',
+    '/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc',
+    '/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc',
+    '/usr/share/fonts/truetype/arphic/ukai.ttc',
+    '/System/Library/Fonts/PingFang.ttc',
+  ];
+  for (const p of candidates) {
+    try {
+      if (fs.existsSync(p)) return p;
+    } catch {
+      // ignore
+    }
+  }
+  return null;
+}
+
+/**
+ * buildPdfBuffer
+ * 将纯文本病历内容渲染为PDF并返回Buffer（服务端内存生成，不落盘）
+ */
+async function buildPdfBuffer(params: { title: string; text: string }): Promise<Buffer> {
+  const { title, text } = params;
+  return await new Promise<Buffer>((resolve, reject) => {
+    const doc = new PDFDocument({
+      size: 'A4',
+      margin: 48,
+      info: { Title: title },
+    });
+
+    const chunks: Buffer[] = [];
+    doc.on('data', (c) => chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(c)));
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+    doc.on('error', reject);
+
+    const fontPath = resolvePdfFontPath();
+    if (fontPath) {
+      try {
+        doc.font(fontPath);
+      } catch (e) {
+        console.warn('[export.pdf] 字体加载失败，将使用默认字体', { fontPath, error: e instanceof Error ? e.message : String(e) });
+      }
+    } else {
+      console.warn('[export.pdf] 未找到可用中文字体，可能导致中文无法正常显示');
+    }
+
+    doc.fontSize(18).text(title, { align: 'center' });
+    doc.moveDown(1);
+    doc.fontSize(11).fillColor('#111').text(String(text || ''), {
+      align: 'left',
+      lineGap: 4,
+    });
+    doc.end();
+  });
+}
+
+/**
+ * buildDocxBuffer
+ * 将纯文本病历内容渲染为Word(docx)并返回Buffer（服务端内存生成，不落盘）
+ */
+async function buildDocxBuffer(params: { title: string; text: string }): Promise<Buffer> {
+  const { title, text } = params;
+  const lines = String(text || '').split(/\r?\n/gu);
+  const doc = new Document({
+    sections: [
+      {
+        children: [
+          new Paragraph({
+            children: [new TextRun({ text: title, bold: true, size: 32 })],
+          }),
+          ...lines.map(
+            (line) =>
+              new Paragraph({
+                children: [new TextRun({ text: line || ' ', size: 22 })],
+              })
+          ),
+        ],
+      },
+    ],
+  });
+  const buf = await Packer.toBuffer(doc);
+  return Buffer.from(buf);
+}
+
+/**
+ * getReportTextForExport
+ * 复用现有 generateReport 的逻辑，得到报告纯文本（用于导出PDF/Word）
+ */
+async function getReportTextForExport(sessionId: number): Promise<{ ok: true; report: string } | { ok: false; status: number; body: any }> {
+  const fakeReq = { params: { id: String(sessionId) } } as any as Request;
+  const captured: { status: number; body: any } = { status: 200, body: null };
+  const fakeRes = {
+    status(code: number) {
+      captured.status = code;
+      return fakeRes;
+    },
+    json(payload: any) {
+      captured.body = payload;
+      return fakeRes;
+    },
+  } as any as Response;
+
+  await generateReport(fakeReq, fakeRes);
+
+  if (captured.status >= 400 || !captured.body?.success) {
+    return { ok: false, status: captured.status || 500, body: captured.body || { success: false, message: '生成报告失败' } };
+  }
+
+  const report = String(captured.body?.data?.report || '').trim();
+  if (!report) {
+    return { ok: false, status: 500, body: { success: false, message: '报告为空' } };
+  }
+
+  return { ok: true, report };
+}
+
+/**
+ * exportReportPdf
+ * 导出指定会话的病历报告PDF文件流
+ */
+export const exportReportPdf = async (req: Request, res: Response) => {
+  try {
+    const sessionId = Number(req.params.id);
+    if (!Number.isFinite(sessionId) || sessionId <= 0) {
+      res.status(400).json({ success: false, message: 'id 必须为正整数' });
+      return;
+    }
+
+    const reportRes = await getReportTextForExport(sessionId);
+    if (!reportRes.ok) {
+      res.status(reportRes.status).json(reportRes.body);
+      return;
+    }
+
+    const session = await sessionService.getSessionById(sessionId);
+    const patientName = String(session?.patient?.name || '').trim() || '未命名';
+    const title = `病历-${patientName}-${formatDateForFilename(new Date())}`;
+    const filename = sanitizeDownloadFilename(title) + '.pdf';
+
+    console.log('[export.pdf] 开始生成', { sessionId, filename });
+    const pdf = await buildPdfBuffer({ title, text: reportRes.report });
+    console.log('[export.pdf] 生成完成', { sessionId, bytes: pdf.byteLength });
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', buildAttachmentContentDisposition(filename));
+    res.status(200).end(pdf);
+  } catch (error) {
+    console.error('[export.pdf] 导出失败', error);
+    res.status(500).json({ success: false, message: '导出PDF失败' });
+  }
+};
+
+/**
+ * exportReportDocx
+ * 导出指定会话的病历报告Word(docx)文件流
+ */
+export const exportReportDocx = async (req: Request, res: Response) => {
+  try {
+    const sessionId = Number(req.params.id);
+    if (!Number.isFinite(sessionId) || sessionId <= 0) {
+      res.status(400).json({ success: false, message: 'id 必须为正整数' });
+      return;
+    }
+
+    const reportRes = await getReportTextForExport(sessionId);
+    if (!reportRes.ok) {
+      res.status(reportRes.status).json(reportRes.body);
+      return;
+    }
+
+    const session = await sessionService.getSessionById(sessionId);
+    const patientName = String(session?.patient?.name || '').trim() || '未命名';
+    const title = `病历-${patientName}-${formatDateForFilename(new Date())}`;
+    const filename = sanitizeDownloadFilename(title) + '.docx';
+
+    console.log('[export.docx] 开始生成', { sessionId, filename });
+    const docx = await buildDocxBuffer({ title, text: reportRes.report });
+    console.log('[export.docx] 生成完成', { sessionId, bytes: docx.byteLength });
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    res.setHeader('Content-Disposition', buildAttachmentContentDisposition(filename));
+    res.status(200).end(docx);
+  } catch (error) {
+    console.error('[export.docx] 导出失败', error);
+    res.status(500).json({ success: false, message: '导出Word失败' });
+  }
+};
+
+/**
  * 获取会话列表
  */
 export const getAllSessions = async (req: Request, res: Response) => {
@@ -993,27 +1228,80 @@ export const getAllSessions = async (req: Request, res: Response) => {
  */
 export const getDashboardStats = async (req: Request, res: Response) => {
     try {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        const now = new Date();
+        const todayStart = new Date(now);
+        todayStart.setHours(0, 0, 0, 0);
 
-        const todayCount = await sessionService.countSessions({
-            createdAt: { gte: today }
-        });
+        const since = new Date(todayStart);
+        since.setDate(since.getDate() - 6);
 
-        const completedCount = await sessionService.countSessions({
-            status: 'completed'
-        });
-        const archivedCount = await sessionService.countSessions({
-            status: 'archived'
-        });
+        const [
+            todayCount,
+            completedCount,
+            archivedCount,
+            totalSessions,
+            totalPatients,
+            recentSessions,
+            statusGroup,
+            knowledgeCount,
+            recentKnowledge,
+            sessionsDailyRaw,
+            completedDailyRaw,
+        ] = await Promise.all([
+            sessionService.countSessions({ createdAt: { gte: todayStart } }),
+            sessionService.countSessions({ status: 'completed' }),
+            sessionService.countSessions({ status: 'archived' }),
+            sessionService.countSessions(),
+            prisma.patient.count(),
+            sessionService.getSessions({ take: 5, orderBy: { createdAt: 'desc' } }),
+            prisma.interviewSession.groupBy({ by: ['status'], _count: { _all: true } }),
+            knowledgeService.countKnowledge(),
+            knowledgeService.getRecentKnowledge(3),
+            prisma.$queryRaw<Array<{ date: Date; count: number }>>`
+                SELECT DATE(created_at) as date, COUNT(*)::int as count
+                FROM interview_sessions
+                WHERE created_at >= ${since}
+                GROUP BY DATE(created_at)
+                ORDER BY DATE(created_at) ASC;
+            `,
+            prisma.$queryRaw<Array<{ date: Date; count: number }>>`
+                SELECT DATE(created_at) as date, COUNT(*)::int as count
+                FROM interview_sessions
+                WHERE created_at >= ${since} AND status = 'completed'
+                GROUP BY DATE(created_at)
+                ORDER BY DATE(created_at) ASC;
+            `,
+        ]);
 
-        const recentSessions = await sessionService.getSessions({
-            take: 5,
-            orderBy: { createdAt: 'desc' }
-        });
+        const statusCounts: Record<string, number> = {};
+        for (const row of statusGroup) {
+            statusCounts[String(row.status)] = Number(row._count?._all || 0);
+        }
 
-        const knowledgeCount = await knowledgeService.countKnowledge();
-        const recentKnowledge = await knowledgeService.getRecentKnowledge(3);
+        const fmt = (d: Date) => {
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${day}`;
+        };
+
+        const dailyMap = (rows: Array<{ date: Date; count: number }>) => {
+            const map = new Map<string, number>();
+            for (const r of rows) map.set(fmt(new Date(r.date)), Number(r.count || 0));
+            return map;
+        };
+        const sessionsDailyMap = dailyMap(sessionsDailyRaw);
+        const completedDailyMap = dailyMap(completedDailyRaw);
+
+        const last7DaysSessions: Array<{ date: string; count: number }> = [];
+        const last7DaysCompleted: Array<{ date: string; count: number }> = [];
+        for (let i = 0; i < 7; i += 1) {
+            const d = new Date(since);
+            d.setDate(since.getDate() + i);
+            const key = fmt(d);
+            last7DaysSessions.push({ date: key, count: sessionsDailyMap.get(key) ?? 0 });
+            last7DaysCompleted.push({ date: key, count: completedDailyMap.get(key) ?? 0 });
+        }
 
         res.json({
             success: true,
@@ -1021,9 +1309,14 @@ export const getDashboardStats = async (req: Request, res: Response) => {
                 todayCount,
                 completedCount,
                 archivedCount,
+                totalSessions,
+                totalPatients,
+                statusCounts,
+                last7DaysSessions,
+                last7DaysCompleted,
                 recentSessions,
                 knowledgeCount,
-                recentKnowledge
+                recentKnowledge,
             }
         });
     } catch (error) {

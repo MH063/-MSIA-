@@ -16,7 +16,8 @@ import {
   Avatar,
   Badge,
   InputNumber,
-  Alert
+  Alert,
+  Grid
 } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -354,18 +355,43 @@ const NewInterview: React.FC = () => {
     setCurrentStep(step);
   };
 
+  const { useBreakpoint } = Grid;
+  const screens = useBreakpoint();
+  const isMobile = !screens.md;
+
   return (
     <div style={{ 
       minHeight: '100vh',
       background: 'linear-gradient(135deg, #f0f7ff 0%, #e6f7ff 50%, #f0f9ff 100%)',
-      padding: '24px'
+      padding: isMobile ? '16px' : '24px'
     }}>
       {/* 页面头部 */}
       <div style={{ 
         maxWidth: 1000, 
         margin: '0 auto 32px',
-        textAlign: 'center'
+        textAlign: 'center',
+        position: 'relative',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center'
       }}>
+        <div style={{ 
+          position: isMobile ? 'relative' : 'absolute', 
+          left: 0, 
+          top: 0, 
+          alignSelf: isMobile ? 'flex-start' : 'auto',
+          marginBottom: isMobile ? 16 : 0
+        }}>
+          <Button 
+            type="text" 
+            icon={<ArrowRightOutlined rotate={180} />} 
+            onClick={() => navigate('/interview')}
+            style={{ fontSize: 16 }}
+          >
+            {isMobile ? '返回列表' : '返回问诊列表'}
+          </Button>
+        </div>
+
         <div style={{ marginBottom: 16 }}>
           <Avatar 
             size={64} 
@@ -376,30 +402,66 @@ const NewInterview: React.FC = () => {
             }} 
           />
         </div>
-        <Title level={2} style={{ marginBottom: 8, color: '#262626' }}>
+        <Title level={2} style={{ marginBottom: 8, color: '#262626', fontSize: isMobile ? 24 : 30 }}>
           开始新问诊
         </Title>
-        <Text type="secondary" style={{ fontSize: 16 }}>
+        <Text type="secondary" style={{ fontSize: isMobile ? 14 : 16 }}>
           建立患者档案，数据将自动同步到问诊系统
         </Text>
       </div>
 
       {/* 步骤条 */}
       <div style={{ maxWidth: 800, margin: '0 auto 32px' }}>
-        <Steps 
-          current={currentStep} 
-          onChange={handleStepChange}
-          items={formSteps.map(step => ({
-            title: step.title,
-            icon: step.icon,
-          }))}
-          style={{ 
-            background: '#fff', 
-            padding: '24px 48px', 
-            borderRadius: 16,
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)'
-          }}
-        />
+        {isMobile ? (
+          <div
+            style={{
+              background: '#fff',
+              padding: '12px 16px',
+              borderRadius: 16,
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 24
+            }}
+          >
+            <Button
+              type="text"
+              onClick={() => handleStepChange(0)}
+              icon={<UserOutlined style={{ fontSize: 20, color: currentStep === 0 ? '#1890ff' : '#bfbfbf' }} />}
+            />
+            <Button
+              type="text"
+              onClick={() => handleStepChange(1)}
+              icon={<PhoneOutlined style={{ fontSize: 20, color: currentStep === 1 ? '#1890ff' : '#bfbfbf' }} />}
+            />
+            <Button
+              type="text"
+              onClick={() => handleStepChange(2)}
+              icon={<CheckCircleOutlined style={{ fontSize: 20, color: currentStep === 2 ? '#1890ff' : '#bfbfbf' }} />}
+            />
+          </div>
+        ) : (
+          <Steps 
+            current={currentStep} 
+            onChange={handleStepChange}
+            direction="horizontal"
+            labelPlacement="horizontal"
+            size="default"
+            items={formSteps.map(step => ({
+              title: step.title,
+              icon: step.icon,
+            }))}
+            style={{ 
+              background: '#fff', 
+              padding: '24px 48px', 
+              borderRadius: 16,
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+              display: 'flex',
+              justifyContent: 'center'
+            }}
+          />
+        )}
       </div>
 
       {/* 同步状态提示 */}
@@ -456,8 +518,8 @@ const NewInterview: React.FC = () => {
               </div>
             </div>
 
-            <Row gutter={24}>
-              <Col span={8}>
+            <Row gutter={[16, 16]}>
+              <Col xs={24} sm={12} md={8}>
                 <Form.Item 
                   name="name" 
                   label={<Space><IdcardOutlined />姓名</Space>} 
@@ -470,14 +532,14 @@ const NewInterview: React.FC = () => {
                   />
                 </Form.Item>
               </Col>
-              <Col span={8}>
+              <Col xs={12} sm={12} md={8}>
                 <Form.Item 
                   name="gender" 
                   label={<Space><TeamOutlined />性别</Space>} 
                   rules={[{ required: true, message: '请选择性别' }]}
                 >
                   <Select 
-                    placeholder="请选择性别"
+                    placeholder="请选择"
                     size="large"
                     style={{ borderRadius: 8 }}
                   >
@@ -493,7 +555,7 @@ const NewInterview: React.FC = () => {
                   </Select>
                 </Form.Item>
               </Col>
-              <Col span={8}>
+              <Col xs={12} sm={12} md={8}>
                 <Form.Item 
                   name="ethnicity" 
                   label={<Space><TeamOutlined />民族</Space>}
@@ -507,7 +569,7 @@ const NewInterview: React.FC = () => {
                 </Form.Item>
               </Col>
               
-              <Col span={8}>
+              <Col xs={24} sm={12} md={8}>
                 <Form.Item name="birthDate" label={<Space><CalendarOutlined />出生日期</Space>}>
                   <DatePicker 
                     style={{ width: '100%', borderRadius: 8 }} 
@@ -517,7 +579,7 @@ const NewInterview: React.FC = () => {
                 </Form.Item>
               </Col>
               
-              <Col span={8}>
+              <Col xs={24} sm={12} md={8}>
                 <Form.Item
                   label={<Space><CalendarOutlined />年龄</Space>}
                   help={ageDisplay?.backupText ? `备用：${ageDisplay.backupText}` : '出生日期填写后自动计算'}
@@ -559,6 +621,7 @@ const NewInterview: React.FC = () => {
                           min={0}
                           max={150}
                           suffix="岁"
+                          size="large"
                         />
                       </Form.Item>
                       <Form.Item name="ageMonthsPart" noStyle>
@@ -568,6 +631,7 @@ const NewInterview: React.FC = () => {
                           min={0}
                           max={11}
                           suffix="月"
+                          size="large"
                         />
                       </Form.Item>
                     </Space.Compact>
@@ -575,7 +639,7 @@ const NewInterview: React.FC = () => {
                 </Form.Item>
               </Col>
               
-              <Col span={8}>
+              <Col xs={24} sm={12} md={8}>
                 <Form.Item 
                   name="maritalStatus" 
                   label={<Space><TeamOutlined />婚姻状况</Space>}
@@ -590,17 +654,17 @@ const NewInterview: React.FC = () => {
                 </Form.Item>
               </Col>
               
-              <Col span={8}>
+              <Col xs={24} sm={12} md={8}>
                 <Form.Item name="nativePlace" label={<Space><EnvironmentOutlined />籍贯</Space>}>
                   <Input placeholder="省/市" size="large" style={{ borderRadius: 8 }} />
                 </Form.Item>
               </Col>
-              <Col span={8}>
+              <Col xs={24} sm={12} md={8}>
                 <Form.Item name="placeOfBirth" label={<Space><EnvironmentOutlined />出生地</Space>}>
                   <Input placeholder="省/市/县" size="large" style={{ borderRadius: 8 }} />
                 </Form.Item>
               </Col>
-              <Col span={8}>
+              <Col xs={24} sm={12} md={8}>
                 <Form.Item name="occupation" label={<Space><IdcardOutlined />职业</Space>}>
                   <Input placeholder="患者职业" size="large" style={{ borderRadius: 8 }} />
                 </Form.Item>
@@ -650,8 +714,8 @@ const NewInterview: React.FC = () => {
               </div>
             </div>
 
-            <Row gutter={24}>
-              <Col span={8}>
+            <Row gutter={[16, 16]}>
+              <Col xs={24} sm={12} md={8}>
                 <Form.Item 
                   name="phone" 
                   label={<Space><PhoneOutlined />联系电话</Space>}
@@ -668,12 +732,12 @@ const NewInterview: React.FC = () => {
                   />
                 </Form.Item>
               </Col>
-              <Col span={8}>
+              <Col xs={24} sm={12} md={8}>
                 <Form.Item name="employer" label={<Space><IdcardOutlined />工作单位</Space>}>
                   <Input placeholder="工作单位" size="large" style={{ borderRadius: 8 }} />
                 </Form.Item>
               </Col>
-              <Col span={8}>
+              <Col xs={24} sm={12} md={8}>
                 <Form.Item name="address" label={<Space><EnvironmentOutlined />联系地址</Space>}>
                   <Input placeholder="详细居住地址" size="large" style={{ borderRadius: 8 }} />
                 </Form.Item>
@@ -694,18 +758,19 @@ const NewInterview: React.FC = () => {
               <Text strong>记录信息</Text>
             </div>
             
-            <Row gutter={24}>
-              <Col span={12}>
+            <Row gutter={[16, 16]}>
+              <Col xs={24} sm={12}>
                 <Form.Item name="admissionTime" label="入院时间">
                   <DatePicker 
                     showTime 
                     format="YYYY-MM-DD HH:mm" 
                     style={{ width: '100%', borderRadius: 8 }} 
                     placeholder="年-月-日 时:分" 
+                    size="large"
                   />
                 </Form.Item>
               </Col>
-              <Col span={12}>
+              <Col xs={24} sm={12}>
                 <Form.Item 
                   name="recordTime" 
                   label="记录时间"
@@ -716,6 +781,7 @@ const NewInterview: React.FC = () => {
                     format="YYYY-MM-DD HH:mm" 
                     style={{ width: '100%', borderRadius: 8 }} 
                     placeholder="年-月-日 时:分" 
+                    size="large"
                   />
                 </Form.Item>
               </Col>
@@ -771,8 +837,8 @@ const NewInterview: React.FC = () => {
               </div>
             </div>
 
-            <Row gutter={24}>
-              <Col span={8}>
+            <Row gutter={[16, 16]}>
+              <Col xs={24} sm={12} md={8}>
                 <Form.Item 
                   name="historian" 
                   label={<Space><TeamOutlined />病史陈述者</Space>}
@@ -807,7 +873,7 @@ const NewInterview: React.FC = () => {
               </Col>
 
               {historian !== '本人' && (
-                <Col span={8}>
+                <Col xs={24} sm={12} md={8}>
                   <Form.Item 
                     name="historianRelationship" 
                     label={<Space><TeamOutlined />与患者关系</Space>}
@@ -818,7 +884,7 @@ const NewInterview: React.FC = () => {
                 </Col>
               )}
 
-              <Col span={historian === '本人' ? 16 : 8}>
+              <Col xs={24} sm={12} md={historian === '本人' ? 16 : 8}>
                 <Form.Item name="reliability" label={<Space><CheckCircleOutlined />可靠程度</Space>}>
                   <Select size="large" style={{ borderRadius: 8 }}>
                     <Option value="可靠">

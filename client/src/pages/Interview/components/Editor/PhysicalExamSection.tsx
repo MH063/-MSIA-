@@ -17,8 +17,8 @@ const PhysicalExamSection: React.FC = () => {
 
       {/* 1. 生命体征 */}
       <Card type="inner" title="【生命体征】" size="small" style={{ marginBottom: 24 }}>
-        <Row gutter={24}>
-          <Col span={6}>
+        <Row gutter={[12, 12]}>
+          <Col xs={24} sm={12} md={6}>
             <Form.Item 
               name={['physicalExam', 'vitalSigns', 'temperature']} 
               label="T (体温, ℃)"
@@ -27,7 +27,7 @@ const PhysicalExamSection: React.FC = () => {
               <InputNumber style={{ width: '100%' }} min={35} max={42} step={0.1} />
             </Form.Item>
           </Col>
-          <Col span={6}>
+          <Col xs={24} sm={12} md={6}>
             <Form.Item 
               name={['physicalExam', 'vitalSigns', 'pulse']} 
               label="P (脉搏, 次/分)"
@@ -36,7 +36,7 @@ const PhysicalExamSection: React.FC = () => {
               <InputNumber style={{ width: '100%' }} min={30} max={200} />
             </Form.Item>
           </Col>
-          <Col span={6}>
+          <Col xs={24} sm={12} md={6}>
             <Form.Item 
               name={['physicalExam', 'vitalSigns', 'respiration']} 
               label="R (呼吸, 次/分)"
@@ -45,10 +45,10 @@ const PhysicalExamSection: React.FC = () => {
               <InputNumber style={{ width: '100%' }} min={10} max={60} />
             </Form.Item>
           </Col>
-          <Col span={6}>
+          <Col xs={24} sm={12} md={6}>
             <Form.Item label="BP (血压)" style={{ marginBottom: 0 }} required>
-               <Row gutter={8}>
-                 <Col span={11}>
+               <Row gutter={[8, 8]} align="middle">
+                 <Col xs={24} sm={11}>
                     <Form.Item 
                       name={['physicalExam', 'vitalSigns', 'systolicBP']}
                       rules={[{ required: true, message: '收缩压' }]}
@@ -56,8 +56,8 @@ const PhysicalExamSection: React.FC = () => {
                         <InputNumber style={{ width: '100%' }} placeholder="收缩压" />
                     </Form.Item>
                  </Col>
-                 <Col span={2} style={{ textAlign: 'center' }}>/</Col>
-                 <Col span={11}>
+                 <Col xs={0} sm={2} style={{ textAlign: 'center' }}>/</Col>
+                 <Col xs={24} sm={11}>
                     <Form.Item 
                       name={['physicalExam', 'vitalSigns', 'diastolicBP']}
                       rules={[{ required: true, message: '舒张压' }]}

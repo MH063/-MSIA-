@@ -36,6 +36,22 @@ body {
   min-height: 100vh;
 }
 
+@media (max-width: 768px) {
+  .msia-page {
+    padding: 12px;
+  }
+
+  .msia-card:hover {
+    transform: none;
+    box-shadow: var(--msia-shadow-card);
+    border-color: var(--msia-border);
+  }
+
+  .msia-kpi {
+    min-width: 0;
+  }
+}
+
 .msia-card {
   border-radius: var(--msia-radius-card);
   overflow: hidden;
@@ -990,6 +1006,32 @@ a {
     flex-direction: row;
     justify-content: center;
     gap: 12px;
+  }
+
+  .msia-mobile-picker .ant-picker-panel-container {
+    max-width: calc(100vw - 24px);
+  }
+
+  .msia-mobile-picker .ant-picker-panels {
+    flex-wrap: wrap;
+  }
+
+  .msia-mobile-picker .ant-picker-panels > * {
+    width: 100%;
+  }
+
+  .msia-mobile-picker .ant-picker-time-panel {
+    border-left: 0;
+  }
+
+  .ant-picker-dropdown.msia-mobile-picker {
+    left: 12px !important;
+    right: 12px !important;
+    width: calc(100vw - 24px);
+  }
+
+  .ant-picker-dropdown.msia-mobile-picker .ant-picker-panel-container {
+    width: 100%;
   }
 }
 

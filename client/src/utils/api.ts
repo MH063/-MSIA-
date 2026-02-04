@@ -1,8 +1,7 @@
-import axios, { AxiosHeaders } from 'axios';
+import axios, { AxiosHeaders, type AxiosRequestConfig, type AxiosResponse } from 'axios';
 
 const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
 const isProduction = import.meta.env.PROD;
-const defaultDevHosts = ['192.168.66.42', '192.168.137.1'];
 
 /**
  * 计算开发环境下的网卡IP主机名
@@ -30,12 +29,8 @@ function getDevHost(): string {
       console.log('[api] 使用网卡IP作为开发主机:', candidate);
       return candidate;
     }
-    const fallback = defaultDevHosts[0];
-    if (fallback) {
-      console.warn('[api] 当前使用 localhost 访问开发环境，自动回退到网卡IP:', fallback);
-      return fallback;
-    }
-    console.warn('[api] 当前使用 localhost 访问开发环境，请在地址栏添加 ?dev_host=<网卡IP> 或通过 localStorage 设置 DEV_HOST 以避免被代理软件接管');
+    console.warn('[api] 当前使用 localhost 访问开发环境，尚未指定网卡IP，将继续使用 localhost 访问后端；建议使用 http://<网卡IP>:8000 访问前端，并在地址栏添加 ?dev_host=<网卡IP> 或通过 localStorage 设置 DEV_HOST');
+    return host;
   }
   return host;
 }
@@ -86,6 +81,12 @@ export function getApiErrorMessage(err: unknown, fallback: string): string {
   return fallback;
 }
 
+export async function getBlob(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<Blob>> {
+  const merged: AxiosRequestConfig = { ...(config || {}), responseType: 'blob' };
+  const resp = await api.get(url, merged);
+  return resp as unknown as AxiosResponse<Blob>;
+}
+
 api.interceptors.request.use(
   (config) => {
     try {
@@ -114,9 +115,28 @@ api.interceptors.request.use(
 
 api.interceptors.response.use(
   (response) => {
+    const rt = response.config.responseType;
+    if (rt === 'blob' || rt === 'arraybuffer') {
+      return response;
+    }
     return response.data;
   },
   (error) => {
+    const status = getNestedValue(error, ['response', 'status']);
+    if (status === 401) {
+      try {
+        const p = typeof window !== 'undefined' ? String(window.location.pathname || '/') : '/';
+        console.warn('[api] 认证失败(401)，即将跳转到登录页', { path: p });
+        window.localStorage.removeItem('OPERATOR_TOKEN');
+        window.localStorage.removeItem('OPERATOR_ROLE');
+        window.localStorage.removeItem('OPERATOR_ID');
+        if (!p.startsWith('/login')) {
+          window.location.assign(`/login?redirect=${encodeURIComponent(p)}`);
+        }
+      } catch (e) {
+        console.warn('[api] 401处理失败', e);
+      }
+    }
     return Promise.reject(error);
   }
 );

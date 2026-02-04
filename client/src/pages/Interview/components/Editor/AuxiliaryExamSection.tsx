@@ -1,13 +1,16 @@
 import React, { useEffect } from 'react';
-import { Form, Input, Row, Col, Typography, Card, Button, DatePicker, Checkbox } from 'antd';
+import { Form, Input, Row, Col, Typography, Card, Button, DatePicker, Checkbox, Grid } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 
 const { Title } = Typography;
 const { TextArea } = Input;
+const { useBreakpoint } = Grid;
 
 const AuxiliaryExamSection: React.FC = () => {
   const form = Form.useFormInstance();
   const none = Form.useWatch(['auxiliaryExams', 'none'], form);
+  const screens = useBreakpoint();
+  const isMobile = !screens.md;
 
   useEffect(() => {
     if (!none) return;
@@ -70,18 +73,23 @@ const AuxiliaryExamSection: React.FC = () => {
                   </Button>
                 }
               >
-                <Row gutter={24}>
-                  <Col span={8}>
+                <Row gutter={[12, 12]}>
+                  <Col xs={24} sm={12} md={8}>
                     <Form.Item
                       {...restField}
                       name={[name, 'date']}
                       label="检查日期"
                       rules={[{ required: true, message: '请选择日期' }]}
                     >
-                      <DatePicker style={{ width: '100%' }} />
+                      <DatePicker
+                        style={{ width: '100%' }}
+                        placement="bottomLeft"
+                        classNames={{ popup: { root: isMobile ? 'msia-mobile-picker' : undefined } }}
+                        getPopupContainer={(trigger) => (isMobile ? document.body : trigger.parentElement ?? document.body)}
+                      />
                     </Form.Item>
                   </Col>
-                  <Col span={8}>
+                  <Col xs={24} sm={12} md={8}>
                     <Form.Item
                       {...restField}
                       name={[name, 'institution']}
@@ -90,7 +98,7 @@ const AuxiliaryExamSection: React.FC = () => {
                       <Input placeholder="院内/院外" />
                     </Form.Item>
                   </Col>
-                  <Col span={8}>
+                  <Col xs={24} sm={12} md={8}>
                     <Form.Item
                       {...restField}
                       name={[name, 'name']}

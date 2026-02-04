@@ -196,27 +196,6 @@ export interface DiagnosisSuggestion {
 }
 
 /**
- * 文件处理结果
- */
-export interface FileProcessResult {
-  success: boolean;
-  filePath: string;
-  data?: unknown;
-  error?: string;
-  checksum?: string;
-}
-
-/**
- * 知识库文件元数据
- */
-export interface KnowledgeFileMetadata {
-  filePath: string;
-  checksum: string;
-  lastModified: Date;
-  version: number;
-}
-
-/**
  * 查询过滤器
  */
 export interface QueryFilter {

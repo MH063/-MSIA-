@@ -201,8 +201,8 @@ const PersonalHistorySection: React.FC = () => {
       <Form.Item name={['personalHistory', 'drinkingHistory']} hidden><Input /></Form.Item>
       
       <Card type="inner" title="1. 社会经历与职业" size="small" style={{ marginBottom: 24 }}>
-        <Row gutter={24}>
-            <Col span={12}>
+        <Row gutter={[12, 12]}>
+            <Col xs={24} sm={12} md={12}>
                 <Form.Item
                   name={['personalHistory', 'birthplace']}
                   label="出生地"
@@ -211,7 +211,7 @@ const PersonalHistorySection: React.FC = () => {
                     <Input placeholder="省/市" />
                 </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12} md={12}>
                 <Form.Item
                   name={['personalHistory', 'residence']}
                   label="居留地"
@@ -247,8 +247,8 @@ const PersonalHistorySection: React.FC = () => {
       <Card type="inner" title="2. 习惯与嗜好 (自动计算)" size="small" style={{ marginBottom: 24 }}>
           {/* 吸烟史计算器 */}
           <div style={{ background: '#fff7e6', padding: 16, borderRadius: 8, marginBottom: 16, border: '1px solid #ffe7ba' }}>
-            <Row gutter={16} align="middle">
-                <Col span={6}>
+            <Row gutter={[12, 12]} align="top">
+                <Col xs={24} sm={24} md={6}>
                     <Form.Item
                       name={['personalHistory', 'smoking_status']}
                       label="吸烟史"
@@ -256,17 +256,17 @@ const PersonalHistorySection: React.FC = () => {
                       style={{ marginBottom: 0 }}
                       rules={[{ required: true, message: '请选择吸烟史' }]}
                     >
-                        <Radio.Group buttonStyle="solid">
-                            <Radio.Button value="从不">从不</Radio.Button>
-                            <Radio.Button value="已戒烟">戒烟</Radio.Button>
-                            <Radio.Button value="吸烟">吸烟</Radio.Button>
+                        <Radio.Group buttonStyle="solid" style={{ width: '100%', display: 'flex' }}>
+                            <Radio.Button value="从不" style={{ flex: 1, textAlign: 'center' }}>从不</Radio.Button>
+                            <Radio.Button value="已戒烟" style={{ flex: 1, textAlign: 'center' }}>戒烟</Radio.Button>
+                            <Radio.Button value="吸烟" style={{ flex: 1, textAlign: 'center' }}>吸烟</Radio.Button>
                         </Radio.Group>
                     </Form.Item>
                 </Col>
                 
                 {(smokingStatus === '吸烟' || smokingStatus === '已戒烟') && (
                     <>
-                        <Col span={6}>
+                        <Col xs={12} sm={12} md={6}>
                             <Form.Item 
                                 name={['personalHistory', 'cigarettesPerDay']} 
                                 label="每日吸烟(支)" 
@@ -276,10 +276,10 @@ const PersonalHistorySection: React.FC = () => {
                                     { type: 'number', min: 1, max: 100, message: '请输入1-100之间的数字' }
                                 ]}
                             >
-                                <InputNumber min={1} max={100} placeholder="1-100" />
+                                <InputNumber style={{ width: '100%' }} min={1} max={100} placeholder="1-100" />
                             </Form.Item>
                         </Col>
-                        <Col span={6}>
+                        <Col xs={12} sm={12} md={6}>
                             <Form.Item 
                                 name={['personalHistory', 'smokingYears']} 
                                 label="烟龄(年)" 
@@ -289,10 +289,10 @@ const PersonalHistorySection: React.FC = () => {
                                     { type: 'number', min: 1, max: 80, message: '请输入1-80之间的数字' }
                                 ]}
                             >
-                                <InputNumber min={1} max={80} placeholder="1-80" />
+                                <InputNumber style={{ width: '100%' }} min={1} max={80} placeholder="1-80" />
                             </Form.Item>
                         </Col>
-                        <Col span={6}>
+                        <Col xs={24} sm={24} md={6}>
                              <Statistic 
                                 title="吸烟指数" 
                                 value={form.getFieldValue(['personalHistory', 'smokingIndex']) || 0} 
@@ -310,7 +310,7 @@ const PersonalHistorySection: React.FC = () => {
                                     ]}
                                  >
                                      <Space.Compact>
-                                       <InputNumber min={1} max={80} placeholder="1-80" />
+                                       <InputNumber style={{ width: '100%' }} min={1} max={80} placeholder="1-80" />
                                        <span style={{ display: 'inline-flex', alignItems: 'center', padding: '0 8px', background: '#fafafa', border: '1px solid #d9d9d9', borderLeft: 'none', borderRadius: '0 6px 6px 0' }}>年</span>
                                      </Space.Compact>
                                  </Form.Item>
@@ -323,8 +323,8 @@ const PersonalHistorySection: React.FC = () => {
 
           {/* 饮酒史计算器 */}
           <div style={{ background: '#f0f5ff', padding: 16, borderRadius: 8, marginBottom: 16, border: '1px solid #adc6ff' }}>
-            <Row gutter={16} align="middle">
-                <Col span={6}>
+            <Row gutter={[12, 12]} align="top">
+                <Col xs={24} sm={24} md={6}>
                     <Form.Item
                       name={['personalHistory', 'alcohol_status']}
                       label="饮酒史"
@@ -332,17 +332,17 @@ const PersonalHistorySection: React.FC = () => {
                       style={{ marginBottom: 0 }}
                       rules={[{ required: true, message: '请选择饮酒史' }]}
                     >
-                        <Radio.Group buttonStyle="solid">
-                            <Radio.Button value="从不">从不</Radio.Button>
-                            <Radio.Button value="已戒酒">戒酒</Radio.Button>
-                            <Radio.Button value="饮酒">饮酒</Radio.Button>
+                        <Radio.Group buttonStyle="solid" style={{ width: '100%', display: 'flex' }}>
+                            <Radio.Button value="从不" style={{ flex: 1, textAlign: 'center' }}>从不</Radio.Button>
+                            <Radio.Button value="已戒酒" style={{ flex: 1, textAlign: 'center' }}>戒酒</Radio.Button>
+                            <Radio.Button value="饮酒" style={{ flex: 1, textAlign: 'center' }}>饮酒</Radio.Button>
                         </Radio.Group>
                     </Form.Item>
                 </Col>
                 
                 {(alcoholStatus === '饮酒' || alcoholStatus === '已戒酒') && (
                     <>
-                        <Col span={6}>
+                        <Col xs={12} sm={12} md={6}>
                             <Form.Item 
                                 name={['personalHistory', 'drinkVolume']} 
                                 label="日饮量(ml)" 
@@ -352,10 +352,10 @@ const PersonalHistorySection: React.FC = () => {
                                     { type: 'number', min: 1, max: 2000, message: '请输入1-2000之间的数字' }
                                 ]}
                             >
-                                <InputNumber min={1} max={2000} step={50} placeholder="1-2000" />
+                                <InputNumber style={{ width: '100%' }} min={1} max={2000} step={50} placeholder="1-2000" />
                             </Form.Item>
                         </Col>
-                        <Col span={6}>
+                        <Col xs={12} sm={12} md={6}>
                             <Form.Item 
                                 name={['personalHistory', 'alcoholDegree']} 
                                 label="度数(%)" 
@@ -365,10 +365,10 @@ const PersonalHistorySection: React.FC = () => {
                                     { type: 'number', min: 1, max: 75, message: '请输入1-75之间的数字' }
                                 ]}
                             >
-                                <InputNumber min={1} max={75} placeholder="1-75" />
+                                <InputNumber style={{ width: '100%' }} min={1} max={75} placeholder="1-75" />
                             </Form.Item>
                         </Col>
-                        <Col span={6}>
+                        <Col xs={24} sm={12} md={6}>
                             <Form.Item 
                                 name={['personalHistory', 'drinkFreqPerWeek']} 
                                 label="频率(次/周)" 
@@ -377,7 +377,7 @@ const PersonalHistorySection: React.FC = () => {
                                     { type: 'number', min: 1, max: 7, message: '请输入1-7之间的数字' }
                                 ]}
                             >
-                                <InputNumber min={1} max={7} placeholder="1-7" />
+                                <InputNumber style={{ width: '100%' }} min={1} max={7} placeholder="1-7" />
                             </Form.Item>
                         </Col>
                         <Col span={24} style={{ marginTop: 12 }}>
@@ -392,7 +392,7 @@ const PersonalHistorySection: React.FC = () => {
                              <Col span={24} style={{ marginTop: 12 }}>
                                  <Form.Item name={['personalHistory', 'quitDrinkingYears']} label="已戒酒年数">
                                      <Space.Compact>
-                                       <InputNumber min={0} />
+                                       <InputNumber style={{ width: '100%' }} min={0} />
                                        <span style={{ display: 'inline-flex', alignItems: 'center', padding: '0 8px', background: '#fafafa', border: '1px solid #d9d9d9', borderLeft: 'none', borderRadius: '0 6px 6px 0' }}>年</span>
                                      </Space.Compact>
                                  </Form.Item>

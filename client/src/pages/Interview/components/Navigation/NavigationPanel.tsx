@@ -1,11 +1,12 @@
 import React from 'react';
-import { Menu, Progress, Typography, Button, Tooltip } from 'antd';
+import { Menu, Progress, Typography, Button, Tooltip, Grid } from 'antd';
 import { 
   HomeOutlined,
   ArrowLeftOutlined
 } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
+const { useBreakpoint } = Grid;
 
 export interface SectionStatus {
   key: string;
@@ -34,6 +35,8 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
   onGoHome,
   onGoInterviewStart
 }) => {
+  const screens = useBreakpoint();
+  const isMobile = !screens.md;
   const menuWrapRef = React.useRef<HTMLDivElement | null>(null);
   const hideScrollbarTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isScrollable, setIsScrollable] = React.useState(false);
@@ -144,14 +147,16 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
         )
         : undefined;
 
+    const labelNode = (
+      <span style={{ fontWeight: section.key === currentSection ? 500 : 400 }}>
+        {section.label}
+      </span>
+    );
+
     return {
       key: section.key,
       label: (
-        <Tooltip title={tooltipTitle} placement="right">
-          <span style={{ fontWeight: section.key === currentSection ? 500 : 400 }}>
-            {section.label}
-          </span>
-        </Tooltip>
+        tooltipTitle && !isMobile ? <Tooltip title={tooltipTitle} placement="right">{labelNode}</Tooltip> : labelNode
       ),
       icon: icon
     };
@@ -162,12 +167,18 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
   return (
     <div className="interview-nav-panel" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* Header Area */}
-      <div style={{ padding: '24px 20px', borderBottom: '1px solid #f0f0f0' }}>
-        <Title level={4} style={{ margin: '0 0 16px 0', fontSize: '18px' }}>问诊导航</Title>
+      <div style={{ padding: isMobile ? '14px 14px' : '24px 20px', borderBottom: '1px solid #f0f0f0' }}>
+        <Title level={isMobile ? 5 : 4} style={{ margin: isMobile ? '0 0 10px 0' : '0 0 16px 0', fontSize: isMobile ? '16px' : '18px' }}>
+          问诊导航
+        </Title>
         
         <div style={{ marginBottom: 8 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-            <Text type="secondary" style={{ fontSize: '12px' }}>完成度 ({completedCount}/{sections.length})</Text>
+            {isMobile ? null : (
+              <Text type="secondary" style={{ fontSize: '12px' }}>
+                完成度 ({completedCount}/{sections.length})
+              </Text>
+            )}
             <Text strong style={{ fontSize: '14px' }}>{Math.round(progress)}%</Text>
           </div>
           <Progress 
@@ -223,8 +234,9 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
       </div>
       
       {/* Footer Area */}
-      <div style={{ padding: '16px 20px', borderTop: '1px solid #f0f0f0', background: '#fafafa' }}>
-         <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginBottom: 16, fontSize: '12px', color: '#8c8c8c' }}>
+      <div style={{ padding: isMobile ? '12px 14px' : '16px 20px', borderTop: '1px solid #f0f0f0', background: '#fafafa' }}>
+         {isMobile ? null : (
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginBottom: 16, fontSize: '12px', color: '#8c8c8c' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               <span style={{ color: '#52c41a' }}>✓</span> 已完成
             </div>
@@ -234,14 +246,19 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               <span style={{ color: '#bfbfbf' }}>○</span> 未开始
             </div>
-         </div>
+          </div>
+         )}
          
-         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: isMobile ? 10 : 12 }}>
             <Tooltip title="返回首页">
-              <Button icon={<HomeOutlined />} onClick={onGoHome} block>首页</Button>
+              <Button icon={<HomeOutlined />} onClick={onGoHome} block>
+                {isMobile ? null : '首页'}
+              </Button>
             </Tooltip>
             <Tooltip title="返回列表">
-              <Button icon={<ArrowLeftOutlined />} onClick={onGoInterviewStart} block>列表</Button>
+              <Button icon={<ArrowLeftOutlined />} onClick={onGoInterviewStart} block>
+                {isMobile ? null : '列表'}
+              </Button>
             </Tooltip>
          </div>
       </div>

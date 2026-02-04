@@ -101,7 +101,7 @@ const EditorPanel: React.FC<EditorPanelProps> = ({
     const keys = getSectionResetFieldPaths(currentSection);
     if (keys.length === 0) return;
     form.resetFields(keys as (string | number | (string | number)[])[]);
-    message.success('已清空本板块内容');
+    message?.success?.('已清空本板块内容');
   };
 
   const resetButton = showResetButton ? (

@@ -300,13 +300,34 @@ const KnowledgeList: React.FC = () => {
    */
   const buildSseUrl = (): string => {
     const base = api.defaults.baseURL || '';
-    if (!base) return '/api/knowledge/stream';
-    const root = base.endsWith('/api') ? base.slice(0, -4) : base;
-    return `${root}/api/knowledge/stream`;
+    const url = (() => {
+      if (!base) return '/api/knowledge/stream';
+      const root = base.endsWith('/api') ? base.slice(0, -4) : base;
+      return `${root}/api/knowledge/stream`;
+    })();
+
+    const token = (() => {
+      try {
+        return (
+          window.localStorage.getItem('OPERATOR_TOKEN') ||
+          window.localStorage.getItem('AUTH_TOKEN') ||
+          window.localStorage.getItem('TOKEN') ||
+          ''
+        );
+      } catch {
+        return '';
+      }
+    })();
+
+    const t = String(token || '').trim();
+    if (!t) return url;
+    const sep = url.includes('?') ? '&' : '?';
+    return `${url}${sep}token=${encodeURIComponent(t)}`;
   };
 
   useEffect(() => {
     const url = buildSseUrl();
+    console.log('[KnowledgeList] 建立SSE连接', { url: url.replace(/token=[^&]+/iu, 'token=***') });
     const es = new EventSource(url);
     es.onmessage = () => {
       fetchSymptomNameMapping();
@@ -318,7 +339,9 @@ const KnowledgeList: React.FC = () => {
       fetchSymptomData();
       fetchDiseaseData();
     });
-    es.onerror = () => {};
+    es.onerror = (evt) => {
+      console.warn('[KnowledgeList] SSE连接异常', evt);
+    };
     esRef.current = es;
     return () => {
       esRef.current?.close();

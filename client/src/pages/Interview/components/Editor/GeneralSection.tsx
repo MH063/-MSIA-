@@ -1,13 +1,16 @@
 import React, { useEffect, useMemo } from 'react';
-import { Form, Input, Row, Col, Typography, Select, DatePicker, Card, InputNumber, Space } from 'antd';
+import { Form, Input, Row, Col, Typography, Select, DatePicker, Card, InputNumber, Space, Grid } from 'antd';
 import dayjs from 'dayjs';
 import AgeDisplayView from './AgeDisplay';
 import { computeAgeDisplay, formatAgeText, normalizeAge, validateAge } from '../../../../utils/age';
 
 const { Title } = Typography;
+const { useBreakpoint } = Grid;
 
 const GeneralSection: React.FC = () => {
   const form = Form.useFormInstance();
+  const screens = useBreakpoint();
+  const isMobile = !screens.md;
   const birthDate = Form.useWatch('birthDate', form);
   const recordTime = Form.useWatch(['generalInfo', 'recordTime'], form);
   const historian = Form.useWatch('historian', form);
@@ -150,17 +153,17 @@ const GeneralSection: React.FC = () => {
 
   return (
     <div className="section-container">
-      <Title level={4} style={{ marginBottom: 24 }}>一般项目 (General Information)</Title>
+      <Title level={4} style={{ marginBottom: isMobile ? 14 : 24 }}>一般项目 (General Information)</Title>
       
       {/* 1. 基本信息 */}
       <Card type="inner" title="【基本信息】" size="small" style={{ marginBottom: 24 }}>
-        <Row gutter={24}>
-          <Col span={6}>
+        <Row gutter={[12, 12]}>
+          <Col xs={12} sm={12} md={6}>
             <Form.Item name="name" label="姓名" rules={[{ required: true, message: '请输入姓名' }]}>
               <Input placeholder="输入患者姓名" />
             </Form.Item>
           </Col>
-          <Col span={6}>
+          <Col xs={12} sm={12} md={6}>
             <Form.Item name="gender" label="性别" rules={[{ required: true, message: '请选择性别' }]}>
                <Select placeholder="选择性别">
                    <Select.Option value="男">男</Select.Option>
@@ -169,14 +172,14 @@ const GeneralSection: React.FC = () => {
                </Select>
             </Form.Item>
           </Col>
-          <Col span={6}>
+          <Col xs={24} sm={12} md={6}>
              <Form.Item
                label="年龄"
-               help={
+               help={isMobile ? null : (
                  ageDisplay?.backupText
                    ? `出生日期填写后会按年龄段策略自动换算；备用：${ageDisplay.backupText}`
                    : '出生日期填写后会按年龄段策略自动换算'
-               }
+               )}
                required
              >
                {ageDisplay ? (
@@ -267,12 +270,12 @@ const GeneralSection: React.FC = () => {
                </Form.Item>
              </Form.Item>
           </Col>
-          <Col span={6}>
+          <Col xs={12} sm={12} md={6}>
               <Form.Item name="ethnicity" label="民族" initialValue="汉族" rules={[{ required: true, message: '请输入民族' }]}>
                 <Input placeholder="如：汉族" />
               </Form.Item>
           </Col>
-          <Col span={6}>
+          <Col xs={12} sm={12} md={6}>
               <Form.Item
                 name={['maritalHistory', 'status']}
                 label="婚姻状况"
@@ -286,24 +289,30 @@ const GeneralSection: React.FC = () => {
                   </Select>
               </Form.Item>
           </Col>
-          <Col span={6}>
+          <Col xs={12} sm={12} md={6}>
               <Form.Item name="nativePlace" label="籍贯">
                   <Input placeholder="省/市" />
               </Form.Item>
           </Col>
-          <Col span={6}>
+          <Col xs={12} sm={12} md={6}>
               <Form.Item name="placeOfBirth" label="出生地">
                   <Input placeholder="省/市/县" />
               </Form.Item>
           </Col>
-          <Col span={6}>
+          <Col xs={12} sm={12} md={6}>
                <Form.Item name="occupation" label="职业">
                   <Input placeholder="职业" />
                </Form.Item>
           </Col>
-          <Col span={6}>
+          <Col xs={12} sm={12} md={6}>
              <Form.Item name="birthDate" label="出生日期">
-                <DatePicker style={{ width: '100%' }} placeholder="选择日期" />
+                <DatePicker
+                  style={{ width: '100%' }}
+                  placeholder="选择日期"
+                  placement="bottomLeft"
+                  classNames={{ popup: { root: isMobile ? 'msia-mobile-picker' : undefined } }}
+                  getPopupContainer={(trigger) => (isMobile ? document.body : trigger.parentElement ?? document.body)}
+                />
              </Form.Item>
           </Col>
         </Row>
@@ -311,27 +320,48 @@ const GeneralSection: React.FC = () => {
 
       {/* 2. 记录信息 */}
       <Card type="inner" title="【记录信息】" size="small" style={{ marginBottom: 24 }}>
-        <Row gutter={24}>
-          <Col span={8}>
+        <Row gutter={[12, 12]}>
+          <Col xs={24} sm={12} md={8}>
               <Form.Item name={['generalInfo', 'admissionTime']} label="入院时间">
-                  <DatePicker showTime format="YYYY-MM-DD HH:mm" style={{ width: '100%' }} placeholder="年-月-日 时:分" />
+                  <DatePicker
+                    showTime
+                    format="YYYY-MM-DD HH:mm"
+                    style={{ width: '100%' }}
+                    placeholder="年-月-日 时:分"
+                    placement="bottomLeft"
+                    classNames={{ popup: { root: isMobile ? 'msia-mobile-picker' : undefined } }}
+                    getPopupContainer={(trigger) => (isMobile ? document.body : trigger.parentElement ?? document.body)}
+                  />
               </Form.Item>
           </Col>
-          <Col span={8}>
+          <Col xs={24} sm={12} md={8}>
               <Form.Item
                 name={['generalInfo', 'recordTime']}
                 label="记录时间"
                 initialValue={dayjs()}
                 rules={[{ required: true, message: '请选择记录时间' }]}
               >
-                  <DatePicker showTime format="YYYY-MM-DD HH:mm" style={{ width: '100%' }} placeholder="年-月-日 时:分" />
+                  <DatePicker
+                    showTime
+                    format="YYYY-MM-DD HH:mm"
+                    style={{ width: '100%' }}
+                    placeholder="年-月-日 时:分"
+                    placement="bottomLeft"
+                    classNames={{ popup: { root: isMobile ? 'msia-mobile-picker' : undefined } }}
+                    getPopupContainer={(trigger) => (isMobile ? document.body : trigger.parentElement ?? document.body)}
+                  />
               </Form.Item>
           </Col>
-          <Col span={8}>
+          <Col xs={24} sm={12} md={8}>
              {/* 占位 */}
           </Col>
-          <Col span={8}>
-              <Form.Item name="historian" label="病史陈述者" initialValue="本人" tooltip="非患者本人时需注明与患者关系及可靠程度">
+          <Col xs={12} sm={12} md={8}>
+              <Form.Item
+                name="historian"
+                label="病史陈述者"
+                initialValue="本人"
+                tooltip={isMobile ? undefined : '非患者本人时需注明与患者关系及可靠程度'}
+              >
                    <Select>
                         <Select.Option value="本人">本人</Select.Option>
                         <Select.Option value="家属">家属</Select.Option>
@@ -340,14 +370,14 @@ const GeneralSection: React.FC = () => {
                     </Select>
               </Form.Item>
           </Col>
-          <Col span={8}>
+          <Col xs={12} sm={12} md={8}>
             {historian !== '本人' && (
               <Form.Item name="historianRelationship" label="与患者关系">
                    <Input placeholder="如：父子、夫妻" />
               </Form.Item>
             )}
           </Col>
-          <Col span={8}>
+          <Col xs={12} sm={12} md={8}>
               <Form.Item name="reliability" label="可靠程度" initialValue="可靠">
                   <Select placeholder="选择可靠程度">
                       <Select.Option value="可靠">可靠</Select.Option>
@@ -362,8 +392,8 @@ const GeneralSection: React.FC = () => {
 
       {/* 3. 联系信息 */}
       <Card type="inner" title="【联系信息】" size="small">
-        <Row gutter={24}>
-          <Col span={8}>
+        <Row gutter={[12, 12]}>
+          <Col xs={24} sm={12} md={8}>
                <Form.Item
                  name="phone"
                  label="联系电话"
@@ -375,12 +405,12 @@ const GeneralSection: React.FC = () => {
                    <Input placeholder="11位手机号" />
                </Form.Item>
           </Col>
-          <Col span={8}>
+          <Col xs={24} sm={12} md={8}>
                <Form.Item name="employer" label="工作单位">
                    <Input placeholder="输入工作单位名称" />
                </Form.Item>
           </Col>
-          <Col span={8}>
+          <Col xs={24} sm={12} md={8}>
                <Form.Item name="address" label="联系地址">
                    <Input placeholder="输入详细居住地址" />
                </Form.Item>

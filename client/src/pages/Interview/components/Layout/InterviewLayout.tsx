@@ -1,7 +1,9 @@
 import React from 'react';
-import { Layout } from 'antd';
+import { Button, Drawer, Grid, Layout } from 'antd';
+import { MenuOutlined } from '@ant-design/icons';
 
-const { Sider, Content } = Layout;
+const { Sider, Content, Header } = Layout;
+const { useBreakpoint } = Grid;
 
 interface InterviewLayoutProps {
   navigation: React.ReactNode;
@@ -13,6 +15,47 @@ const InterviewLayout: React.FC<InterviewLayoutProps> = ({
   navigation,
   editor,
 }) => {
+  const screens = useBreakpoint();
+  const isDesktop = Boolean(screens.md);
+  const [drawerOpen, setDrawerOpen] = React.useState(false);
+
+  if (!isDesktop) {
+    return (
+      <Layout className="interview-layout" style={{ minHeight: '100vh', background: '#f0f2f5' }}>
+        <Header
+          style={{
+            position: 'sticky',
+            top: 0,
+            zIndex: 20,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            padding: '0 12px',
+            background: '#ffffff',
+            borderBottom: '1px solid #f0f0f0',
+          }}
+        >
+          <Button type="text" icon={<MenuOutlined />} onClick={() => setDrawerOpen(true)} />
+          <div style={{ fontWeight: 700, color: '#1f1f1f' }}>问诊</div>
+        </Header>
+
+        <Content style={{ margin: 0, padding: 12, background: '#f0f2f5', minHeight: 'calc(100vh - 64px)' }}>
+          {editor}
+        </Content>
+
+        <Drawer
+          open={drawerOpen}
+          placement="left"
+          onClose={() => setDrawerOpen(false)}
+          styles={{ wrapper: { width: '100vw' }, body: { padding: 0 } }}
+          title={null}
+        >
+          <div onClick={() => setDrawerOpen(false)}>{navigation}</div>
+        </Drawer>
+      </Layout>
+    );
+  }
+
   return (
     <Layout className="interview-layout" style={{ minHeight: '100vh', background: '#f0f2f5' }}>
       {/* Left Navigation Panel */}

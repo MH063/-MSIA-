@@ -1,12 +1,15 @@
 import React from 'react';
-import { Form, Input, InputNumber, Card, Row, Col, DatePicker, Radio, Select } from 'antd';
+import { Form, Input, InputNumber, Card, Row, Col, DatePicker, Radio, Select, Grid } from 'antd';
 
 const { Option } = Select;
+const { useBreakpoint } = Grid;
 
 const MenstrualHistorySection: React.FC = () => {
   const form = Form.useFormInstance();
   const gender = Form.useWatch('gender', form);
   const isMenopause = Form.useWatch(['menstrualHistory', 'isMenopause'], form);
+  const screens = useBreakpoint();
+  const isMobile = !screens.md;
 
   // 仅女性显示
   if (gender !== '女') {
@@ -16,31 +19,37 @@ const MenstrualHistorySection: React.FC = () => {
   return (
     <div className="section-container">
       <Card type="inner" title="月经史 (Menstrual History)" size="small">
-        <Row gutter={24}>
-          <Col span={6}>
+        <Row gutter={[12, 12]}>
+          <Col xs={24} sm={12} md={6}>
             <Form.Item name={['menstrualHistory', 'age']} label="初潮年龄(岁)">
               <InputNumber style={{ width: '100%' }} placeholder="例如: 13" />
             </Form.Item>
           </Col>
-          <Col span={6}>
+          <Col xs={24} sm={12} md={6}>
             <Form.Item name={['menstrualHistory', 'duration']} label="经期(天)">
               <InputNumber style={{ width: '100%' }} placeholder="例如: 5" />
             </Form.Item>
           </Col>
-          <Col span={6}>
+          <Col xs={24} sm={12} md={6}>
             <Form.Item name={['menstrualHistory', 'cycle']} label="周期(天)">
               <InputNumber style={{ width: '100%' }} placeholder="例如: 28" />
             </Form.Item>
           </Col>
-          <Col span={6}>
+          <Col xs={24} sm={12} md={6}>
             <Form.Item name={['menstrualHistory', 'lmp_date']} label="末次月经(LMP)">
-              <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" />
+              <DatePicker
+                style={{ width: '100%' }}
+                format="YYYY-MM-DD"
+                placement="bottomLeft"
+                classNames={{ popup: { root: isMobile ? 'msia-mobile-picker' : undefined } }}
+                getPopupContainer={(trigger) => (isMobile ? document.body : trigger.parentElement ?? document.body)}
+              />
             </Form.Item>
           </Col>
         </Row>
 
-        <Row gutter={24}>
-          <Col span={8}>
+        <Row gutter={[12, 12]}>
+          <Col xs={24} sm={12} md={8}>
             <Form.Item name={['menstrualHistory', 'flow']} label="经量">
               <Select placeholder="请选择">
                 <Option value="多">多</Option>
@@ -49,12 +58,12 @@ const MenstrualHistorySection: React.FC = () => {
               </Select>
             </Form.Item>
           </Col>
-          <Col span={8}>
+          <Col xs={24} sm={12} md={8}>
             <Form.Item name={['menstrualHistory', 'pain']} label="痛经">
                <Input placeholder="例如: 无 / 轻度 / 剧烈" />
             </Form.Item>
           </Col>
-          <Col span={8}>
+          <Col xs={24} sm={24} md={8}>
             <Form.Item label="绝经">
               <Form.Item
                 name={['menstrualHistory', 'isMenopause']}
@@ -78,8 +87,8 @@ const MenstrualHistorySection: React.FC = () => {
         </Row>
 
         {isMenopause && (
-          <Row gutter={24}>
-            <Col span={12}>
+          <Row gutter={[12, 12]}>
+            <Col xs={24} sm={12} md={12}>
               <Form.Item name={['menstrualHistory', 'menopause_age']} label="绝经年龄(岁)">
                 <InputNumber style={{ width: '100%' }} />
               </Form.Item>

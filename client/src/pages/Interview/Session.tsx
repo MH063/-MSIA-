@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { App as AntdApp, Form, Spin, Modal, Button, Space, Tooltip, Popconfirm } from 'antd';
-import { ArrowLeftOutlined, ArrowRightOutlined, EyeOutlined, UndoOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, ArrowRightOutlined, EyeOutlined, FilePdfOutlined, FileWordOutlined, UndoOutlined } from '@ant-design/icons';
 import dayjs, { type Dayjs } from 'dayjs';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import api, { type ApiResponse, unwrapData } from '../../utils/api';
+import api, { getBlob, type ApiResponse, unwrapData } from '../../utils/api';
 
 import InterviewLayout from './components/Layout/InterviewLayout';
 import NavigationPanel from './components/Navigation/NavigationPanel';
@@ -199,56 +199,6 @@ const SECTIONS = [
   { key: 'auxiliary_exam', label: '辅助检查' },
 ];
 
-/**
- * 获取本地症状映射降级方案
- * 当API调用失败时使用
- */
-const getFallbackSymptomMappings = (): { nameToKey: Record<string, string>; keyToName: Record<string, string> } => {
-  const commonSymptoms: Record<string, string> = {
-    '头痛': 'headache',
-    '头晕': 'dizziness',
-    '胸痛': 'chest_pain',
-    '腹痛': 'abdominal_pain',
-    '发热': 'fever',
-    '咳嗽': 'cough',
-    '心悸': 'palpitation',
-    '恶心': 'nausea',
-    '呕吐': 'vomiting',
-    '腹泻': 'diarrhea',
-    '便秘': 'constipation',
-    '乏力': 'fatigue',
-    '消瘦': 'weight_loss',
-    '水肿': 'edema',
-    '皮疹': 'rash',
-    '关节痛': 'joint_pain',
-    '腰痛': 'back_pain',
-    '呼吸困难': 'dyspnea',
-    '失眠': 'insomnia',
-    '多饮': 'polydipsia',
-    '多尿': 'polyuria',
-    '血尿': 'hematuria',
-    '黑便': 'melena',
-    '黄疸': 'jaundice',
-    '抽搐': 'convulsion',
-    '昏迷': 'coma',
-    '眩晕': 'vertigo',
-    '耳鸣': 'tinnitus',
-    '视力模糊': 'blurred_vision',
-    '吞咽困难': 'dysphagia',
-    '咯血': 'hemoptysis',
-    '便血': 'hematochezia',
-  };
-
-  const keyToName: Record<string, string> = {};
-  Object.entries(commonSymptoms).forEach(([name, key]) => {
-    keyToName[key] = name;
-  });
-
-  return {
-    nameToKey: commonSymptoms,
-    keyToName
-  };
-};
 
 type SessionRes = {
   patient?: {
@@ -310,21 +260,21 @@ const Session: React.FC = () => {
           setKnowledgeMappings({ nameToKey: payload.nameToKey || {}, keyToName: inverted });
           console.log('[Session] 症状映射加载成功');
         } else {
-          console.warn('[Session] 症状映射数据为空，使用本地降级映射');
-          // 降级方案：使用本地症状映射
-          const fallbackMappings = getFallbackSymptomMappings();
-          setKnowledgeMappings(fallbackMappings);
+          console.warn('[Session] 症状映射数据为空，不展示模拟数据');
+          // 不展示模拟数据，清空映射并提示错误
+          setKnowledgeMappings({ nameToKey: {}, keyToName: {} });
+          setKnowledgeError('症状映射加载失败或为空，请稍后重试');
         }
       } catch (e) {
-        console.error('[Session] 症状映射加载失败，使用本地降级映射', e);
-        // 降级方案：使用本地症状映射
-        const fallbackMappings = getFallbackSymptomMappings();
-        setKnowledgeMappings(fallbackMappings);
-        message.warning('症状映射加载失败，已使用本地备选方案');
+        console.error('[Session] 症状映射加载失败，不展示模拟数据', e);
+        // 不展示模拟数据，清空映射并提示错误
+        setKnowledgeMappings({ nameToKey: {}, keyToName: {} });
+        setKnowledgeError('症状映射加载失败，请检查网络或联系管理员');
+        message.warning('症状映射加载失败，请稍后重试');
       }
     };
     load();
-  }, [setKnowledgeMappings, message]);
+  }, [setKnowledgeMappings, setKnowledgeError, message]);
   
   const [loading, setLoading] = useState(false);
   const [isValidId, setIsValidId] = useState<boolean | null>(null);
@@ -2927,6 +2877,95 @@ const Session: React.FC = () => {
     setShowPreview(true);
   };
 
+  /**
+   * parseDownloadFilename
+   * 从响应头 Content-Disposition 中解析文件名，兼容 filename 与 filename* 两种写法
+   */
+  const parseDownloadFilename = (contentDisposition: unknown): string | null => {
+    const raw = String(contentDisposition || '').trim();
+    if (!raw) return null;
+
+    const m1 = /filename\*\s*=\s*UTF-8''([^;]+)/iu.exec(raw);
+    if (m1 && m1[1]) {
+      try {
+        return decodeURIComponent(m1[1]).trim() || null;
+      } catch {
+        return String(m1[1]).trim() || null;
+      }
+    }
+
+    const m2 = /filename\s*=\s*("?)([^";]+)\1/iu.exec(raw);
+    if (m2 && m2[2]) return String(m2[2]).trim() || null;
+    return null;
+  };
+
+  /**
+   * downloadBlobAsFile
+   * 将后端返回的二进制数据以“下载文件”的方式保存到本地
+   */
+  const downloadBlobAsFile = (blob: Blob, filename: string) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  /**
+   * handleExportPdf
+   * 调用后端导出接口生成PDF并下载（文件流）
+   */
+  const handleExportPdf = async () => {
+    const sessionId = Number(id);
+    if (!Number.isFinite(sessionId) || sessionId <= 0) {
+      message.warning('当前记录尚未保存，无法导出');
+      return;
+    }
+
+    console.log('[Session] 导出PDF（后端生成）', { sessionId });
+    try {
+      const resp = await getBlob(`/sessions/${sessionId}/export/pdf`);
+      const blob: Blob = resp.data instanceof Blob ? resp.data : new Blob([resp.data || ''], { type: 'application/pdf' });
+      const cd = resp.headers?.['content-disposition'] || resp.headers?.['Content-Disposition'];
+      const filename = parseDownloadFilename(cd) || `病历_${sessionId}_${dayjs().format('YYYYMMDD_HHmm')}.pdf`;
+      downloadBlobAsFile(blob, filename);
+      message.success('导出PDF成功');
+    } catch (e) {
+      console.error('[Session] 导出PDF失败', e);
+      message.error('导出PDF失败');
+    }
+  };
+
+  /**
+   * handleExportWord
+   * 调用后端导出接口生成Word并下载（文件流）
+   */
+  const handleExportWord = async () => {
+    const sessionId = Number(id);
+    if (!Number.isFinite(sessionId) || sessionId <= 0) {
+      message.warning('当前记录尚未保存，无法导出');
+      return;
+    }
+
+    console.log('[Session] 导出Word（后端生成）', { sessionId });
+    try {
+      const resp = await getBlob(`/sessions/${sessionId}/export/word`);
+      const blob: Blob = resp.data instanceof Blob
+        ? resp.data
+        : new Blob([resp.data || ''], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+      const cd = resp.headers?.['content-disposition'] || resp.headers?.['Content-Disposition'];
+      const filename = parseDownloadFilename(cd) || `病历_${sessionId}_${dayjs().format('YYYYMMDD_HHmm')}.docx`;
+      downloadBlobAsFile(blob, filename);
+      message.success('导出Word成功');
+    } catch (e) {
+      console.error('[Session] 导出Word失败', e);
+      message.error('导出Word失败');
+    }
+  };
+
   const currentSectionIndex = React.useMemo(
     () => SECTIONS.findIndex(s => s.key === currentSection),
     [currentSection]
@@ -3067,6 +3106,12 @@ const Session: React.FC = () => {
                       }}
                     >
                       复制纯文本
+                    </Button>,
+                    <Button key="exportWord" icon={<FileWordOutlined />} onClick={handleExportWord}>
+                      导出Word
+                    </Button>,
+                    <Button key="exportPdf" icon={<FilePdfOutlined />} onClick={handleExportPdf}>
+                      导出PDF
                     </Button>,
                     <Button
                       key="copyMd"

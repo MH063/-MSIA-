@@ -7,11 +7,10 @@ import knowledgeRoutes from './routes/knowledge.routes';
 import nlpRoutes from './routes/nlp.routes';
 import diagnosisRoutes from './routes/diagnosis.routes';
 import mappingRoutes from './routes/mapping.routes';
-import { FileWatcherService } from './services/fileWatcher.service';
+import authRoutes from './routes/auth.routes';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { securityHeaders, sqlInjectionProtection, xssProtection } from './utils/security';
 import { serverConfig, corsConfig, fileConfig } from './config';
-import path from 'path';
 
 dotenv.config();
 
@@ -191,15 +190,6 @@ app.use((req: Request, res: Response, next) => {
   next();
 });
 
-// 启动文件监控服务
-const KNOWLEDGE_BASE_DIR = fileConfig.knowledgeBaseDir;
-if (process.env.DATABASE_URL && process.env.DATABASE_URL.trim() !== '') {
-  const fileWatcher = new FileWatcherService(KNOWLEDGE_BASE_DIR);
-  fileWatcher.start();
-} else {
-  console.log('[Server]: 未配置数据库连接，跳过知识库文件监控与解析');
-}
-
 // 路由
 app.use('/api/patients', patientRoutes);
 app.use('/api/sessions', sessionRoutes);
@@ -207,6 +197,7 @@ app.use('/api/knowledge', knowledgeRoutes);
 app.use('/api/nlp', nlpRoutes);
 app.use('/api/diagnosis', diagnosisRoutes);
 app.use('/api/mapping', mappingRoutes);
+app.use('/api/auth', authRoutes);
 
 /**
  * 健康检查接口

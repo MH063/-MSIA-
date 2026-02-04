@@ -250,6 +250,12 @@ export const SessionSchemas = {
   }),
 };
 
+export const AuthSchemas = {
+  login: z.object({
+    token: z.string().min(1, 'token不能为空').max(200, 'token过长'),
+  }),
+};
+
 /**
  * 诊断相关验证模式
  */
