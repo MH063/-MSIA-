@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { Prisma } from '@prisma/client';
-import { redactSensitive } from '../utils/common';
+import { filterSensitiveData, safeLog, sanitizeError } from '../utils/security';
 
 /**
  * 自定义应用错误类
@@ -181,36 +181,37 @@ export const errorHandler = (
     isOperational = true;
   }
 
-  // 记录错误日志
+  // 过滤敏感信息的错误日志
   const errorLog = {
     timestamp: new Date().toISOString(),
     requestId: req.headers['x-request-id'] || 'unknown',
     method: req.method,
     path: req.path,
-    query: redactSensitive(req.query),
+    query: filterSensitiveData(req.query),
     statusCode,
     errorCode,
     message,
     isOperational,
-    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+    stack: process.env.NODE_ENV === 'development' ? sanitizeError(err).stack : undefined,
     userAgent: req.headers['user-agent'],
     ip: req.ip || req.socket.remoteAddress,
   };
 
-  // 根据错误类型选择日志级别
+  // 根据错误类型选择安全的日志记录
   if (statusCode >= 500) {
-    const raw =
-      process.env.NODE_ENV === 'development'
-        ? err
-        : {
-            name: err.name,
-            message: err.message,
-            code: (err as any)?.code,
-          };
-    console.error('[ErrorHandler] 原始错误:', raw);
-    console.error('[ErrorHandler] Server Error:', errorLog);
+    const sanitizedErr = sanitizeError(err);
+    if (process.env.NODE_ENV === 'development') {
+      safeLog('[ErrorHandler] 开发环境错误详情:', sanitizedErr);
+    } else {
+      safeLog('[ErrorHandler] 生产环境错误:', {
+        name: err.name,
+        message: err.message,
+        code: (err as any)?.code,
+      });
+    }
+    safeLog('[ErrorHandler] Server Error:', errorLog);
   } else if (statusCode >= 400) {
-    console.warn('[ErrorHandler] Client Error:', errorLog);
+    safeLog('[ErrorHandler] Client Error:', errorLog);
   }
 
   // 发送错误响应

@@ -65,7 +65,7 @@ services:
       DB_POOL_MIN: ${DB_POOL_MIN:-5}
       DB_IDLE_TIMEOUT: ${DB_IDLE_TIMEOUT:-30000}
       DB_CONNECTION_TIMEOUT: ${DB_CONNECTION_TIMEOUT:-10000}
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost,http://localhost:80}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost,http://localhost:80,http://121.196.232.211,https://121.196.232.211,https://121-196-232-211.sslip.io}
       OPERATOR_TOKEN: ${OPERATOR_TOKEN:-default_token_change_in_production}
       MAX_FILE_SIZE: ${MAX_FILE_SIZE:-10485760}
       UPLOAD_DIR: ./uploads
@@ -111,6 +111,10 @@ services:
     restart: unless-stopped
     ports:
       - "${CLIENT_PORT:-80}:80"
+      - "${CLIENT_PORT_SSL:-443}:443"
+    volumes:
+      - ./client/certs:/etc/nginx/certs:ro
+      - ./client/.well-known:/usr/share/nginx/html/.well-known:ro
     depends_on:
       - server
     healthcheck:

@@ -49,14 +49,15 @@ export function buildHpiNarrative(
 
   const normalizeOnsetTime = (val: string | undefined): string => {
     const t = String(val || '').trim();
-    if (!t) return '';
+    if (!t || /^(无|-|—)$/u.test(t)) return '';
     if (/^\d+(天|周|月|小时|分钟)$/u.test(t) && !/前$/.test(t)) return `${t}前`;
     return t;
   };
 
   const normalizeTrigger = (val: string | undefined): string => {
     const t = String(val || '').trim();
-    return t || '无明显诱因';
+    if (!t || /^(无|-|—)$/u.test(t)) return '无明显诱因';
+    return t;
   };
 
   const normalizeOnsetMode = (val: string | undefined): string => {
@@ -67,7 +68,7 @@ export function buildHpiNarrative(
 
   const normalizeNegative = (val: string | undefined): string => {
     const raw = String(val || '').trim().replace(/[。；，、]+$/u, '');
-    if (!raw) return '';
+    if (!raw || /^(无|-|—)$/u.test(raw)) return '';
     if (/^(无|否认)/u.test(raw)) return raw;
     return `无${raw}`;
   };
@@ -148,7 +149,8 @@ export function buildHpiNarrative(
   const onsetModeText = normalizeOnsetMode(values.onsetMode);
 
   const symptomCore = (() => {
-    const loc = String(values.location || '').trim();
+    const locRaw = String(values.location || '').trim();
+    const loc = /^(无|-|—)$/u.test(locRaw) ? '' : locRaw;
     const sym = String(mainSymptom || '').trim() || '不适';
     return loc ? `${loc}${sym}` : sym;
   })();
@@ -157,7 +159,7 @@ export function buildHpiNarrative(
     const normalizeFeature = (val: unknown): string => {
       const t = String(val ?? '').trim().replace(/[。；，、]+$/u, '').trim();
       if (!t) return '';
-      if (/^(无|未详|不详|无明显)$/u.test(t)) return '';
+      if (/^(-|—|无|未详|不详|无明显)$/u.test(t)) return '';
       return t;
     };
 
@@ -165,14 +167,16 @@ export function buildHpiNarrative(
     if (values.quality) {
       const q = Array.isArray(values.quality) ? values.quality.join('、') : values.quality;
       const qt = String(q || '').trim();
-      if (qt) detailSegments.push(`性质为${qt}`);
+      if (qt && !/^(-|—|无)$/u.test(qt)) detailSegments.push(`性质为${qt}`);
     }
 
     if (values.severity) {
       const severityMap: Record<string, string> = { mild: '轻度', moderate: '中度', severe: '重度' };
       const s = String(values.severity).trim();
-      if (severityMap[s]) detailSegments.push(`程度为${severityMap[s]}`);
-      else if (s) detailSegments.push(`程度${s}`);
+      if (!/^(-|—|无)$/u.test(s)) {
+        if (severityMap[s]) detailSegments.push(`程度为${severityMap[s]}`);
+        else if (s) detailSegments.push(`程度${s}`);
+      }
     }
 
     if (values.durationDetails) {

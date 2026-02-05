@@ -79,19 +79,34 @@ const KnowledgePanel: React.FC<KnowledgePanelProps> = ({
       return res;
     }
   });
-  const nameToKey = React.useMemo(() => {
+  const { nameToKey, synonyms } = React.useMemo(() => {
     const payload = unwrapData<{ synonyms: Record<string, string>; nameToKey: Record<string, string> }>(mappingQuery.data as ApiResponse<{ synonyms: Record<string, string>; nameToKey: Record<string, string> }>);
-    return payload?.nameToKey || {};
+    return {
+      nameToKey: payload?.nameToKey || {},
+      synonyms: payload?.synonyms || {}
+    };
   }, [mappingQuery.data]);
+  
   const keyToName = React.useMemo(() => {
-    const mappingPayload = unwrapData<{ synonyms: Record<string, string>; nameToKey: Record<string, string> }>(mappingQuery.data as ApiResponse<{ synonyms: Record<string, string>; nameToKey: Record<string, string> }>);
-    const nameToKey = mappingPayload?.nameToKey || {};
     const inverted: Record<string, string> = {};
     for (const [name, key] of Object.entries(nameToKey)) {
       if (key && name && !inverted[key]) inverted[key] = name;
     }
     return inverted;
-  }, [mappingQuery.data]);
+  }, [nameToKey]);
+  
+  // 辅助函数：根据症状名称获取 symptomKey（支持同义词）
+  const getSymptomKey = React.useCallback((name: string): string => {
+    // 1. 直接匹配主名称
+    if (nameToKey[name]) return nameToKey[name];
+    // 2. 匹配同义词
+    const canonicalName = synonyms[name];
+    if (canonicalName && nameToKey[canonicalName]) {
+      return nameToKey[canonicalName];
+    }
+    // 3. 返回原名称（小写转换）
+    return name.toLowerCase().replace(/\s+/g, '_');
+  }, [nameToKey, synonyms]);
 
   /**
    * fetchDiagnosisSuggestions
@@ -164,7 +179,7 @@ const KnowledgePanel: React.FC<KnowledgePanelProps> = ({
       * 将“常见鉴别”标签点击事件转换为现病史伴随症状的键，并回调给父组件追加
       */
      const handleAddRelated = (s: string) => {
-       const key = nameToKey[s] || (keyToName[s] ? s : s.toLowerCase().replace(/\s+/g, '_'));
+       const key = getSymptomKey(s);
        if (typeof key === 'string' && key.trim() && onAddAssociated) {
          onAddAssociated(key);
          message.success(`已添加伴随症状：${mapToName(s)}`);
@@ -173,7 +188,7 @@ const KnowledgePanel: React.FC<KnowledgePanelProps> = ({
          console.warn('[Knowledge] 添加伴随症状失败：无效键', { source: s });
        }
      };
-     const currentSymptomKey = nameToKey[symptomContext.name] || symptomContext.name;
+     const currentSymptomKey = getSymptomKey(symptomContext.name);
      const currentSymptomName = mapToName(symptomContext.name);
      const icon = SYMPTOM_ICON_MAP[currentSymptomKey] || { emoji: '🩺', bg: '#f0f5ff', ring: '#adc6ff' };
      const relatedSource = symptomContext.relatedSymptoms || [];

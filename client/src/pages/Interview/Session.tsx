@@ -248,7 +248,7 @@ const Session: React.FC = () => {
   // Fetch Mappings
   useEffect(() => {
     const load = async () => {
-      type MappingPayload = { nameToKey: Record<string, string> };
+      type MappingPayload = { nameToKey: Record<string, string>; synonyms: Record<string, string> };
       try {
         const res = await api.get('/mapping/symptoms') as ApiResponse<MappingPayload>;
         const payload = unwrapData<MappingPayload>(res);
@@ -257,12 +257,16 @@ const Session: React.FC = () => {
           for (const [name, key] of Object.entries(payload.nameToKey || {})) {
             if (key && name && !inverted[key]) inverted[key] = name;
           }
-          setKnowledgeMappings({ nameToKey: payload.nameToKey || {}, keyToName: inverted });
-          console.log('[Session] 症状映射加载成功');
+          setKnowledgeMappings({ 
+            nameToKey: payload.nameToKey || {}, 
+            keyToName: inverted,
+            synonyms: payload.synonyms || {}
+          });
+          console.log('[Session] 症状映射加载成功', { synonymsCount: Object.keys(payload.synonyms || {}).length });
         } else {
           console.warn('[Session] 症状映射数据为空，不展示模拟数据');
           // 不展示模拟数据，清空映射并提示错误
-          setKnowledgeMappings({ nameToKey: {}, keyToName: {} });
+          setKnowledgeMappings({ nameToKey: {}, keyToName: {}, synonyms: {} });
           setKnowledgeError('症状映射加载失败或为空，请稍后重试');
         }
       } catch (e) {
@@ -439,6 +443,7 @@ const Session: React.FC = () => {
   };
 
   const watchedCcText = Form.useWatch(['chiefComplaint', 'text'], form) as string | undefined;
+  const watchedCcSymptom = Form.useWatch(['chiefComplaint', 'symptom'], form) as string | undefined;
   const watchedGender = Form.useWatch('gender', form) as string | undefined;
   const watchedAge = Form.useWatch('age', form) as number | undefined;
   const knowledgeContext = useAssistantStore(s => s.knowledge.context);
@@ -580,6 +585,123 @@ const Session: React.FC = () => {
     console.log('[Session] 助手面板刷新', { sectionKey, pendingCount: pendingItems.length });
   }, [getPendingItemsForSection, setNewMessage, setPanel]);
 
+  /**
+   * loadKnowledgeForSymptom
+   * 根据主诉“症状”字段加载知识库上下文与诊断建议
+   */
+  const loadKnowledgeForSymptom = useCallback(async (symptomName: string) => {
+    const name = String(symptomName || '').trim();
+    if (!name) {
+      useAssistantStore.getState().knowledge.clearKnowledge();
+      setDiagnosisSuggestions([]);
+      setPanel({ diseases: [] });
+      return;
+    }
+
+    const { nameToKey, synonyms } = useAssistantStore.getState().knowledge;
+    
+    // 辅助函数：根据症状名称获取 symptomKey（支持同义词）
+    const getSymptomKey = (symptomName: string): string => {
+      // 1. 直接匹配主名称
+      if (nameToKey[symptomName]) return nameToKey[symptomName];
+      // 2. 匹配同义词
+      const canonicalName = synonyms[symptomName];
+      if (canonicalName && nameToKey[canonicalName]) {
+        return nameToKey[canonicalName];
+      }
+      // 3. 返回原名称
+      return symptomName;
+    };
+    
+    const key = getSymptomKey(name);
+    
+    // 如果没有找到对应的key，但有映射数据，说明症状映射还没准备好
+    // 这种情况应该等待映射加载完成，而不是直接报错
+    if (!nameToKey[name] && !synonyms[name] && Object.keys(nameToKey).length > 0) {
+      console.warn('[Session] 症状映射中未找到对应映射', { symptomName: name, availableKeys: Object.keys(nameToKey).slice(0, 10), synonyms: Object.keys(synonyms).slice(0, 10) });
+      setKnowledgeContext(null);
+      setKnowledgeError(`症状 "${name}" 未在映射中找到，可能需要更新症状库`);
+      setKnowledgeLoading(false);
+      return;
+    }
+    
+    // 如果映射数据为空，说明可能还在加载中，这种情况应该等待
+    if (Object.keys(nameToKey).length === 0) {
+      console.warn('[Session] 症状映射数据为空，可能还在加载中', { symptomName: name });
+      setKnowledgeContext(null);
+      setKnowledgeError('症状映射正在加载中，请稍后重试');
+      setKnowledgeLoading(false);
+      return;
+    }
+
+    type SymptomKnowledgeLite = {
+      symptomKey: string;
+      displayName: string;
+      requiredQuestions?: unknown;
+      associatedSymptoms?: unknown;
+      redFlags?: unknown;
+      physicalSigns?: unknown;
+      updatedAt?: string;
+    };
+
+    setKnowledgeLoading(true);
+    setKnowledgeError(null);
+    try {
+      // 确保使用symptomKey而不是中文名称
+      const apiKey = key && key !== name ? key : name;
+      const kRes = await api.get(`/knowledge/${encodeURIComponent(apiKey)}`) as ApiResponse<SymptomKnowledgeLite>;
+      const k = unwrapData<SymptomKnowledgeLite>(kRes) || null;
+      if (k) {
+        const toArr = (v: unknown): string[] => Array.isArray(v) ? v.map(x => String(x)).filter(Boolean) : [];
+        setKnowledgeContext({
+          name: k.displayName || name,
+          questions: toArr(k.requiredQuestions),
+          relatedSymptoms: toArr(k.associatedSymptoms),
+          redFlags: toArr(k.redFlags),
+          physicalSigns: toArr(k.physicalSigns),
+          updatedAt: k.updatedAt,
+        });
+        console.log('[Session] 症状选择触发知识库上下文更新', { symptomName: name, symptomKey: key });
+      } else {
+        setKnowledgeContext(null);
+        setKnowledgeError('暂无对应的知识库条目');
+      }
+    } catch (e) {
+      console.warn('[Session] 根据症状加载知识失败', e);
+      setKnowledgeContext(null);
+      setKnowledgeError('知识加载失败，请稍后重试');
+    } finally {
+      setKnowledgeLoading(false);
+    }
+
+    try {
+      const sessionId = (() => {
+        const n = Number(id);
+        return Number.isFinite(n) && n > 0 ? n : null;
+      })();
+      const ageYearsFromForm = form.getFieldValue('ageYears');
+      const normalizedAge = (() => {
+        if (typeof ageYearsFromForm === 'number' && Number.isFinite(ageYearsFromForm)) return ageYearsFromForm;
+        if (typeof watchedAge === 'number' && Number.isFinite(watchedAge)) return Math.max(0, Math.floor(watchedAge));
+        return undefined;
+      })();
+      const sRes = await api.post('/diagnosis/suggest', { symptoms: [name], age: normalizedAge, gender: watchedGender, sessionId }) as ApiResponse<string[]>;
+      const suggestions = unwrapData<string[]>(sRes);
+      if (Array.isArray(suggestions) && suggestions.length > 0) {
+        setDiagnosisSuggestions(suggestions);
+        setPanel({ diseases: suggestions });
+        console.log('[Session] 根据症状更新诊断建议', { count: suggestions.length });
+      } else {
+        setDiagnosisSuggestions([]);
+        setPanel({ diseases: [] });
+      }
+    } catch (e) {
+      console.warn('[Session] 获取诊断建议失败', e);
+      setDiagnosisSuggestions([]);
+      setPanel({ diseases: [] });
+    }
+  }, [form, id, setKnowledgeContext, setKnowledgeError, setKnowledgeLoading, setPanel, setDiagnosisSuggestions, watchedAge, watchedGender]);
+
   const analyzeChiefComplaint = React.useCallback(async (rawText: string, options: { writeBack: boolean; notify: boolean }) => {
     const text = String(rawText || '').trim();
     if (!text) {
@@ -720,6 +842,16 @@ const Session: React.FC = () => {
     }, 800);
     return () => window.clearTimeout(t);
   }, [analyzeChiefComplaint, currentSection, watchedCcText]);
+
+  useEffect(() => {
+    if (watchedCcSymptom) {
+      loadKnowledgeForSymptom(watchedCcSymptom);
+    } else {
+      useAssistantStore.getState().knowledge.clearKnowledge();
+      setDiagnosisSuggestions([]);
+      setPanel({ diseases: [] });
+    }
+  }, [watchedCcSymptom, loadKnowledgeForSymptom, setDiagnosisSuggestions, setPanel]);
 
   const assistantImproveChiefComplaint = useCallback(async () => {
     const text = String(form.getFieldValue(['chiefComplaint', 'text']) || '').trim();
@@ -3018,7 +3150,7 @@ const Session: React.FC = () => {
           onSectionChange={handleSectionChange}
           sections={sections}
           progress={progress}
-          onGoHome={() => navigate('/')}
+          onGoHome={() => navigate('/home')}
           onGoInterviewStart={() => navigate('/sessions')}
         />
       }

@@ -5,7 +5,6 @@ import {
   getConfidenceDetails,
   initDiagnosisData,
 } from '../services/diagnosis.service';
-import { SYMPTOM_NAME_TO_KEY } from '../services/mapping.service';
 
 /**
  * suggestDiagnosis
@@ -52,24 +51,14 @@ export const suggestDiagnosis = async (req: Request, res: Response) => {
     const ccSymptom = (cc['symptom'] as string | undefined) || '';
     const assocKeys = (pi['associatedSymptoms'] as string[] | undefined) || [];
 
-    const assocNameByKey: Record<string, string> = {
-      fever: '发热',
-      chills: '畏寒',
-      sweating: '出汗',
-      weight_loss: '消瘦（体重下降）',
-      nausea: '恶心与呕吐',
-      diarrhea: '腹泻',
-      cough: '咳嗽',
-      sputum: '咳痰',
-      chest_pain: '胸痛',
-      hematemesis: '上消化道出血',
-      melena: '黑便',
-      hemoptysis: '咯血',
-      dizziness: '眩晕',
-      headache: '头痛',
-      palpitation: '心悸',
-      dyspnea: '呼吸困难',
-    };
+    // 从数据库获取症状映射
+    const symptomKnowledge = await prisma.symptomKnowledge.findMany({
+      where: { symptomKey: { in: assocKeys } },
+      select: { symptomKey: true, displayName: true }
+    });
+    const assocNameByKey: Record<string, string> = Object.fromEntries(
+      symptomKnowledge.map(s => [s.symptomKey, s.displayName])
+    );
 
     const assocNames = assocKeys
       .map((k) => assocNameByKey[k])
@@ -77,7 +66,16 @@ export const suggestDiagnosis = async (req: Request, res: Response) => {
     const normalizedInputNames = Array.from(
       new Set([ccSymptom, ...assocNames, ...symptoms].filter(Boolean))
     );
-    const keys = normalizedInputNames.map((n) => SYMPTOM_NAME_TO_KEY[n] || n);
+
+    // 从数据库获取症状名称到key的映射
+    const allSymptomKnowledge = await prisma.symptomKnowledge.findMany({
+      select: { symptomKey: true, displayName: true }
+    });
+    const symptomNameToKey: Record<string, string> = Object.fromEntries(
+      allSymptomKnowledge.map(s => [s.displayName, s.symptomKey])
+    );
+
+    const keys = normalizedInputNames.map((n) => symptomNameToKey[n] || n);
 
     const knowledgeItems = await prisma.symptomKnowledge.findMany({
       where: { symptomKey: { in: keys } },
@@ -102,26 +100,27 @@ export const suggestDiagnosis = async (req: Request, res: Response) => {
     }
 
     const hints: string[] = [];
-    const hasResp = normalizedInputNames.some((n) =>
-      ['咳嗽', '咳痰', '咯血', '胸痛', '呼吸困难', '发热', '盗汗'].includes(n)
-    );
-    const hasDigest = normalizedInputNames.some((n) =>
-      ['腹痛', '腹泻', '恶心与呕吐', '上消化道出血', '黑便', '黄疸'].includes(n)
-    );
-    const hasNeuro = normalizedInputNames.some((n) =>
-      ['头痛', '眩晕', '抽搐', '意识障碍'].includes(n)
-    );
 
-    if (hasResp)
-      hints.push('呼吸系统方向：请结合发热/咳嗽/呼吸困难等完善病程与阴性症状记录');
-    if (hasDigest)
-      hints.push(
-        '消化系统方向：注意呕血/黑便等提示出血风险，完善诱因与缓解因素'
-      );
-    if (hasNeuro)
-      hints.push(
-        '神经系统方向：结合起病方式与伴随症状（如抽搐/意识障碍）完善记录'
-      );
+    // 从数据库获取症状分类信息
+    const symptomCategories = await prisma.symptomKnowledge.findMany({
+      where: { symptomKey: { in: keys } },
+      select: { symptomKey: true, category: true, displayName: true }
+    });
+
+    const categoryMap: Record<string, string[]> = {};
+    symptomCategories.forEach(s => {
+      const cat = s.category || '其他';
+      if (!categoryMap[cat]) categoryMap[cat] = [];
+      categoryMap[cat].push(s.displayName);
+    });
+
+    // 根据症状分类生成提示
+    for (const [category, symptomNames] of Object.entries(categoryMap)) {
+      if (symptomNames.length > 0) {
+        hints.push(`${category}方向：请关注${symptomNames.slice(0, 3).join('、')}等症状的详细记录`);
+      }
+    }
+
     if (redFlagNames.size > 0)
       hints.unshift(`存在警惕征象：${Array.from(redFlagNames).join('、')}`);
 

@@ -49,7 +49,24 @@ services:
       - ./client/src:/app/src:ro
       - ./client/public:/app/public:ro
       - ./client/index.html:/app/index.html:ro
+      - ./client/certs:/etc/nginx/certs:ro
     ports:
       - "8000:8000"
+      - "443:443"
     # 开发模式使用 Vite 开发服务器
     command: ["npm", "run", "dev"]
+
+  # 可选：使用 Nginx 启动前端（生产方式），通过 profile 启用
+  client-nginx:
+    profiles:
+      - nginx
+    image: msia-client-prod:latest
+    container_name: msia_client_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./client/certs:/etc/nginx/certs:ro
+    depends_on:
+      - server

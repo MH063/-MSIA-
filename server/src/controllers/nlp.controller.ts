@@ -1,16 +1,16 @@
 import { Request, Response } from 'express';
 import prisma from '../prisma';
-import { SYMPTOM_SYNONYMS, SYMPTOM_NAME_TO_KEY } from '../services/mapping.service';
 import { parseChiefComplaintText } from '../services/chiefComplaintParser';
+import { SYMPTOM_SYNONYMS as PREDEFINED_SYNONYMS } from './mapping.controller';
 
 /**
- * 解析主诉 (Mock NLP)
- * 根据关键词简单匹配症状
+ * 解析主诉
+ * 根据关键词简单匹配症状，从数据库获取症状映射
  */
 export const analyzeComplaint = async (req: Request, res: Response) => {
   try {
     const { text } = req.body;
-    
+
     if (!text) {
       res.status(400).json({ success: false, message: 'Text is required' });
       return;
@@ -30,6 +30,32 @@ export const analyzeComplaint = async (req: Request, res: Response) => {
         return;
       }
     }
+
+    // 从数据库获取症状映射数据
+    const symptomKnowledge = await prisma.symptomKnowledge.findMany({
+      select: {
+        symptomKey: true,
+        displayName: true
+      }
+    });
+
+    // 构建同义词映射和症状名称列表
+    const SYMPTOM_NAME_TO_KEY: Record<string, string> = {};
+
+    symptomKnowledge.forEach(sk => {
+      if (sk.displayName && sk.symptomKey) {
+        SYMPTOM_NAME_TO_KEY[sk.displayName] = sk.symptomKey;
+      }
+    });
+    
+    // 使用预定义的同义词映射（只包含存在于数据库中的症状）
+    const SYMPTOM_SYNONYMS: Record<string, string> = {};
+    for (const [synonym, canonicalName] of Object.entries(PREDEFINED_SYNONYMS)) {
+      if (SYMPTOM_NAME_TO_KEY[canonicalName]) {
+        SYMPTOM_SYNONYMS[synonym] = canonicalName;
+      }
+    }
+    console.log('[NLP] 同义词映射加载', { count: Object.keys(SYMPTOM_SYNONYMS).length });
 
     function findAllOccurrences(source: string, phrase: string): number[] {
       const result: number[] = [];
@@ -171,6 +197,31 @@ export const parseChiefComplaint = async (req: Request, res: Response) => {
     const raw = typeof text === 'string' ? text : '';
     if (!raw.trim()) {
       return res.status(400).json({ success: false, message: 'text 必填' });
+    }
+
+    // 从数据库获取症状映射数据
+    const symptomKnowledge = await prisma.symptomKnowledge.findMany({
+      select: {
+        symptomKey: true,
+        displayName: true
+      }
+    });
+
+    // 构建同义词映射和症状名称列表
+    const SYMPTOM_NAME_TO_KEY: Record<string, string> = {};
+
+    symptomKnowledge.forEach(sk => {
+      if (sk.displayName && sk.symptomKey) {
+        SYMPTOM_NAME_TO_KEY[sk.displayName] = sk.symptomKey;
+      }
+    });
+    
+    // 使用预定义的同义词映射（只包含存在于数据库中的症状）
+    const SYMPTOM_SYNONYMS: Record<string, string> = {};
+    for (const [synonym, canonicalName] of Object.entries(PREDEFINED_SYNONYMS)) {
+      if (SYMPTOM_NAME_TO_KEY[canonicalName]) {
+        SYMPTOM_SYNONYMS[synonym] = canonicalName;
+      }
     }
 
     const parsed = parseChiefComplaintText(raw, { synonyms: SYMPTOM_SYNONYMS, knownSymptoms: Object.keys(SYMPTOM_NAME_TO_KEY) });

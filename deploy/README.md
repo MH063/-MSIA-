@@ -292,6 +292,40 @@ sudo certbot --nginx -d your-domain.com
 sudo certbot renew --dry-run
 ```
 
+### 步骤 9: Docker 部署开启 HTTPS 与证书挂载
+
+1) 在 `docker-compose.yml` 中为前端服务增加 443 端口映射与证书卷挂载：
+
+```yaml
+client:
+  ports:
+    - "${CLIENT_PORT:-80}:80"
+    - "${CLIENT_PORT_SSL:-443}:443"
+  volumes:
+    - ./client/certs:/etc/nginx/certs:ro
+```
+
+2) 生成并挂载证书（脚本已提供）：
+
+```bash
+cd /opt/msia
+DOMAIN=your-domain.com EMAIL=admin@your-domain.com CERTS_DIR=/etc/nginx/certs \
+sudo bash deploy/scripts/setup-https.sh
+
+# 重启前端容器使证书生效
+docker compose restart msia_client
+```
+
+3) 环境变量模板（位于仓库根目录 `.env.docker.example`）：
+
+```env
+CLIENT_PORT=80
+CLIENT_PORT_SSL=443
+DB_SSL=true
+ENABLE_HSTS=true
+ALLOWED_ORIGINS=https://your-domain.com
+```
+
 ## 四、服务管理
 
 ### 常用命令

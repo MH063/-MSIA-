@@ -1,10 +1,10 @@
 import { Router } from 'express';
 import * as nlpController from '../controllers/nlp.controller';
-import { requirePermission } from '../middleware/auth';
 
 const router = Router();
 
-router.post('/analyze', requirePermission('nlp:use'), nlpController.analyzeComplaint);
-router.post('/chief-complaint/parse', requirePermission('nlp:use'), nlpController.parseChiefComplaint);
+// 开发环境：开放NLP接口
+router.post('/analyze', nlpController.analyzeComplaint);
+router.post('/chief-complaint/parse', nlpController.parseChiefComplaint);
 
 export default router;

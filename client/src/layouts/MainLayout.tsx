@@ -17,9 +17,10 @@ const MainLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const isMobile = !screens.md;
+  const [authChecking, setAuthChecking] = React.useState(false);
 
   const items = [
-    { key: '/', label: '首页' },
+    { key: '/home', label: '首页' },
     { key: '/dashboard', label: '统计' },
     { key: '/interview', label: '问诊' },
     { key: '/sessions', label: '病历' },
@@ -28,8 +29,9 @@ const MainLayout: React.FC = () => {
 
   React.useEffect(() => {
     const p = location.pathname || '/';
-    if (p.startsWith('/login') || p.startsWith('/register')) return;
+    if (p === '/' || p.startsWith('/login') || p.startsWith('/register')) return;
     let alive = true;
+    setAuthChecking(true);
     (async () => {
       try {
         const res = (await api.get('/auth/me')) as ApiResponse<
@@ -43,6 +45,8 @@ const MainLayout: React.FC = () => {
       } catch {
         if (!alive) return;
         navigate(`/login?redirect=${encodeURIComponent(p)}`, { replace: true });
+      } finally {
+        if (alive) setAuthChecking(false);
       }
     })();
     return () => {
@@ -52,12 +56,13 @@ const MainLayout: React.FC = () => {
 
   const selectedKey = React.useMemo(() => {
     const p = location.pathname || '/';
-    if (p.startsWith('/login') || p.startsWith('/register')) return '/login';
+    if (p === '/' || p.startsWith('/login') || p.startsWith('/register')) return '/login';
     if (p.startsWith('/interview')) return '/interview';
     if (p.startsWith('/sessions')) return '/sessions';
     if (p.startsWith('/knowledge')) return '/knowledge';
     if (p.startsWith('/dashboard')) return '/dashboard';
-    return '/';
+    if (p.startsWith('/home')) return '/home';
+    return '/home';
   }, [location.pathname]);
 
   const [drawerOpen, setDrawerOpen] = React.useState(false);
@@ -164,7 +169,7 @@ const MainLayout: React.FC = () => {
             borderRadius: borderRadiusLG,
           }}
         >
-          <Outlet />
+          {authChecking ? null : <Outlet />}
         </div>
       </Content>
       {isMobile ? null : (

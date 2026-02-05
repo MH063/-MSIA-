@@ -9,10 +9,10 @@
     "_postinstall": "npm --prefix server ci || npm --prefix server install && npm --prefix server run build"
   },
   "dependencies": {
-    "@prisma/client": "^7.3.0",
+    "@prisma/client": "^6.19.2",
     "@types/d3": "^7.4.3",
     "d3": "^7.9.0",
     "echarts": "^6.0.0",
-    "prisma": "^7.3.0"
+    "prisma": "^6.19.2"
   }
 }

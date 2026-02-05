@@ -101,8 +101,11 @@ const ReviewOfSystemsSection: React.FC = () => {
   };
   const optionsBySystem: Record<string, { label: string; value: string }[]> = (() => {
     const out: Record<string, { label: string; value: string }[]> = {};
-    for (const sys of systemsConfig) {
-      out[sys.key] = sys.symptoms.map(normalize);
+    // 只有在成功获取到后端映射数据时才显示症状选项
+    if (mappingQuery.data && (mappingQuery.data as ApiResponse<unknown>).success && nameToKey && Object.keys(nameToKey).length > 0) {
+      for (const sys of systemsConfig) {
+        out[sys.key] = sys.symptoms.map(normalize);
+      }
     }
     return out;
   })();

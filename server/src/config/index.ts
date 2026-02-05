@@ -24,6 +24,7 @@ export const databaseConfig = {
   url: process.env.DATABASE_URL || '',
   connectionTimeout: parseInt(process.env.DB_CONNECTION_TIMEOUT || '10000', 10),
   queryTimeout: parseInt(process.env.DB_QUERY_TIMEOUT || '30000', 10),
+  ssl: parseBoolEnv('DB_SSL', serverConfig.isProduction),
 };
 
 /**

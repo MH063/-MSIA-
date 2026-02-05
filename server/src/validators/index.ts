@@ -255,6 +255,8 @@ export const AuthSchemas = {
     token: z.string().max(200).optional(),
     username: z.string().max(50).optional(),
     password: z.string().max(100).optional(),
+    captchaId: z.string().min(10, '验证码ID缺失'),
+    captcha: z.string().min(4, '验证码格式错误').max(6),
   }).refine((data) => !!data.token || (!!data.username && !!data.password), {
     message: "请提供Token或用户名密码",
   }),
@@ -268,6 +270,8 @@ export const AuthSchemas = {
       .refine((v) => /[A-Za-z]/u.test(v) && /\d/u.test(v), '密码需包含字母和数字'),
     name: z.string().max(100).optional(),
     role: z.enum(['admin', 'doctor']).default('doctor'),
+    captchaId: z.string().min(10, '验证码ID缺失'),
+    captcha: z.string().min(4, '验证码格式错误').max(6),
   }),
 };
 
@@ -297,6 +301,16 @@ export const DiagnosisSchemas = {
     redFlags: z.array(z.string()).default([]),
     age: z.number().int().min(0).max(150).optional(),
     gender: z.string().max(10).optional(),
+  }),
+};
+
+/**
+ * 验证码相关验证模式
+ */
+export const CaptchaSchemas = {
+  verify: z.object({
+    id: z.string().min(10, '验证码ID缺失'),
+    code: z.string().min(4, '验证码格式错误').max(6),
   }),
 };
 

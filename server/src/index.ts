@@ -8,11 +8,28 @@ import nlpRoutes from './routes/nlp.routes';
 import diagnosisRoutes from './routes/diagnosis.routes';
 import mappingRoutes from './routes/mapping.routes';
 import authRoutes from './routes/auth.routes';
+import captchaRoutes from './routes/captcha.routes';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { securityHeaders, sqlInjectionProtection, xssProtection } from './utils/security';
 import { serverConfig, corsConfig, fileConfig } from './config';
+import { validateConfig, preventInformationLeakage, setupSecureConsole, securityConfig } from './config/security';
+import { secureLogger } from './utils/secureLogger';
 
 dotenv.config();
+
+// 安全初始化
+try {
+  validateConfig();
+  preventInformationLeakage();
+  setupSecureConsole();
+  secureLogger.info('安全配置初始化完成', { 
+    environment: securityConfig.isProduction ? 'production' : 'development',
+    enableDebugLogs: securityConfig.enableDebugLogs 
+  });
+} catch (error) {
+  console.error('安全配置验证失败:', error);
+  process.exit(1);
+}
 
 const app = express();
 const port = serverConfig.port;
@@ -33,7 +50,8 @@ app.use(cors({
         const u = new URL(origin);
         const h = u.hostname;
         const p = u.port ? Number(u.port) : (u.protocol === 'https:' ? 443 : 80);
-        const allowedPorts = new Set([8000, 8100]);
+        // 允许的前端开发端口：5173(Vite), 3000(React), 8000/8100(其他), 80(Prod)
+        const allowedPorts = new Set([5173, 3000, 8000, 8100, 80, 443]);
         if (!allowedPorts.has(p)) return false;
         if (h === 'localhost' || h === '127.0.0.1') return true;
         if (/^192\.168\.\d{1,3}\.\d{1,3}$/u.test(h)) return true;
@@ -54,7 +72,7 @@ app.use(cors({
     } else if (allowDev) {
       callback(null, true);
     } else {
-      console.warn(`[CORS] 拒绝来自 ${origin} 的请求`);
+      secureLogger.warn('CORS拒绝跨域请求', { origin });
       callback(new Error('不允许的跨域请求'));
     }
   },
@@ -198,6 +216,7 @@ app.use('/api/nlp', nlpRoutes);
 app.use('/api/diagnosis', diagnosisRoutes);
 app.use('/api/mapping', mappingRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/captcha', captchaRoutes);
 
 /**
  * 健康检查接口
@@ -241,18 +260,48 @@ app.use(errorHandler);
  */
 app.listen(port, host, () => {
   const tip = '请使用本机网卡IP访问，如 http://<本机IP>:' + port;
-  console.log(`[Server]: 服务已启动，端口 ${port}。${tip}`);
-  console.log(`[Server]: 允许的跨域来源: ${corsConfig.allowedOrigins.join(', ')}`);
-  console.log(`[Server]: 运行环境: ${serverConfig.nodeEnv}`);
+  
+  secureLogger.info('服务器启动成功', {
+    port,
+    host,
+    environment: serverConfig.nodeEnv,
+    corsOrigins: corsConfig.allowedOrigins
+  });
+  
+  // 开发环境显示详细提示
+  if (!securityConfig.isProduction) {
+    secureLogger.info('开发环境提示', { message: tip });
+  }
 });
 
-// 未捕获的异常处理
+// 未捕获的异常处理 - 安全版本
 process.on('uncaughtException', (error) => {
-  console.error('[Fatal] 未捕获的异常:', error);
-  process.exit(1);
+  secureLogger.error('未捕获的致命异常', error, {
+    type: 'uncaughtException',
+    timestamp: new Date().toISOString()
+  });
+  
+  // 生产环境优雅关闭
+  if (securityConfig.isProduction) {
+    secureLogger.error('生产环境发生未捕获异常，开始优雅关闭...');
+    process.exit(1);
+  } else {
+    // 开发环境显示详细信息
+    console.error('[Development] 未捕获异常详情:', error);
+  }
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('[Fatal] 未处理的Promise拒绝:', reason);
-  process.exit(1);
+  secureLogger.error('未处理的Promise拒绝', reason as Error, {
+    type: 'unhandledRejection',
+    timestamp: new Date().toISOString()
+  });
+  
+  // 生产环境记录但不退出
+  if (securityConfig.isProduction) {
+    secureLogger.error('生产环境发生未处理的Promise拒绝');
+  } else {
+    // 开发环境显示详细信息
+    console.error('[Development] Promise拒绝详情:', reason);
+  }
 });

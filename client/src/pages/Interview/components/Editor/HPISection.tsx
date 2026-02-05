@@ -10,27 +10,7 @@ const { Title, Text } = Typography;
 const { TextArea } = Input;
 // 使用 Collapse items API，避免 rc-collapse children 未来移除带来的警告
 
-// 本地静态回退项，后端不可用时使用
-const FALLBACK_SYMPTOMS_OPTIONS = [
-  { label: '发热', value: 'fever' },
-  { label: '畏寒/寒战', value: 'chills' },
-  { label: '出汗', value: 'sweating' },
-  { label: '消瘦（体重下降）', value: 'weight_loss' },
-  { label: '恶心与呕吐', value: 'nausea' },
-  { label: '腹泻', value: 'diarrhea' },
-  { label: '咳嗽', value: 'cough' },
-  { label: '咳痰', value: 'sputum' },
-  { label: '胸痛', value: 'chest_pain' },
-  { label: '头痛', value: 'headache' },
-  { label: '眩晕', value: 'dizziness' },
-  { label: '心悸', value: 'palpitation' },
-  { label: '呼吸困难', value: 'dyspnea' },
-  { label: '水肿', value: 'edema' },
-  { label: '皮疹', value: 'rash' },
-  { label: '关节痛', value: 'joint_pain' },
-  { label: '咯血', value: 'hemoptysis' },
-  { label: '上消化道出血', value: 'hematemesis' },
-];
+
 
 const SeverityBlocks: React.FC<{ value?: string; onChange?: (v: string) => void }> = ({ value, onChange }) => {
   const current = String(value || '');
@@ -89,9 +69,9 @@ const HPISection: React.FC = () => {
       return opts;
     }
     if (mappingQuery.isError) {
-      console.error('[HPI] 症状映射接口异常，使用回退选项', mappingQuery.error);
+      console.error('[HPI] 症状映射接口异常', mappingQuery.error);
     }
-    return FALLBACK_SYMPTOMS_OPTIONS;
+    return [];
   }, [mappingQuery.data, mappingQuery.isError, mappingQuery.error, mappingPayload]);
   const labelByKey = React.useMemo<Record<string, string>>(
     () => Object.fromEntries(symptomOptions.map(opt => [opt.value, opt.label])),

@@ -51,6 +51,7 @@ export interface KnowledgeState {
   diagnosisSuggestions: string[];
   nameToKey: Record<string, string>;
   keyToName: Record<string, string>;
+  synonyms: Record<string, string>; // 同义词映射：同义词 -> 标准名称
   loading: boolean;
   error: string | null;
 }
@@ -58,7 +59,7 @@ export interface KnowledgeState {
 export interface KnowledgeActions {
   setKnowledgeContext: (context: KnowledgeContext | null) => void;
   setDiagnosisSuggestions: (suggestions: string[]) => void;
-  setKnowledgeMappings: (mappings: { nameToKey: Record<string, string>; keyToName: Record<string, string> }) => void;
+  setKnowledgeMappings: (mappings: { nameToKey: Record<string, string>; keyToName: Record<string, string>; synonyms?: Record<string, string> }) => void;
   setKnowledgeLoading: (loading: boolean) => void;
   setKnowledgeError: (error: string | null) => void;
   addAssociatedFromKnowledge?: (key: string) => void;
@@ -117,6 +118,7 @@ export const useAssistantStore = create<AssistantState>((set) => ({
     diagnosisSuggestions: [],
     nameToKey: {},
     keyToName: {},
+    synonyms: {},
     loading: false,
     error: null,
     setKnowledgeContext: (context) => set((s) => ({ knowledge: { ...s.knowledge, context } })),

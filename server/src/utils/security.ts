@@ -1,288 +1,344 @@
 /**
- * 安全工具函数
- * 提供XSS防护、SQL注入防护等安全功能
+ * 安全工具 - 防止信息泄露
  */
 
 import { Request, Response, NextFunction } from 'express';
 
 /**
- * XSS防护 - 清理用户输入
- * @param input 用户输入
- * @returns 清理后的字符串
+ * 安全响应头中间件
  */
-export function sanitizeInput(input: string | null | undefined): string {
-  if (!input) return '';
+export const securityHeaders = (req: Request, res: Response, next: NextFunction): void => {
+  // 防止XSS攻击
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  
+  // 防止MIME类型嗅探
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  
+  // 防止点击劫持
+  res.setHeader('X-Frame-Options', 'DENY');
+  
+  // 内容安全策略
+  res.setHeader('Content-Security-Policy', 
+    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';");
+  
+  // 引用者策略
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  
+  // 隐藏服务器信息
+  res.setHeader('X-Powered-By', '');
+  
+  next();
+};
 
-  return (
-    input
-      // 转义HTML特殊字符
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#x27;')
-      // 移除潜在的脚本事件
-      .replace(/on\w+\s*=/gi, '')
-      // 移除javascript:伪协议
-      .replace(/javascript:/gi, '')
-      // 移除data: URI（可能包含恶意代码）
-      .replace(/data:/gi, '')
-      // 移除表达式
-      .replace(/expression\s*\(/gi, '')
-      .trim()
-  );
+/**
+ * SQL注入防护中间件
+ */
+export const sqlInjectionProtection = (req: Request, res: Response, next: NextFunction): void => {
+  // 检查请求体中的可疑SQL模式
+  const suspiciousPatterns = [
+    /(\bor\b|\band\b|\bxor\b|\bselect\b|\bunion\b|\bdrop\b|\binsert\b|\bupdate\b|\bdelete\b)/i,
+    /['";\\]/,
+    /(\bexec\b|\bexecute\b|\bsp_)/i
+  ];
+  
+  const checkValue = (value: unknown): boolean => {
+    if (typeof value === 'string') {
+      return suspiciousPatterns.some(pattern => pattern.test(value));
+    }
+    return false;
+  };
+  
+  // 检查查询参数
+  const queryValues = Object.values(req.query || {});
+  if (queryValues.some(checkValue)) {
+    res.status(400).json({
+      success: false,
+      error: { code: 'INVALID_INPUT', message: '请求包含非法字符' }
+    });
+    return;
+  }
+  
+  // 检查请求体
+  if (req.body && typeof req.body === 'object') {
+    const bodyValues = Object.values(req.body);
+    if (bodyValues.some(checkValue)) {
+      res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_INPUT', message: '请求包含非法字符' }
+      });
+      return;
+    }
+  }
+  
+  next();
+};
+
+/**
+ * XSS防护中间件
+ */
+export const xssProtection = (req: Request, res: Response, next: NextFunction): void => {
+  // XSS检测模式
+  const xssPatterns = [
+    /<script[^>]*>.*?<\/script>/gi,
+    /<iframe[^>]*>.*?<\/iframe>/gi,
+    /javascript:/gi,
+    /on\w+\s*=/gi,
+    /<[^>]*on\w+[^>]*>/gi
+  ];
+  
+  const checkForXSS = (value: unknown): boolean => {
+    if (typeof value === 'string') {
+      return xssPatterns.some(pattern => pattern.test(value));
+    }
+    return false;
+  };
+  
+  // 检查文本输入字段
+  if (req.body && typeof req.body === 'object') {
+    const bodyValues = Object.values(req.body);
+    if (bodyValues.some(checkForXSS)) {
+      res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_INPUT', message: '检测到潜在的XSS攻击' }
+      });
+      return;
+    }
+  }
+  
+  next();
+};
+
+export interface SecurityConfig {
+  enableFiltering: boolean;
+  enableTruncation: boolean;
+  maxLogLength: number;
+  maxErrorDepth: number;
+}
+
+// 默认安全配置
+const DEFAULT_CONFIG: SecurityConfig = {
+  enableFiltering: process.env.NODE_ENV === 'production',
+  enableTruncation: true,
+  maxLogLength: 1000,
+  maxErrorDepth: 3
+};
+
+// 需要过滤的敏感字段
+const SENSITIVE_FIELDS = [
+  'password',
+  'pwd',
+  'token',
+  'secret',
+  'key',
+  'api_key',
+  'auth',
+  'authorization',
+  'credential',
+  'private_key',
+  'db_password',
+  'jwt',
+  'refresh_token',
+  'access_token',
+  'db_url',
+  'connection_string',
+  'secret_key',
+  'salt',
+  'hash',
+  'verification_code',
+  'otp',
+  'session_id',
+  'cookie'
+];
+
+// 需要脱敏的字段模式
+const SENSITIVE_PATTERNS = [
+  /password[:=]\s*['"]?[^'"\\s,}]+/i,
+  /token[:=]\s*['"]?[^'"\\s,}]+/i,
+  /secret[:=]\s*['"]?[^'"\\s,}]+/i,
+  /key[:=]\s*['"]?[^'"\\s,}]+/i,
+  /jwt[:=]\s*['"]?[^'"\\s,}]+/i,
+  /authorization[:=]\s*['"]?[^'"\\s,}]+/i,
+  /auth[:=]\s*['"]?[^'"\\s,}]+/i
+];
+
+/**
+ * 深度过滤对象中的敏感信息
+ */
+export function filterSensitiveData(obj: unknown, config: SecurityConfig = DEFAULT_CONFIG): unknown {
+  if (!config.enableFiltering) return obj;
+  
+  return filterObject(obj, config);
 }
 
 /**
- * 递归清理对象中的所有字符串值
- * @param obj 要清理的对象
- * @returns 清理后的对象
+ * 递归过滤对象
  */
-export function sanitizeObject<T extends Record<string, unknown>>(obj: T): T {
-  if (!obj || typeof obj !== 'object') return obj;
-
-  const sanitized = {} as T;
-
-  for (const [key, value] of Object.entries(obj)) {
-    if (typeof value === 'string') {
-      sanitized[key as keyof T] = sanitizeInput(value) as T[keyof T];
-    } else if (typeof value === 'object' && value !== null) {
-      if (Array.isArray(value)) {
-        sanitized[key as keyof T] = value.map((item) =>
-          typeof item === 'string' ? sanitizeInput(item) : typeof item === 'object' ? sanitizeObject(item as Record<string, unknown>) : item
-        ) as T[keyof T];
-      } else {
-        sanitized[key as keyof T] = sanitizeObject(value as Record<string, unknown>) as T[keyof T];
-      }
-    } else {
-      sanitized[key as keyof T] = value as T[keyof T];
-    }
+function filterObject(obj: unknown, config: SecurityConfig, depth: number = 0): unknown {
+  if (depth > config.maxErrorDepth) return '[object]';
+  
+  if (obj === null || obj === undefined) return obj;
+  
+  if (typeof obj === 'string') {
+    return filterString(obj, config);
   }
+  
+  if (typeof obj === 'number' || typeof obj === 'boolean') {
+    return obj;
+  }
+  
+  if (Array.isArray(obj)) {
+    return obj.map(item => filterObject(item, config, depth + 1));
+  }
+  
+  if (typeof obj === 'object') {
+    const result: Record<string, unknown> = {};
+    
+    for (const [key, value] of Object.entries(obj)) {
+      if (isSensitiveKey(key)) {
+        result[key] = '[FILTERED]';
+      } else {
+        result[key] = filterObject(value, config, depth + 1);
+      }
+    }
+    
+    return result;
+  }
+  
+  return String(obj);
+}
 
+/**
+ * 判断是否为敏感键名
+ */
+function isSensitiveKey(key: string): boolean {
+  const lowerKey = key.toLowerCase();
+  return SENSITIVE_FIELDS.some(field => lowerKey.includes(field));
+}
+
+/**
+ * 过滤字符串中的敏感信息
+ */
+function filterString(str: string, config: SecurityConfig): string {
+  let filtered = str;
+  
+  // 替换敏感字段模式
+  for (const pattern of SENSITIVE_PATTERNS) {
+    filtered = filtered.replace(pattern, '[FILTERED]');
+  }
+  
+  // 截断过长字符串
+  if (config.enableTruncation && filtered.length > config.maxLogLength) {
+    return filtered.substring(0, config.maxLogLength) + '...[TRUNCATED]';
+  }
+  
+  return filtered;
+}
+
+/**
+ * 安全地解析JSON，避免信息泄露
+ */
+export function safeJsonParse(jsonStr: string, config: SecurityConfig = DEFAULT_CONFIG): unknown {
+  try {
+    const parsed = JSON.parse(jsonStr);
+    return filterSensitiveData(parsed, config);
+  } catch {
+    // JSON解析失败，返回过滤后的字符串
+    return filterString(jsonStr, config);
+  }
+}
+
+/**
+ * 安全的错误处理 - 脱敏错误信息
+ */
+export function sanitizeError(error: Error, config: SecurityConfig = DEFAULT_CONFIG): Error {
+  const sanitized = new Error();
+  
+  // 过滤错误消息
+  sanitized.message = filterString(error.message, config);
+  
+  // 过滤错误堆栈（生产环境）
+  if (config.enableFiltering && process.env.NODE_ENV === 'production') {
+    sanitized.stack = '[STACK_HIDDEN]';
+  } else {
+    // 非生产环境也进行一定程度的脱敏
+    sanitized.stack = filterString(error.stack || '', {
+      ...config,
+      maxLogLength: Math.min(config.maxLogLength, 500)
+    });
+  }
+  
   return sanitized;
 }
 
 /**
- * SQL注入检测
- * 检测常见的SQL注入模式
- * @param input 输入字符串
- * @returns 是否包含SQL注入风险
+ * 安全的日志输出
  */
-export function detectSqlInjection(input: string): boolean {
-  if (!input) return false;
-
-  // SQL注入检测模式
-  const sqlInjectionPatterns = [
-    // 注释
-    /(--|#|\/\*)/i,
-    // 联合查询
-    /union\s+select/i,
-    // 堆叠查询
-    /;\s*drop\s+/i,
-    /;\s*delete\s+/i,
-    /;\s*insert\s+/i,
-    /;\s*update\s+/i,
-    // 布尔盲注
-    /'\s*or\s*'\d+'\s*=\s*'\d+/i,
-    /'\s*or\s*\d+\s*=\s*\d+/i,
-    // 时间盲注
-    /waitfor\s+delay/i,
-    /benchmark\s*\(/i,
-    /sleep\s*\(/i,
-    // 错误注入
-    /'\s*and\s*\d+\s*=\s*\d+/i,
-    // 子查询
-    /\(\s*select\s+/i,
-    // 存储过程
-    /exec\s*\(/i,
-    /execute\s*\(/i,
-    // 系统表访问
-    /information_schema/i,
-    /sys\./i,
-    // 危险函数
-    /xp_/i,
-    /sp_/i,
-  ];
-
-  return sqlInjectionPatterns.some((pattern) => pattern.test(input));
+export function safeLog(message: string, ...args: unknown[]): void {
+  const config = DEFAULT_CONFIG;
+  
+  // 过滤消息
+  const filteredMessage = filterString(message, config);
+  
+  // 过滤参数
+  const filteredArgs = args.map(arg => filterSensitiveData(arg, config));
+  
+  console.log(filteredMessage, ...filteredArgs);
 }
 
 /**
- * SQL注入防护中间件
- * 检测请求中的SQL注入风险
+ * 安全的错误日志
  */
-export function sqlInjectionProtection(req: Request, res: Response, next: NextFunction) {
-  const checkValue = (value: unknown, path: string): string | null => {
-    if (typeof value === 'string') {
-      if (detectSqlInjection(value)) {
-        return path;
+export function safeError(message: string, error: Error, ...args: unknown[]): void {
+  const config = DEFAULT_CONFIG;
+  
+  // 过滤消息
+  const filteredMessage = filterString(message, config);
+  
+  // 脱敏错误
+  const sanitizedError = sanitizeError(error, config);
+  
+  // 过滤其他参数
+  const filteredArgs = args.map(arg => filterSensitiveData(arg, config));
+  
+  console.error(filteredMessage, sanitizedError, ...filteredArgs);
+}
+
+/**
+ * 限制控制台输出长度
+ */
+export function truncateOutput(output: string, maxLength: number = 1000): string {
+  if (output.length <= maxLength) return output;
+  return output.substring(0, maxLength) + `\n\n[OUTPUT_TRUNCATED: ${output.length - maxLength} characters hidden]`;
+}
+
+/**
+ * 安全的类型检查 - 防止原型污染
+ */
+export function safeTypeOf(value: unknown): string {
+  try {
+    return typeof value;
+  } catch {
+    return 'unknown';
+  }
+}
+
+/**
+ * 安全的对象属性访问
+ */
+export function safeGet(obj: unknown, path: string, defaultValue: unknown = undefined): unknown {
+  try {
+    const keys = path.split('.');
+    let current = obj;
+    
+    for (const key of keys) {
+      if (current === null || current === undefined || typeof current !== 'object') {
+        return defaultValue;
       }
-    } else if (typeof value === 'object' && value !== null) {
-      for (const [key, val] of Object.entries(value)) {
-        const result = checkValue(val, `${path}.${key}`);
-        if (result) return result;
-      }
+      current = (current as Record<string, unknown>)[key];
     }
-    return null;
-  };
-
-  // 检查请求体
-  if (req.body && typeof req.body === 'object') {
-    const suspiciousField = checkValue(req.body, 'body');
-    if (suspiciousField) {
-      console.warn(`[Security] SQL注入风险检测: ${suspiciousField}`, {
-        ip: req.ip,
-        path: req.path,
-        method: req.method,
-      });
-      return res.status(400).json({
-        success: false,
-        error: {
-          code: 'SECURITY_VIOLATION',
-          message: '请求包含不安全的内容',
-        },
-      });
-    }
+    
+    return current;
+  } catch {
+    return defaultValue;
   }
-
-  // 检查查询参数
-  if (req.query && typeof req.query === 'object') {
-    const suspiciousField = checkValue(req.query, 'query');
-    if (suspiciousField) {
-      console.warn(`[Security] SQL注入风险检测: ${suspiciousField}`, {
-        ip: req.ip,
-        path: req.path,
-        method: req.method,
-      });
-      return res.status(400).json({
-        success: false,
-        error: {
-          code: 'SECURITY_VIOLATION',
-          message: '请求包含不安全的内容',
-        },
-      });
-    }
-  }
-
-  next();
-}
-
-/**
- * XSS防护中间件
- * 清理请求中的所有字符串值
- */
-export function xssProtection(req: Request, res: Response, next: NextFunction) {
-  // 清理请求体
-  if (req.body && typeof req.body === 'object') {
-    req.body = sanitizeObject(req.body);
-  }
-
-  // 清理查询参数
-  if (req.query && typeof req.query === 'object') {
-    const sanitizedQuery: Record<string, string | string[] | undefined> = {};
-    for (const [key, value] of Object.entries(req.query)) {
-      if (typeof value === 'string') {
-        sanitizedQuery[key] = sanitizeInput(value);
-      } else if (Array.isArray(value)) {
-        sanitizedQuery[key] = value.map((item) =>
-          typeof item === 'string' ? sanitizeInput(item) : String(item)
-        );
-      } else {
-        sanitizedQuery[key] = value === undefined ? undefined : String(value);
-      }
-    }
-    const queryObj = req.query as Record<string, unknown>;
-    for (const key of Object.keys(queryObj)) {
-      delete (queryObj as any)[key];
-    }
-    for (const [key, value] of Object.entries(sanitizedQuery)) {
-      (queryObj as any)[key] = value;
-    }
-  }
-
-  next();
-}
-
-/**
- * 速率限制配置
- */
-export const rateLimitConfig = {
-  // 通用API限制
-  api: {
-    windowMs: 15 * 60 * 1000, // 15分钟
-    max: 1000, // 最多1000次请求
-  },
-  // 诊断建议API限制（更严格）
-  diagnosis: {
-    windowMs: 60 * 1000, // 1分钟
-    max: 30, // 最多30次请求
-  },
-  // 文件上传限制
-  upload: {
-    windowMs: 60 * 60 * 1000, // 1小时
-    max: 50, // 最多50次上传
-  },
-};
-
-/**
- * 安全响应头中间件
- */
-export function securityHeaders(req: Request, res: Response, next: NextFunction) {
-  // 防止点击劫持
-  res.setHeader('X-Frame-Options', 'DENY');
-  // 防止MIME类型嗅探
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  // XSS保护
-  res.setHeader('X-XSS-Protection', '1; mode=block');
-  // 强制HTTPS
-  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-  // 内容安全策略
-  res.setHeader(
-    'Content-Security-Policy',
-    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';"
-  );
-  // 引用策略
-  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  // 权限策略
-  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
-
-  next();
-}
-
-/**
- * 生成安全的文件名
- * @param originalName 原始文件名
- * @returns 安全的文件名
- */
-export function generateSafeFileName(originalName: string): string {
-  // 移除路径分隔符和危险字符
-  const safeName = originalName
-    .replace(/[\\/:*?"<>|]/g, '')
-    .replace(/\.\./g, '')
-    .trim();
-
-  // 添加随机前缀防止文件名冲突
-  const timestamp = Date.now();
-  const random = Math.random().toString(36).substring(2, 8);
-
-  // 提取扩展名
-  const lastDotIndex = safeName.lastIndexOf('.');
-  const extension = lastDotIndex > 0 ? safeName.substring(lastDotIndex) : '';
-  const baseName = lastDotIndex > 0 ? safeName.substring(0, lastDotIndex) : safeName;
-
-  return `${timestamp}-${random}-${baseName}${extension}`;
-}
-
-/**
- * 验证文件扩展名
- * @param fileName 文件名
- * @param allowedExtensions 允许的扩展名列表
- * @returns 是否允许
- */
-export function isAllowedFileType(
-  fileName: string,
-  allowedExtensions: string[]
-): boolean {
-  const extension = fileName.toLowerCase().substring(fileName.lastIndexOf('.'));
-  return allowedExtensions.includes(extension);
 }

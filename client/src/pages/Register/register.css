@@ -1,0 +1,488 @@
+/* 注册页面整体布局 */
+.register-page {
+  min-height: 100vh;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 背景装饰 - 柔和流体效果 */
+.register-bg-decoration {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.register-bg-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.5;
+}
+
+.register-bg-blob-1 {
+  width: 500px;
+  height: 500px;
+  background: linear-gradient(135deg, rgba(114, 46, 209, 0.4) 0%, rgba(22, 119, 255, 0.3) 100%);
+  top: -150px;
+  right: 10%;
+  animation: blobFloat 15s ease-in-out infinite;
+}
+
+.register-bg-blob-2 {
+  width: 400px;
+  height: 400px;
+  background: linear-gradient(135deg, rgba(22, 119, 255, 0.3) 0%, rgba(54, 207, 201, 0.2) 100%);
+  bottom: -100px;
+  left: 5%;
+  animation: blobFloat 18s ease-in-out infinite reverse;
+}
+
+.register-bg-blob-3 {
+  width: 300px;
+  height: 300px;
+  background: linear-gradient(135deg, rgba(82, 196, 26, 0.25) 0%, rgba(114, 46, 209, 0.15) 100%);
+  top: 40%;
+  left: 30%;
+  animation: blobFloat 12s ease-in-out infinite;
+}
+
+@keyframes blobFloat {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(20px, -20px) scale(1.05);
+  }
+}
+
+/* 主容器 */
+.register-container {
+  display: flex;
+  width: 100%;
+  max-width: 1200px;
+  min-height: 600px;
+  margin: 40px;
+  position: relative;
+  z-index: 1;
+  gap: 60px;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 左侧品牌区 */
+.register-brand {
+  flex: 1;
+  max-width: 500px;
+  text-align: center;
+  padding: 40px;
+}
+
+.register-brand-logo {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 24px;
+  background: linear-gradient(135deg, #722ed1 0%, #1677ff 100%);
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+  color: #fff;
+  box-shadow: 0 16px 40px rgba(114, 46, 209, 0.35);
+}
+
+.register-brand-title {
+  font-size: 32px;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin: 0 0 12px;
+  line-height: 1.3;
+}
+
+.register-brand-subtitle {
+  font-size: 14px;
+  color: #8c8c8c;
+  margin: 0 0 40px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+}
+
+.register-brand-features {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+}
+
+.register-brand-feature {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 28px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 50px;
+  font-size: 15px;
+  color: #595959;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+}
+
+.register-brand-feature:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.feature-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+/* 右侧卡片区 */
+.register-card-wrapper {
+  flex: 0 0 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.register-card {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 24px;
+  padding: 40px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  animation: cardSlideUp 0.5s ease-out;
+}
+
+@keyframes cardSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 注册头部 */
+.register-header {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.register-header-icon {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 16px;
+  background: linear-gradient(135deg, #722ed1 0%, #1677ff 100%);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  color: #fff;
+}
+
+.register-title {
+  margin: 0 0 8px !important;
+  font-size: 24px !important;
+  font-weight: 600 !important;
+  color: #1a1a2e !important;
+}
+
+.register-subtitle {
+  margin: 0;
+  font-size: 13px;
+  color: #8c8c8c;
+}
+
+/* 注册表单 */
+.register-form {
+  margin-top: 0;
+}
+
+.register-form-item {
+  margin-bottom: 16px;
+}
+
+.register-form-item:last-child {
+  margin-bottom: 0;
+}
+
+.register-submit-item {
+  margin-top: 24px;
+}
+
+.register-input {
+  height: 48px;
+  border-radius: 12px;
+  border: 1px solid #e8e8e8;
+  background: #fafafa;
+  transition: all 0.3s ease;
+  font-size: 14px;
+}
+
+.register-input:hover {
+  border-color: #722ed1;
+  background: #fff;
+}
+
+.register-input:focus {
+  border-color: #722ed1;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(114, 46, 209, 0.08);
+}
+
+.register-input .ant-input {
+  background: transparent;
+  font-size: 14px;
+}
+
+.register-input-icon {
+  color: #bfbfbf;
+  font-size: 16px;
+  margin-right: 8px;
+  transition: color 0.3s ease;
+}
+
+.register-input:hover .register-input-icon,
+.register-input:focus-within .register-input-icon {
+  color: #722ed1;
+}
+
+/* 下拉选择框样式 */
+.register-select {
+  height: 48px;
+}
+
+.register-select .ant-select-selector {
+  height: 48px !important;
+  border-radius: 12px !important;
+  border: 1px solid #e8e8e8 !important;
+  background: #fafafa !important;
+  padding: 0 16px !important;
+  display: flex;
+  align-items: center;
+  transition: all 0.3s ease;
+}
+
+.register-select:hover .ant-select-selector {
+  border-color: #722ed1 !important;
+  background: #fff !important;
+}
+
+.register-select.ant-select-focused .ant-select-selector {
+  border-color: #722ed1 !important;
+  background: #fff !important;
+  box-shadow: 0 0 0 3px rgba(114, 46, 209, 0.08) !important;
+}
+
+.register-select .ant-select-selection-item {
+  line-height: 46px !important;
+  font-size: 14px;
+}
+
+/* 注册按钮 */
+.register-button {
+  height: 48px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 500;
+  background: linear-gradient(135deg, #722ed1 0%, #1677ff 100%);
+  border: none;
+  box-shadow: 0 8px 20px rgba(114, 46, 209, 0.3);
+  transition: all 0.3s ease;
+}
+
+.register-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(114, 46, 209, 0.4);
+  background: linear-gradient(135deg, #9254de 0%, #4096ff 100%);
+}
+
+.register-button:active {
+  transform: translateY(0);
+}
+
+/* 注册底部 */
+.register-footer {
+  text-align: center;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.register-footer-text {
+  color: #8c8c8c;
+  font-size: 13px;
+}
+
+.register-footer-link {
+  margin-left: 6px;
+  color: #722ed1;
+  font-weight: 500;
+  font-size: 13px;
+  transition: all 0.3s ease;
+}
+
+.register-footer-link:hover {
+  color: #9254de;
+}
+
+/* 密码强度指示器 */
+.password-strength-container {
+  margin-bottom: 16px;
+  padding: 16px;
+  background: #fafafa;
+  border-radius: 12px;
+  border: 1px solid #f0f0f0;
+}
+
+.password-strength-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.strength-label {
+  font-size: 13px;
+}
+
+.strength-level {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.strength-progress {
+  margin-bottom: 12px;
+}
+
+.strength-progress .ant-progress-bg {
+  transition: all 0.3s ease;
+}
+
+.password-requirements {
+  margin-top: 12px;
+}
+
+.password-requirement {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #8c8c8c;
+  transition: all 0.3s ease;
+}
+
+.password-requirement.met {
+  color: #52c41a;
+}
+
+.requirement-icon {
+  font-size: 12px;
+  color: #d9d9d9;
+  transition: all 0.3s ease;
+}
+
+.requirement-icon.met {
+  color: #52c41a;
+}
+
+.requirement-text {
+  font-size: 12px;
+}
+
+/* 版权信息 */
+.register-copyright {
+  margin-top: 24px;
+  font-size: 12px;
+  color: #bfbfbf;
+  text-align: center;
+}
+
+/* 响应式设计 */
+@media (max-width: 1024px) {
+  .register-container {
+    flex-direction: column;
+    gap: 40px;
+    margin: 24px;
+  }
+
+  .register-brand {
+    padding: 20px;
+  }
+
+  .register-brand-title {
+    font-size: 24px;
+  }
+
+  .register-brand-features {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .register-card-wrapper {
+    flex: none;
+    width: 100%;
+    max-width: 420px;
+  }
+}
+
+@media (max-width: 480px) {
+  .register-page {
+    background: #f5f7fa;
+  }
+
+  .register-container {
+    margin: 16px;
+    gap: 24px;
+  }
+
+  .register-brand {
+    display: none;
+  }
+
+  .register-card {
+    padding: 32px 24px;
+    border-radius: 20px;
+  }
+
+  .register-title {
+    font-size: 20px !important;
+  }
+
+  .register-subtitle {
+    font-size: 12px;
+  }
+
+  .register-input,
+  .register-select,
+  .register-select .ant-select-selector {
+    height: 44px !important;
+  }
+
+  .register-select .ant-select-selection-item {
+    line-height: 42px !important;
+  }
+
+  .register-button {
+    height: 44px;
+  }
+}

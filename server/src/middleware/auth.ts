@@ -182,6 +182,11 @@ export function loadOperatorFromToken(token: string): OperatorIdentity | null {
   if (single && t === single) {
     return { token: t, operatorId: 0, role: 'admin' };
   }
+  
+  // 开发环境默认token
+  if (serverConfig.isDevelopment && t === 'dev-token') {
+    return { token: t, operatorId: 0, role: 'admin' };
+  }
 
   return null;
 }

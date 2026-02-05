@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { App as AntdApp, Form, Input, AutoComplete, Row, Col, Typography, Card, Space, Button, Tag, Radio, InputNumber } from 'antd';
-import { RobotOutlined, BulbOutlined, EditOutlined, SoundOutlined } from '@ant-design/icons';
+import { App as AntdApp, Form, Input, AutoComplete, Row, Col, Typography, Card, Space, Button, InputNumber } from 'antd';
+import { RobotOutlined } from '@ant-design/icons';
 import type { FormInstance } from 'antd';
 import api, { unwrapData } from '../../../../utils/api';
 import type { ApiResponse } from '../../../../utils/api';
 import { useQuery } from '@tanstack/react-query';
 
-const { Title, Text, Paragraph } = Typography;
+const { Title, Paragraph } = Typography;
 const { Search, TextArea } = Input;
 
 /**
@@ -41,7 +41,6 @@ const ChiefComplaintSection: React.FC<ChiefComplaintSectionProps> = ({ form }) =
   const mappingNames = mappingPayload ? Object.keys(mappingPayload.nameToKey || {}) : [];
   const [symptomOptionsState, setSymptomOptionsState] = useState<{value: string}[]>([]);
   const [analyzing, setAnalyzing] = useState(false);
-  const [inputMode, setInputMode] = useState('free'); // free, example, voice
   const lastAutoRef = useRef<string>('');
   
   const ccSymptom = Form.useWatch(['chiefComplaint', 'symptom'], form);
@@ -184,11 +183,7 @@ const ChiefComplaintSection: React.FC<ChiefComplaintSectionProps> = ({ form }) =
     }
   }, [ccSymptom, ccDurationKey, ccDurationNum, ccDurationNumMax, ccDurationUnit, form]);
 
-  const examples = [
-    '转移性右下腹痛1天',
-    '反复头晕头痛3年，加重2天',
-    '活动后心悸气促5年'
-  ];
+
 
   return (
     <div className="section-container">
@@ -207,39 +202,7 @@ const ChiefComplaintSection: React.FC<ChiefComplaintSectionProps> = ({ form }) =
             style={{ marginBottom: 16 }}
         />
         
-        {/* 练习模式选择 */}
-                <div style={{ marginBottom: 16 }}>
-            <Space>
-                <Text strong>练习模式：</Text>
-                <Radio.Group value={inputMode} onChange={e => setInputMode(e.target.value)} size="small">
-                    <Radio.Button value="free"><EditOutlined /> 自由填写</Radio.Button>
-                    <Radio.Button value="example"><BulbOutlined /> 示例改写</Radio.Button>
-                    <Radio.Button value="voice" disabled title="暂未开放"><SoundOutlined /> 语音输入</Radio.Button>
-                </Radio.Group>
-            </Space>
-        </div>
 
-        {/* 示例库 */}
-        {inputMode === 'example' && (
-            <div style={{ background: '#fafafa', padding: 12, borderRadius: 4, marginBottom: 16 }}>
-                <Text type="secondary" style={{ marginRight: 8 }}>示例库：</Text>
-                <Space wrap>
-                    {examples.map(ex => (
-                        <Tag 
-                            key={ex} 
-                            color="blue" 
-                            style={{ cursor: 'pointer' }}
-                            onClick={() => {
-                                form.setFieldsValue({ chiefComplaint: { text: ex } });
-                                handleSmartAnalyze(ex);
-                            }}
-                        >
-                            {ex}
-                        </Tag>
-                    ))}
-                </Space>
-            </div>
-        )}
       </Card>
 
       {/* 2. 结构化填写 */}

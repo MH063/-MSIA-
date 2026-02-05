@@ -5,6 +5,7 @@ import prisma from '../prisma';
 import { comparePassword, hashPassword, signAccessToken, signRefreshToken, verifyRefreshToken } from '../utils/auth-helpers';
 import { authCookieConfig, authGuardConfig, authSessionConfig } from '../config';
 import { getRedisClient, incrWithExpire, incrWithTtl } from '../utils/redis-client';
+import { createCaptcha, verifyCaptcha as verifyCaptchaPair } from '../services/captcha.service';
 
 type LoginFailRecord = {
   count: number;
@@ -505,10 +506,35 @@ function checkRegisterGuard(req: Request): { blocked: boolean; status: number; m
   return null;
 }
 
+/**
+ * 生成验证码错误响应并附带新的验证码
+ */
+async function buildCaptchaErrorResponse(message: string) {
+  const captcha = await createCaptcha();
+  console.warn('[auth.captcha] 校验失败，生成新验证码', { reason: message });
+  return {
+    success: false,
+    message,
+    data: {
+      captcha,
+    },
+  };
+}
+
 export const login = async (req: Request, res: Response) => {
   try {
-    const { token, username, password } = req.body;
+    const { token, username, password, captchaId, captcha } = req.body;
     const meta = getRequestMeta(req);
+
+    // 验证码校验
+    if (!captchaId || !captcha) {
+      return res.status(400).json({ success: false, message: '请先获取验证码并填写' });
+    }
+    const captchaOk = await verifyCaptchaPair(String(captchaId), String(captcha));
+    if (!captchaOk) {
+      const body = await buildCaptchaErrorResponse('验证码错误或已过期');
+      return res.status(400).json(body);
+    }
 
     // 1. Token Login (Old way or manual token)
     if (token) {
@@ -652,11 +678,21 @@ export const login = async (req: Request, res: Response) => {
 
 export const register = async (req: Request, res: Response) => {
   try {
-    const { username, password, name, role } = req.body;
+    const { username, password, name, role, captchaId, captcha } = req.body;
 
     const guard = checkRegisterGuard(req);
     if (guard?.blocked) {
       return res.status(guard.status).json({ success: false, message: guard.message });
+    }
+
+    // 验证码校验
+    if (!captchaId || !captcha) {
+      return res.status(400).json({ success: false, message: '请先获取验证码并填写' });
+    }
+    const captchaOk = await verifyCaptchaPair(String(captchaId), String(captcha));
+    if (!captchaOk) {
+      const body = await buildCaptchaErrorResponse('验证码错误或已过期');
+      return res.status(400).json(body);
     }
 
     const existing = await prisma.operator.findUnique({
