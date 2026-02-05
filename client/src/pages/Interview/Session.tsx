@@ -730,6 +730,10 @@ const Session: React.FC = () => {
     updateAssistantPanelForSection(currentSection, true);
   }, [currentSection, updateAssistantPanelForSection]);
 
+  /**
+   * assistantOpenHelp
+   * 打开“智能问诊助手帮助”说明窗口，使用居中显示以提升可读性
+   */
   const assistantOpenHelp = useCallback(() => {
     const pending = getPendingItemsForSection(currentSection);
     modal.info({
@@ -740,7 +744,8 @@ const Session: React.FC = () => {
           <div>建议优先补充：{pending.length > 0 ? pending.join('、') : '暂无'}</div>
         </div>
       ),
-      okText: '知道了'
+      okText: '知道了',
+      centered: true
     });
     console.log('[Session] 打开助手帮助', { currentSection, pendingCount: pending.length });
   }, [currentSection, getPendingItemsForSection, labelBySectionKey, modal]);

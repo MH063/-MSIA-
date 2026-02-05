@@ -220,3 +220,85 @@ export function omit<T extends Record<string, unknown>, K extends keyof T>(
   });
   return result;
 }
+
+/**
+ * redactSensitive
+ * 对对象/数组进行深度脱敏，避免日志与错误输出泄露密码、令牌等敏感信息
+ */
+export function redactSensitive<T>(input: T): T {
+  const sensitiveKeySet = new Set([
+    'password',
+    'pass',
+    'pwd',
+    'token',
+    'access_token',
+    'accessToken',
+    'refresh_token',
+    'refreshToken',
+    'authorization',
+    'cookie',
+    'set-cookie',
+    'jwt',
+    'secret',
+    'api_key',
+    'apikey',
+    'client_secret',
+    'operator_token',
+    'operator_tokens_json',
+  ]);
+
+  const mask = (value: string) => {
+    const s = String(value || '');
+    if (s.length <= 12) return '***';
+    return `${s.slice(0, 6)}...${s.slice(-4)}`;
+  };
+
+  const isJwtLike = (value: string) => {
+    const s = String(value || '').trim();
+    const parts = s.split('.');
+    return parts.length === 3 && parts[0].length > 8 && parts[1].length > 8;
+  };
+
+  const seen = new WeakSet<object>();
+  const maxDepth = 6;
+
+  const walk = (value: any, keyHint: string, depth: number): any => {
+    if (value === null || value === undefined) return value;
+    const t = typeof value;
+    if (t === 'string') {
+      if (keyHint && sensitiveKeySet.has(keyHint)) return mask(value);
+      if (isJwtLike(value)) return mask(value);
+      return value;
+    }
+    if (t === 'number' || t === 'boolean' || t === 'bigint') return value;
+    if (t === 'function') return '[Function]';
+    if (t === 'symbol') return '[Symbol]';
+
+    if (depth >= maxDepth) return '[Truncated]';
+
+    if (Array.isArray(value)) {
+      return value.map((v) => walk(v, keyHint, depth + 1));
+    }
+
+    if (value instanceof Date) return value;
+
+    if (t === 'object') {
+      if (seen.has(value)) return '[Circular]';
+      seen.add(value);
+      const out: any = {};
+      for (const [k, v] of Object.entries(value)) {
+        const normalizedKey = String(k || '').trim().toLowerCase();
+        if (sensitiveKeySet.has(normalizedKey)) {
+          out[k] = mask(String(v ?? ''));
+          continue;
+        }
+        out[k] = walk(v, normalizedKey, depth + 1);
+      }
+      return out;
+    }
+
+    return value;
+  };
+
+  return walk(input as any, '', 0) as T;
+}

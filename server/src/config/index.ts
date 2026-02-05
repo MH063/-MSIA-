@@ -92,3 +92,73 @@ export const logConfig = {
   format: process.env.LOG_FORMAT || 'json',
   maxFiles: parseInt(process.env.LOG_MAX_FILES || '30', 10),
 };
+
+/**
+ * parseIntEnv
+ * 读取整型环境变量并回退到默认值
+ */
+function parseIntEnv(key: string, defaultValue: number): number {
+  const raw = String(process.env[key] ?? '').trim();
+  if (!raw) return defaultValue;
+  const n = Number(raw);
+  return Number.isFinite(n) ? Math.trunc(n) : defaultValue;
+}
+
+/**
+ * parseBoolEnv
+ * 读取布尔环境变量并回退到默认值
+ */
+function parseBoolEnv(key: string, defaultValue: boolean): boolean {
+  const raw = String(process.env[key] ?? '').trim().toLowerCase();
+  if (!raw) return defaultValue;
+  if (raw === '1' || raw === 'true' || raw === 'yes' || raw === 'y') return true;
+  if (raw === '0' || raw === 'false' || raw === 'no' || raw === 'n') return false;
+  return defaultValue;
+}
+
+/**
+ * parseEnumEnv
+ * 读取枚举环境变量并回退到默认值
+ */
+function parseEnumEnv<T extends string>(key: string, allowed: readonly T[], defaultValue: T): T {
+  const raw = String(process.env[key] ?? '').trim();
+  if (!raw) return defaultValue;
+  return (allowed as readonly string[]).includes(raw) ? (raw as T) : defaultValue;
+}
+
+/**
+ * 登录限流与锁定策略配置（可通过环境变量覆盖）
+ */
+export const authGuardConfig = {
+  loginIpWindowMs: parseIntEnv('AUTH_LOGIN_IP_WINDOW_MS', 60 * 1000),
+  loginIpMax: parseIntEnv('AUTH_LOGIN_IP_MAX', 30),
+
+  loginFailWindowMs: parseIntEnv('AUTH_LOGIN_FAIL_WINDOW_MS', 10 * 60 * 1000),
+  loginFailWindowMode: parseEnumEnv('AUTH_LOGIN_FAIL_WINDOW_MODE', ['fixed', 'sliding'] as const, 'fixed'),
+
+  loginMaxFailsDoctor: parseIntEnv('AUTH_LOGIN_MAX_FAILS_DOCTOR', 5),
+  loginLockMsDoctor: parseIntEnv('AUTH_LOGIN_LOCK_MS_DOCTOR', 10 * 60 * 1000),
+
+  loginMaxFailsAdmin: parseIntEnv('AUTH_LOGIN_MAX_FAILS_ADMIN', 5),
+  loginLockMsAdmin: parseIntEnv('AUTH_LOGIN_LOCK_MS_ADMIN', 10 * 60 * 1000),
+
+  registerIpWindowMs: parseIntEnv('AUTH_REGISTER_IP_WINDOW_MS', 10 * 60 * 1000),
+  registerIpMax: parseIntEnv('AUTH_REGISTER_IP_MAX', 20),
+
+  allowSlidingTtlRefresh: parseBoolEnv('AUTH_LOGIN_SLIDING_REFRESH_TTL', true),
+};
+
+export const authCookieConfig = {
+  accessCookieName: String(process.env.AUTH_ACCESS_COOKIE || 'msia_at').trim() || 'msia_at',
+  refreshCookieName: String(process.env.AUTH_REFRESH_COOKIE || 'msia_rt').trim() || 'msia_rt',
+  sameSite: parseEnumEnv('AUTH_COOKIE_SAMESITE', ['lax', 'strict', 'none'] as const, 'lax'),
+  secure: parseBoolEnv('AUTH_COOKIE_SECURE', serverConfig.isProduction),
+  domain: String(process.env.AUTH_COOKIE_DOMAIN || '').trim() || undefined,
+};
+
+export const authSessionConfig = {
+  accessCookieMaxAgeMs: parseIntEnv('AUTH_ACCESS_COOKIE_MAXAGE_MS', 15 * 60 * 1000),
+  refreshCookieMaxAgeMs: parseIntEnv('AUTH_REFRESH_COOKIE_MAXAGE_MS', 7 * 24 * 60 * 60 * 1000),
+  refreshStoreTtlMs: parseIntEnv('AUTH_REFRESH_STORE_TTL_MS', 7 * 24 * 60 * 60 * 1000),
+  refreshRotateOnUse: parseBoolEnv('AUTH_REFRESH_ROTATE', true),
+};

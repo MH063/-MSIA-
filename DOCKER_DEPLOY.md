@@ -1,51 +1,47 @@
-# MSIA Docker 部署完整指南
+# MSIA Docker 部署指南
 
 ## 医学生智能问诊辅助系统 - Docker 部署文档
 
-### 一、项目概述
+本文档提供使用 Docker 部署 MSIA 系统的完整指南。
 
-本项目是医学生智能问诊辅助系统（MSIA），包含以下组件：
-- **前端（Client）**：React + Vite + TypeScript
-- **后端（Server）**：Node.js + Express + Prisma + PostgreSQL
-- **数据库（DB）**：PostgreSQL 18
+## 一、环境要求
 
-### 二、Docker 文件结构
+- **Docker Engine**: >= 20.10
+- **Docker Compose**: >= 2.0
+- **内存**: 至少 2GB 可用内存
+- **磁盘**: 至少 10GB 可用磁盘空间
+
+## 二、项目结构
 
 ```
 医学生智能问诊辅助系统（MSIA）/
-├── docker-compose.yml              # 主编排文件
+├── docker-compose.yml              # Docker 编排配置
 ├── docker-compose.override.yml     # 开发环境覆盖配置
-├── .env.docker                     # Docker 环境变量模板
+├── .env.docker                     # 环境变量模板
 ├── .dockerignore                   # Docker 构建忽略文件
-├── Makefile                        # 快捷命令
-├── DOCKER_DEPLOY.md               # 本文件
+├── deploy.sh                       # 一键部署脚本
+├── build-client.sh                 # 前端构建脚本
+├── build-server.sh                 # 后端构建脚本
 ├── client/
 │   ├── Dockerfile                  # 前端镜像构建
-│   └── nginx.conf                  # Nginx 容器配置
+│   └── nginx.conf                  # Nginx 配置
 ├── server/
 │   ├── Dockerfile                  # 后端镜像构建
-│   ├── docker-entrypoint.sh        # 容器入口脚本
-│   └── .env.docker                 # 后端环境变量
-├── scripts/
-│   ├── deploy.sh                   # 部署脚本
-│   ├── init-db.sh                  # 数据库初始化
-│   └── backup.sh                   # 数据库备份
+│   └── docker-entrypoint.sh        # 容器入口脚本
 └── deploy/
-    └── docker-deploy.md            # 详细部署说明
+    └── docker-deploy.md            # Docker 部署快速参考
 ```
 
-### 三、快速部署步骤
+## 三、快速部署
 
-#### 1. 环境准备
-
-确保已安装：
-- Docker Engine >= 20.10
-- Docker Compose >= 2.0
-
-#### 2. 配置环境变量
+### 1. 准备工作
 
 ```bash
-# 复制环境变量模板
+# 克隆项目
+git clone <repository-url>
+cd 医学生智能问诊辅助系统（MSIA）
+
+# 配置环境变量
 cp .env.docker .env
 
 # 编辑 .env 文件，修改以下关键配置：
@@ -54,104 +50,47 @@ cp .env.docker .env
 # - ALLOWED_ORIGINS: 允许的跨域来源
 ```
 
-#### 3. 启动服务
+### 2. 执行部署
 
-**方式一：使用 Make 命令（推荐）**
+**方式一：使用部署脚本（推荐）**
 
 ```bash
-# 完整部署（构建+启动+初始化）
-make deploy
-
-# 或分步执行
-make build    # 构建镜像
-make up       # 启动服务
+chmod +x deploy.sh
+./deploy.sh
 ```
 
-**方式二：使用脚本**
+**方式二：手动部署**
 
 ```bash
-# 给脚本执行权限
-chmod +x scripts/deploy.sh
+# 1. 构建前端生产镜像
+cd client
+docker build --target production -t msia-client-prod:latest .
+cd ..
 
-# 运行部署脚本
-./scripts/deploy.sh
-```
+# 2. 构建后端生产镜像
+cd server
+docker build --target production -t msia-server-prod:latest .
+cd ..
 
-**方式三：使用 Docker Compose 命令**
+# 3. 启动服务
+docker-compose up -d
 
-```bash
-# 构建并启动
-docker-compose up -d --build
-
-# 执行数据库迁移
+# 4. 执行数据库迁移
 docker-compose exec server npx prisma migrate deploy
 ```
 
-#### 4. 访问应用
+### 3. 访问应用
 
-- **前端界面**：http://localhost
-- **后端 API**：http://localhost:4000
-- **健康检查**：http://localhost:4000/health
+- **前端界面**: http://localhost
+- **后端 API**: http://localhost:4000
+- **健康检查**: http://localhost:4000/health
 
-### 四、常用命令
-
-#### 服务管理
-
-```bash
-# 查看所有命令
-make help
-
-# 启动服务
-make up
-# 或: docker-compose up -d
-
-# 停止服务
-make down
-# 或: docker-compose down
-
-# 重启服务
-make restart
-
-# 查看状态
-make status
-# 或: docker-compose ps
-```
-
-#### 日志查看
-
-```bash
-# 查看所有日志
-make logs
-
-# 查看后端日志
-make logs-server
-
-# 查看前端日志
-make logs-client
-
-# 查看数据库日志
-make logs-db
-```
-
-#### 数据库操作
-
-```bash
-# 备份数据库
-make backup
-
-# 进入数据库容器
-make shell-db
-
-# 手动执行迁移
-docker-compose exec server npx prisma migrate deploy
-```
-
-### 五、服务架构
+## 四、服务架构
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                        Docker Network                        │
-│                      (msia_network)                         │
+│                     Docker Network                          │
+│                   (msia_network)                            │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │  ┌─────────────┐         ┌─────────────┐         ┌────────┐ │
@@ -167,22 +106,56 @@ docker-compose exec server npx prisma migrate deploy
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 六、环境变量说明
+## 五、常用命令
+
+### 服务管理
+
+| 命令 | 说明 |
+|------|------|
+| `docker-compose up -d` | 启动所有服务 |
+| `docker-compose down` | 停止所有服务 |
+| `docker-compose restart` | 重启所有服务 |
+| `docker-compose ps` | 查看服务状态 |
+| `docker-compose logs -f` | 查看所有日志 |
+| `docker-compose logs -f server` | 查看后端日志 |
+| `docker-compose logs -f client` | 查看前端日志 |
+| `docker-compose logs -f db` | 查看数据库日志 |
+
+### 数据库操作
+
+```bash
+# 执行数据库迁移
+docker-compose exec server npx prisma migrate deploy
+
+# 导入知识库数据
+docker-compose exec server npx prisma db seed
+
+# 进入数据库容器
+docker-compose exec db psql -U postgres -d MSIA
+
+# 备份数据库
+docker-compose exec db pg_dump -U postgres MSIA > backup.sql
+
+# 恢复数据库
+docker-compose exec -T db psql -U postgres -d MSIA < backup.sql
+```
+
+## 六、环境变量
 
 | 变量名 | 默认值 | 说明 |
 |--------|--------|------|
-| DB_USER | postgres | 数据库用户名 |
-| DB_PASSWORD | msia_secure_password_2024 | 数据库密码（**务必修改**） |
-| DB_NAME | MSIA | 数据库名称 |
-| DB_PORT | 5432 | 数据库端口 |
-| SERVER_PORT | 4000 | 后端服务端口 |
-| CLIENT_PORT | 80 | 前端服务端口 |
-| ALLOWED_ORIGINS | http://localhost | 允许的跨域来源 |
-| OPERATOR_TOKEN | msia_docker_token... | API 认证令牌（**务必修改**） |
+| `DB_USER` | postgres | 数据库用户名 |
+| `DB_PASSWORD` | postgres | 数据库密码（**务必修改**） |
+| `DB_NAME` | MSIA | 数据库名称 |
+| `DB_PORT` | 5432 | 数据库端口 |
+| `SERVER_PORT` | 4000 | 后端服务端口 |
+| `CLIENT_PORT` | 80 | 前端服务端口 |
+| `ALLOWED_ORIGINS` | http://localhost | 允许的跨域来源 |
+| `OPERATOR_TOKEN` | dev-admin | API 认证令牌（**务必修改**） |
 
-### 七、生产环境部署建议
+## 七、生产环境部署
 
-#### 1. 安全加固
+### 1. 安全加固
 
 ```bash
 # 1. 修改默认密码
@@ -197,7 +170,7 @@ OPERATOR_TOKEN=your_secure_random_token
 # 数据库端口默认只暴露给容器网络，不要映射到主机
 ```
 
-#### 2. 数据持久化
+### 2. 数据持久化
 
 数据通过 Docker Volumes 持久化：
 - `postgres_data`: 数据库数据
@@ -211,7 +184,7 @@ docker volume ls
 docker run --rm -v msia_postgres_data:/data -v $(pwd):/backup alpine tar czf /backup/postgres_backup.tar.gz -C /data .
 ```
 
-#### 3. 监控与日志
+### 3. 监控与日志
 
 ```bash
 # 查看资源使用
@@ -229,9 +202,9 @@ docker-compose logs -f --tail=100
 #     max-file: "3"
 ```
 
-### 八、故障排查
+## 八、故障排查
 
-#### 问题1：数据库连接失败
+### 问题1：数据库连接失败
 
 ```bash
 # 检查数据库状态
@@ -245,7 +218,7 @@ docker-compose down -v
 docker-compose up -d
 ```
 
-#### 问题2：服务启动失败
+### 问题2：服务启动失败
 
 ```bash
 # 查看详细日志
@@ -258,71 +231,64 @@ netstat -tlnp | grep -E ':(80|4000|5432)'
 docker-compose build --no-cache
 ```
 
-#### 问题3：迁移失败
+### 问题3：前端显示"服务不可用"
 
 ```bash
-# 手动执行迁移
-docker-compose exec server npx prisma migrate deploy
+# 检查前端容器状态
+docker-compose ps client
 
-# 重置迁移（开发环境）
-docker-compose exec server npx prisma migrate reset
+# 查看前端日志
+docker-compose logs client
+
+# 检查是否正确使用生产镜像
+docker exec msia_client which nginx
+# 应该输出 /usr/sbin/nginx，如果不是，说明使用了开发镜像
 ```
 
-### 九、更新部署
+## 九、更新部署
 
 ```bash
 # 拉取最新代码后
-
-# 方式一：使用 Make
-make update
-
-# 方式二：手动
-# 1. 拉取更新
 git pull
+
+# 重新构建并部署
+./deploy.sh
+
+# 或者手动执行
+# 1. 停止服务
+docker-compose down
 
 # 2. 重建镜像
 docker-compose build --no-cache
 
-# 3. 重启服务
+# 3. 启动服务
 docker-compose up -d
 
 # 4. 执行迁移（如有需要）
 docker-compose exec server npx prisma migrate deploy
 ```
 
-### 十、开发模式
-
-```bash
-# 使用开发配置启动（支持热重载）
-make dev
-# 或
-docker-compose -f docker-compose.yml -f docker-compose.override.yml up -d
-
-# 开发模式特点：
-# - 后端支持代码热重载
-# - 前端使用 Vite 开发服务器
-# - 数据库显示所有查询日志
-```
-
-### 十一、卸载清理
+## 十、卸载清理
 
 ```bash
 # 停止并删除容器
-make down
+docker-compose down
 
 # 完全清理（包括数据卷）
-make clean
-
-# 或手动执行
 docker-compose down -v
+
+# 删除镜像
+docker rmi msia-client-prod:latest msia-server-prod:latest
+
+# 清理系统
 docker system prune -f
 ```
 
-### 十二、联系与支持
+## 十一、相关文档
 
-如有问题，请查看：
-- 详细部署文档：[deploy/docker-deploy.md](deploy/docker-deploy.md)
-- 项目文档：[医学生智能问诊辅助系统 - 项目开发文档]
+- [项目术语表](./docs/TERMINOLOGY.md) - 统一术语和命名规范
+- [生产部署指南](./deploy/README.md) - 手动部署到生产服务器
+- [项目主文档](./README.md) - 项目介绍和快速开始
 
 ---
 

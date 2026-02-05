@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
-import { serverConfig } from '../config';
+import { authCookieConfig, serverConfig } from '../config';
+import { verifyToken } from '../utils/auth-helpers';
 
 export type OperatorRole = 'admin' | 'doctor';
 
@@ -84,6 +85,36 @@ export function parseBearerToken(req: Request): string | null {
   return token || null;
 }
 
+function parseCookieHeader(raw: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  const s = String(raw || '').trim();
+  if (!s) return out;
+  const parts = s.split(';');
+  for (const part of parts) {
+    const p = part.trim();
+    if (!p) continue;
+    const idx = p.indexOf('=');
+    if (idx <= 0) continue;
+    const k = p.slice(0, idx).trim();
+    const v = p.slice(idx + 1).trim();
+    if (!k) continue;
+    try {
+      out[k] = decodeURIComponent(v);
+    } catch {
+      out[k] = v;
+    }
+  }
+  return out;
+}
+
+function parseAccessTokenFromCookie(req: Request): string | null {
+  const raw = String(req.header('cookie') || '').trim();
+  if (!raw) return null;
+  const jar = parseCookieHeader(raw);
+  const t = String(jar[authCookieConfig.accessCookieName] || '').trim();
+  return t || null;
+}
+
 function parseTokenFromQuery(req: Request): string | null {
   const accept = String(req.header('accept') || '').toLowerCase();
   const maybeSse = accept.includes('text/event-stream') || String(req.path || '').endsWith('/stream');
@@ -95,12 +126,22 @@ function parseTokenFromQuery(req: Request): string | null {
 }
 
 export function parseOperatorToken(req: Request): string | null {
-  return parseBearerToken(req) || parseTokenFromQuery(req);
+  return parseAccessTokenFromCookie(req) || parseBearerToken(req) || parseTokenFromQuery(req);
 }
 
 export function loadOperatorFromToken(token: string): OperatorIdentity | null {
   const t = String(token || '').trim();
   if (!t) return null;
+
+  // 1. 尝试验证 JWT
+  const jwtPayload = verifyToken(t);
+  if (jwtPayload) {
+    return {
+      token: t,
+      operatorId: jwtPayload.operatorId,
+      role: jwtPayload.role as OperatorRole,
+    };
+  }
 
   if (serverConfig.isDevelopment && t === 'dev-admin') {
     console.warn('[auth] 开发环境使用 dev-admin 作为管理员 token');
@@ -127,11 +168,17 @@ export function loadOperatorFromToken(token: string): OperatorIdentity | null {
         }
       }
     } catch (e) {
-      console.warn('[auth] OPERATOR_TOKENS_JSON 解析失败', e);
+      console.warn('[auth] OPERATOR_TOKENS_JSON 解析失败');
+      if (serverConfig.isDevelopment) console.warn(e);
     }
   }
 
-  const single = String(process.env.OPERATOR_TOKEN || '').trim();
+  const single = (() => {
+    const raw = String(process.env.OPERATOR_TOKEN || '').trim();
+    if (!raw) return '';
+    if (serverConfig.isProduction && raw === 'default_token_change_in_production') return '';
+    return raw;
+  })();
   if (single && t === single) {
     return { token: t, operatorId: 0, role: 'admin' };
   }
@@ -201,7 +248,7 @@ export function requirePermission(perms: OperatorPermission | OperatorPermission
 export function requireRoles(roles: OperatorRole | OperatorRole[]) {
   const allowed = Array.isArray(roles) ? roles : [roles];
   return (req: Request, res: Response, next: NextFunction) => {
-    const token = parseBearerToken(req);
+    const token = parseOperatorToken(req);
     if (!token) {
       res.status(401).json({
         success: false,

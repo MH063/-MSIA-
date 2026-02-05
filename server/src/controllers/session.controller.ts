@@ -37,11 +37,11 @@ export const getSession = async (req: Request, res: Response) => {
       res.status(404).json({ success: false, message: 'Session not found' });
       return;
     }
-    console.log('[getSession] 返回的session数据:', JSON.stringify({
+    console.log('[getSession] 返回session概要', {
       id: session.id,
-      presentIllness: session.presentIllness,
-      presentIllnessKeys: session.presentIllness ? Object.keys(session.presentIllness as any) : []
-    }, null, 2));
+      hasPresentIllness: Boolean(session.presentIllness),
+      presentIllnessKeys: session.presentIllness ? Object.keys(session.presentIllness as any) : [],
+    });
     res.json({ success: true, data: session });
   } catch (error) {
     console.error('Error fetching session:', error);
@@ -57,7 +57,10 @@ export const updateSession = async (req: Request, res: Response) => {
     const { id } = req.params;
     const body = req.body;
 
-    console.log('[updateSession] 接收到的数据:', JSON.stringify(body, null, 2));
+    console.log('[updateSession] 接收到的数据概要', {
+      id,
+      keys: body && typeof body === 'object' ? Object.keys(body) : [],
+    });
 
     // 1. Separate Patient data and Session data
     const patientFields = [

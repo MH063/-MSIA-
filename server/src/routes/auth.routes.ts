@@ -7,6 +7,9 @@ import { requirePermission } from '../middleware/auth';
 const router = Router();
 
 router.post('/login', validateBody(AuthSchemas.login), authController.login);
+router.post('/register', validateBody(AuthSchemas.register), authController.register);
+router.post('/refresh', authController.refresh);
+router.post('/logout', authController.logout);
 router.get('/me', requirePermission('auth:me'), authController.me);
 
 export default router;

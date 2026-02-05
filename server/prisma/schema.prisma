@@ -99,6 +99,18 @@ model SymptomKnowledge {
   @@map("symptom_knowledge")
 }
 
+model Operator {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique @db.VarChar(50)
+  password  String   @db.VarChar(200)
+  name      String?  @db.VarChar(100)
+  role      String   @default("doctor") @db.VarChar(20) // admin, doctor
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("operators")
+}
+
 model KnowledgeSource {
   id          Int      @id @default(autoincrement())
   filePath    String   @unique @map("file_path")
@@ -169,4 +181,39 @@ model DiagnosisRedFlag {
 
   @@unique([diagnosisId, redFlagName])
   @@map("diagnosis_red_flags")
+}
+
+// 登录尝试记录（用于审计与限流/锁定回溯）
+model AuthLoginAttempt {
+  id          BigInt   @id @default(autoincrement()) @db.BigInt
+  ip          String   @db.VarChar(64)
+  username    String?  @db.VarChar(50)
+  operatorId  Int?     @map("operator_id")
+  ok          Boolean  @default(false)
+  reason      String?  @db.VarChar(100)
+  userAgent   String?  @map("user_agent") @db.VarChar(300)
+  requestId   String?  @map("request_id") @db.VarChar(64)
+  lockedUntil DateTime? @map("locked_until")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([ip, createdAt], map: "idx_auth_login_attempts_ip_created_at")
+  @@index([username, createdAt], map: "idx_auth_login_attempts_username_created_at")
+  @@map("auth_login_attempts")
+}
+
+// 登录锁定状态（Redis 丢失时可用数据库回溯）
+model AuthLoginLockout {
+  id            BigInt    @id @default(autoincrement()) @db.BigInt
+  ip            String    @db.VarChar(64)
+  username      String    @db.VarChar(50)
+  failCount     Int       @default(0) @map("fail_count")
+  firstFailedAt DateTime  @map("first_failed_at")
+  lastFailedAt  DateTime  @map("last_failed_at")
+  lockedUntil   DateTime? @map("locked_until")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  @@unique([ip, username], name: "ip_username")
+  @@index([lockedUntil], map: "idx_auth_login_lockouts_locked_until")
+  @@map("auth_login_lockouts")
 }

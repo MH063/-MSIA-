@@ -12,7 +12,7 @@ const SYMPTOM_ICON_MAP: Record<string, { emoji: string; bg: string; ring: string
   cough_and_expectoration: { emoji: '🤧', bg: '#e6f7ff', ring: '#91d5ff' },
   diarrhea: { emoji: '💩', bg: '#fff7e6', ring: '#ffd591' },
   nausea_vomiting: { emoji: '🤮', bg: '#fffbe6', ring: '#ffe58f' },
-  dyspnea: { emoji: '🫁', bg: '#f0f5ff', ring: '#adc6ff' },
+  dyspnea: { emoji: '😮‍💨', bg: '#f0f5ff', ring: '#adc6ff' },
   vertigo: { emoji: '🌀', bg: '#f9f0ff', ring: '#d3adf7' },
   edema: { emoji: '💧', bg: '#e6fffb', ring: '#87e8de' },
   depression: { emoji: '🧠', bg: '#f5f5f5', ring: '#d9d9d9' },

@@ -252,7 +252,22 @@ export const SessionSchemas = {
 
 export const AuthSchemas = {
   login: z.object({
-    token: z.string().min(1, 'token不能为空').max(200, 'token过长'),
+    token: z.string().max(200).optional(),
+    username: z.string().max(50).optional(),
+    password: z.string().max(100).optional(),
+  }).refine((data) => !!data.token || (!!data.username && !!data.password), {
+    message: "请提供Token或用户名密码",
+  }),
+
+  register: z.object({
+    username: z.string().min(3, '用户名至少3个字符').max(50, '用户名过长'),
+    password: z
+      .string()
+      .min(8, '密码至少8个字符')
+      .max(100, '密码过长')
+      .refine((v) => /[A-Za-z]/u.test(v) && /\d/u.test(v), '密码需包含字母和数字'),
+    name: z.string().max(100).optional(),
+    role: z.enum(['admin', 'doctor']).default('doctor'),
   }),
 };
 

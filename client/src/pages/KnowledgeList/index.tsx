@@ -99,7 +99,7 @@ const SYMPTOM_ICON_MAP: Record<string, { emoji: string; bg: string; ring: string
   cough_and_expectoration: { emoji: '🤧', bg: '#e6f7ff', ring: '#91d5ff' },
   diarrhea: { emoji: '💩', bg: '#fff7e6', ring: '#ffd591' },
   nausea_vomiting: { emoji: '🤮', bg: '#fffbe6', ring: '#ffe58f' },
-  dyspnea: { emoji: '🫁', bg: '#f0f5ff', ring: '#adc6ff' },
+  dyspnea: { emoji: '😮‍💨', bg: '#f0f5ff', ring: '#adc6ff' },
   vertigo: { emoji: '🌀', bg: '#f9f0ff', ring: '#d3adf7' },
   edema: { emoji: '💧', bg: '#e6fffb', ring: '#87e8de' },
   depression: { emoji: '🧠', bg: '#f5f5f5', ring: '#d9d9d9' },
@@ -305,45 +305,53 @@ const KnowledgeList: React.FC = () => {
       const root = base.endsWith('/api') ? base.slice(0, -4) : base;
       return `${root}/api/knowledge/stream`;
     })();
-
-    const token = (() => {
-      try {
-        return (
-          window.localStorage.getItem('OPERATOR_TOKEN') ||
-          window.localStorage.getItem('AUTH_TOKEN') ||
-          window.localStorage.getItem('TOKEN') ||
-          ''
-        );
-      } catch {
-        return '';
-      }
-    })();
-
-    const t = String(token || '').trim();
-    if (!t) return url;
-    const sep = url.includes('?') ? '&' : '?';
-    return `${url}${sep}token=${encodeURIComponent(t)}`;
+    return url;
   };
 
   useEffect(() => {
     const url = buildSseUrl();
-    console.log('[KnowledgeList] 建立SSE连接', { url: url.replace(/token=[^&]+/iu, 'token=***') });
-    const es = new EventSource(url);
-    es.onmessage = () => {
-      fetchSymptomNameMapping();
-      fetchSymptomData();
-      fetchDiseaseData();
+    let stopped = false;
+    let retries = 0;
+
+    const connect = () => {
+      if (stopped) return;
+      retries += 1;
+      console.log('[KnowledgeList] 建立SSE连接', { url, retries });
+      const es = new EventSource(url, { withCredentials: true });
+      es.onmessage = () => {
+        fetchSymptomNameMapping();
+        fetchSymptomData();
+        fetchDiseaseData();
+      };
+      es.addEventListener('knowledge_updated', () => {
+        fetchSymptomNameMapping();
+        fetchSymptomData();
+        fetchDiseaseData();
+      });
+      es.onerror = async (evt) => {
+        console.warn('[KnowledgeList] SSE连接异常', { retries, evt });
+        try {
+          es.close();
+        } catch {
+          // ignore
+        }
+        if (esRef.current === es) {
+          esRef.current = null;
+        }
+        try {
+          await api.post('/auth/refresh');
+        } catch (e) {
+          console.warn('[KnowledgeList] SSE尝试刷新失败', e);
+        }
+        const waitMs = Math.min(15000, 500 * Math.min(30, retries));
+        window.setTimeout(() => connect(), waitMs);
+      };
+      esRef.current = es;
     };
-    es.addEventListener('knowledge_updated', () => {
-      fetchSymptomNameMapping();
-      fetchSymptomData();
-      fetchDiseaseData();
-    });
-    es.onerror = (evt) => {
-      console.warn('[KnowledgeList] SSE连接异常', evt);
-    };
-    esRef.current = es;
+
+    connect();
     return () => {
+      stopped = true;
       esRef.current?.close();
       esRef.current = null;
     };

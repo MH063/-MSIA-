@@ -8,7 +8,7 @@ version: '3.8'
 services:
   # PostgreSQL 数据库服务
   db:
-    image: registry.cn-hangzhou.aliyuncs.com/postgres/postgres:16-alpine
+    image: m.daocloud.io/docker.io/library/postgres:16-alpine
     container_name: msia_db
     restart: unless-stopped
     environment:
@@ -30,11 +30,25 @@ services:
     networks:
       - msia_network
 
+  # Redis 缓存服务（用于登录限流与锁定）
+  redis:
+    image: redis:7-alpine
+    container_name: msia_redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - msia_network
+
   # 后端 API 服务
   server:
-    build:
-      context: ./server
-      dockerfile: Dockerfile
+    image: msia-server-prod:latest
     container_name: msia_server
     restart: unless-stopped
     environment:
@@ -59,6 +73,18 @@ services:
       CACHE_TTL: ${CACHE_TTL:-3600}
       CACHE_MAX_SIZE: ${CACHE_MAX_SIZE:-1000}
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      AUTH_LOGIN_IP_WINDOW_MS: ${AUTH_LOGIN_IP_WINDOW_MS:-60000}
+      AUTH_LOGIN_IP_MAX: ${AUTH_LOGIN_IP_MAX:-30}
+      AUTH_LOGIN_FAIL_WINDOW_MS: ${AUTH_LOGIN_FAIL_WINDOW_MS:-600000}
+      AUTH_LOGIN_FAIL_WINDOW_MODE: ${AUTH_LOGIN_FAIL_WINDOW_MODE:-fixed}
+      AUTH_LOGIN_MAX_FAILS_DOCTOR: ${AUTH_LOGIN_MAX_FAILS_DOCTOR:-5}
+      AUTH_LOGIN_LOCK_MS_DOCTOR: ${AUTH_LOGIN_LOCK_MS_DOCTOR:-600000}
+      AUTH_LOGIN_MAX_FAILS_ADMIN: ${AUTH_LOGIN_MAX_FAILS_ADMIN:-5}
+      AUTH_LOGIN_LOCK_MS_ADMIN: ${AUTH_LOGIN_LOCK_MS_ADMIN:-600000}
+      AUTH_LOGIN_SLIDING_REFRESH_TTL: ${AUTH_LOGIN_SLIDING_REFRESH_TTL:-true}
+      AUTH_REGISTER_IP_WINDOW_MS: ${AUTH_REGISTER_IP_WINDOW_MS:-600000}
+      AUTH_REGISTER_IP_MAX: ${AUTH_REGISTER_IP_MAX:-20}
     volumes:
       - uploads_data:/app/uploads
       - ./server/knowledge_base:/app/knowledge_base:ro
@@ -66,6 +92,8 @@ services:
       - "${SERVER_PORT:-4000}:4000"
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://localhost:4000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
@@ -78,10 +106,7 @@ services:
 
   # 前端 Web 服务
   client:
-    build:
-      context: ./client
-      dockerfile: Dockerfile
-      target: production
+    image: msia-client-prod:latest
     container_name: msia_client
     restart: unless-stopped
     ports:

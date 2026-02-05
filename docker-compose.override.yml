@@ -12,6 +12,10 @@ services:
     # 开发环境可以查看数据库日志
     command: postgres -c log_statement=all -c log_destination=stderr
 
+  redis:
+    ports:
+      - "6379:6379"
+
   server:
     build:
       target: builder  # 使用构建阶段，包含开发依赖
@@ -23,6 +27,18 @@ services:
     environment:
       NODE_ENV: development
       LOG_LEVEL: debug
+      REDIS_URL: redis://redis:6379
+      AUTH_LOGIN_IP_WINDOW_MS: ${AUTH_LOGIN_IP_WINDOW_MS:-60000}
+      AUTH_LOGIN_IP_MAX: ${AUTH_LOGIN_IP_MAX:-30}
+      AUTH_LOGIN_FAIL_WINDOW_MS: ${AUTH_LOGIN_FAIL_WINDOW_MS:-600000}
+      AUTH_LOGIN_FAIL_WINDOW_MODE: ${AUTH_LOGIN_FAIL_WINDOW_MODE:-fixed}
+      AUTH_LOGIN_MAX_FAILS_DOCTOR: ${AUTH_LOGIN_MAX_FAILS_DOCTOR:-5}
+      AUTH_LOGIN_LOCK_MS_DOCTOR: ${AUTH_LOGIN_LOCK_MS_DOCTOR:-600000}
+      AUTH_LOGIN_MAX_FAILS_ADMIN: ${AUTH_LOGIN_MAX_FAILS_ADMIN:-5}
+      AUTH_LOGIN_LOCK_MS_ADMIN: ${AUTH_LOGIN_LOCK_MS_ADMIN:-600000}
+      AUTH_LOGIN_SLIDING_REFRESH_TTL: ${AUTH_LOGIN_SLIDING_REFRESH_TTL:-true}
+      AUTH_REGISTER_IP_WINDOW_MS: ${AUTH_REGISTER_IP_WINDOW_MS:-600000}
+      AUTH_REGISTER_IP_MAX: ${AUTH_REGISTER_IP_MAX:-20}
     # 开发模式使用热重载
     command: ["npm", "run", "dev"]
 

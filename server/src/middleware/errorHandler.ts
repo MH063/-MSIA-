@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { Prisma } from '@prisma/client';
+import { redactSensitive } from '../utils/common';
 
 /**
  * 自定义应用错误类
@@ -186,7 +187,7 @@ export const errorHandler = (
     requestId: req.headers['x-request-id'] || 'unknown',
     method: req.method,
     path: req.path,
-    query: req.query,
+    query: redactSensitive(req.query),
     statusCode,
     errorCode,
     message,
@@ -198,7 +199,15 @@ export const errorHandler = (
 
   // 根据错误类型选择日志级别
   if (statusCode >= 500) {
-    console.error('[ErrorHandler] 原始错误:', err);
+    const raw =
+      process.env.NODE_ENV === 'development'
+        ? err
+        : {
+            name: err.name,
+            message: err.message,
+            code: (err as any)?.code,
+          };
+    console.error('[ErrorHandler] 原始错误:', raw);
     console.error('[ErrorHandler] Server Error:', errorLog);
   } else if (statusCode >= 400) {
     console.warn('[ErrorHandler] Client Error:', errorLog);

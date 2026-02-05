@@ -1,4 +1,4 @@
-import axios, { AxiosHeaders, type AxiosRequestConfig, type AxiosResponse } from 'axios';
+import axios, { type AxiosRequestConfig, type AxiosResponse } from 'axios';
 
 const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
 const isProduction = import.meta.env.PROD;
@@ -35,8 +35,16 @@ function getDevHost(): string {
   return host;
 }
 
+const baseURL = isProduction ? '/api' : `http://${getDevHost()}:4000/api`;
+
 const api = axios.create({
-  baseURL: isProduction ? '/api' : `http://${getDevHost()}:4000/api`,
+  baseURL,
+  withCredentials: true,
+});
+
+const refreshApi = axios.create({
+  baseURL,
+  withCredentials: true,
 });
 
 export interface ApiResponse<T = unknown> {
@@ -87,31 +95,23 @@ export async function getBlob(url: string, config?: AxiosRequestConfig): Promise
   return resp as unknown as AxiosResponse<Blob>;
 }
 
-api.interceptors.request.use(
-  (config) => {
+let refreshPromise: Promise<boolean> | null = null;
+
+async function tryRefresh(): Promise<boolean> {
+  if (refreshPromise) return refreshPromise;
+  refreshPromise = (async () => {
     try {
-      const token =
-        window.localStorage.getItem('OPERATOR_TOKEN') ||
-        window.localStorage.getItem('AUTH_TOKEN') ||
-        window.localStorage.getItem('TOKEN') ||
-        '';
-      const t = String(token || '').trim();
-      if (t) {
-        if (!config.headers) {
-          config.headers = new AxiosHeaders({ Authorization: `Bearer ${t}` });
-        } else if (config.headers instanceof AxiosHeaders) {
-          config.headers.set('Authorization', `Bearer ${t}`);
-        } else if (typeof config.headers === 'object') {
-          (config.headers as Record<string, unknown>).Authorization = `Bearer ${t}`;
-        }
-      }
-    } catch (e) {
-      console.warn('[api] 读取本地Token失败', e);
+      const resp = await refreshApi.post<{ success: boolean }>('/auth/refresh');
+      const ok = Boolean(resp?.data?.success);
+      return ok;
+    } catch {
+      return false;
+    } finally {
+      refreshPromise = null;
     }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
+  })();
+  return refreshPromise;
+}
 
 api.interceptors.response.use(
   (response) => {
@@ -121,8 +121,20 @@ api.interceptors.response.use(
     }
     return response.data;
   },
-  (error) => {
+  async (error) => {
     const status = getNestedValue(error, ['response', 'status']);
+    const original = axios.isAxiosError(error)
+      ? ((error.config || undefined) as (AxiosRequestConfig & { _retry?: boolean; _skipAuthRefresh?: boolean }) | undefined)
+      : undefined;
+    const skipRefresh = Boolean(original?._skipAuthRefresh) || String(original?.url || '').includes('/auth/refresh');
+    if (status === 401 && original && !original._retry && !skipRefresh) {
+      original._retry = true;
+      const ok = await tryRefresh();
+      if (ok) {
+        return api.request(original);
+      }
+    }
+
     if (status === 401) {
       try {
         const p = typeof window !== 'undefined' ? String(window.location.pathname || '/') : '/';
