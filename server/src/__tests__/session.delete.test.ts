@@ -20,7 +20,7 @@ function createFakePrisma(params: {
     },
     $executeRawUnsafe: async (sql: string, ...values: any[]) => {
       calls.push({ name: '$executeRawUnsafe', args: [sql, ...values] });
-      if (params.onExecuteRawUnsafe) return params.onExecuteRawUnsafe(sql, ...values);
+      if (params.onExecuteRawUnsafe) {return params.onExecuteRawUnsafe(sql, ...values);}
       return 1;
     },
     interviewSession: {

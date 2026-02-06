@@ -5,9 +5,6 @@ export const SYMPTOM_SYNONYMS: Record<string, string> = {
   "发烧": "发热",
   "体温升高": "发热",
   "高热": "发热",
-  "眩晕": "眩晕",
-  "头晕": "眩晕",
-  "天旋地转": "眩晕",
   "痰中带血": "咯血",
   "吐血": "上消化道出血",
   "呕血": "上消化道出血",
@@ -37,15 +34,11 @@ export const SYMPTOM_NAME_TO_KEY: Record<string, string> = {
   "头痛": "headache",
   "腹泻": "diarrhea",
   "胸痛": "chest_pain",
-  "咳嗽": "cough_and_expectoration",
   "呼吸困难": "dyspnea",
   "咯血": "hemoptysis",
   "恶心呕吐": "nausea_vomiting",
   "上消化道出血": "hematemesis",
   "便血": "hematochezia",
-  "眩晕": "vertigo",
-  "心悸": "palpitation",
-  "乏力": "fatigue",
   "意识障碍": "disturbance_of_consciousness",
   "晕厥": "syncope",
   "抽搐": "tic_convulsion",
@@ -65,6 +58,5 @@ export const SYMPTOM_NAME_TO_KEY: Record<string, string> = {
   "发绀": "cyanosis",
   "肥胖": "obesity",
   "皮肤黏膜出血": "cutaneous_mucosal_hemorrhage",
-  "少尿无尿多尿": "oliguria_anuria_polyuria",
-  "黑便": "melena"
+  "少尿无尿多尿": "oliguria_anuria_polyuria"
 };

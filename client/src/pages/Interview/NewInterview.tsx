@@ -5,7 +5,6 @@ import {
   Form, 
   Input, 
   Select, 
-  DatePicker, 
   Card, 
   Row, 
   Col, 
@@ -35,6 +34,7 @@ import {
   LoadingOutlined
 } from '@ant-design/icons';
 import dayjs, { type Dayjs } from 'dayjs';
+import LazyDatePicker from '../../components/lazy/LazyDatePicker';
 import api, { unwrapData } from '../../utils/api';
 import { computeAgeDisplay, formatAgeText, normalizeAge } from '../../utils/age';
 import AgeDisplayView from './components/Editor/AgeDisplay';
@@ -574,7 +574,7 @@ const NewInterview: React.FC = () => {
               
               <Col xs={24} sm={12} md={8}>
                 <Form.Item name="birthDate" label={<Space><CalendarOutlined />出生日期</Space>}>
-                  <DatePicker 
+                  <LazyDatePicker 
                     style={{ width: '100%', borderRadius: 8 }} 
                     size="large"
                     placeholder="选择出生日期"
@@ -764,7 +764,7 @@ const NewInterview: React.FC = () => {
             <Row gutter={[16, 16]}>
               <Col xs={24} sm={12}>
                 <Form.Item name="admissionTime" label="入院时间">
-                  <DatePicker 
+                  <LazyDatePicker 
                     showTime 
                     format="YYYY-MM-DD HH:mm" 
                     style={{ width: '100%', borderRadius: 8 }} 
@@ -774,12 +774,12 @@ const NewInterview: React.FC = () => {
                 </Form.Item>
               </Col>
               <Col xs={24} sm={12}>
-                <Form.Item 
+                  <Form.Item 
                   name="recordTime" 
                   label="记录时间"
                   rules={[{ required: true, message: '请选择记录时间' }]}
                 >
-                  <DatePicker 
+                  <LazyDatePicker 
                     showTime 
                     format="YYYY-MM-DD HH:mm" 
                     style={{ width: '100%', borderRadius: 8 }} 

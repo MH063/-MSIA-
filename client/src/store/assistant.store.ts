@@ -48,6 +48,7 @@ export interface KnowledgeContext {
 
 export interface KnowledgeState {
   context: KnowledgeContext | null;
+  contexts?: KnowledgeContext[];
   diagnosisSuggestions: string[];
   nameToKey: Record<string, string>;
   keyToName: Record<string, string>;
@@ -58,6 +59,7 @@ export interface KnowledgeState {
 
 export interface KnowledgeActions {
   setKnowledgeContext: (context: KnowledgeContext | null) => void;
+  setKnowledgeContexts?: (contexts: KnowledgeContext[]) => void;
   setDiagnosisSuggestions: (suggestions: string[]) => void;
   setKnowledgeMappings: (mappings: { nameToKey: Record<string, string>; keyToName: Record<string, string>; synonyms?: Record<string, string> }) => void;
   setKnowledgeLoading: (loading: boolean) => void;
@@ -115,6 +117,7 @@ export const useAssistantStore = create<AssistantState>((set) => ({
   actions: {},
   knowledge: {
     context: null,
+    contexts: [],
     diagnosisSuggestions: [],
     nameToKey: {},
     keyToName: {},
@@ -122,6 +125,7 @@ export const useAssistantStore = create<AssistantState>((set) => ({
     loading: false,
     error: null,
     setKnowledgeContext: (context) => set((s) => ({ knowledge: { ...s.knowledge, context } })),
+    setKnowledgeContexts: (contexts) => set((s) => ({ knowledge: { ...s.knowledge, contexts: contexts || [], context: (contexts && contexts[0]) ? contexts[0] : null } })),
     setDiagnosisSuggestions: (suggestions) => set((s) => ({ knowledge: { ...s.knowledge, diagnosisSuggestions: suggestions, error: null } })),
     setKnowledgeMappings: (mappings) => set((s) => ({ knowledge: { ...s.knowledge, ...mappings } })),
     setKnowledgeLoading: (loading) => set((s) => ({ knowledge: { ...s.knowledge, loading } })),
@@ -130,6 +134,7 @@ export const useAssistantStore = create<AssistantState>((set) => ({
       knowledge: {
         ...s.knowledge,
         context: null,
+        contexts: [],
         diagnosisSuggestions: [],
         error: null
       }

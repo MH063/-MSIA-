@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
-import { Form, Input, Row, Col, Typography, Card, Button, DatePicker, Checkbox, Grid } from 'antd';
+import { Form, Input, Row, Col, Typography, Card, Button, Checkbox, Grid } from 'antd';
+import LazyDatePicker from '../../../../components/lazy/LazyDatePicker';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 
 const { Title } = Typography;
@@ -81,11 +82,11 @@ const AuxiliaryExamSection: React.FC = () => {
                       label="检查日期"
                       rules={[{ required: true, message: '请选择日期' }]}
                     >
-                      <DatePicker
+                      <LazyDatePicker
                         style={{ width: '100%' }}
                         placement="bottomLeft"
                         classNames={{ popup: { root: isMobile ? 'msia-mobile-picker' : undefined } }}
-                        getPopupContainer={(trigger) => (isMobile ? document.body : trigger.parentElement ?? document.body)}
+                        getPopupContainer={(trigger: HTMLElement) => (isMobile ? document.body : trigger.parentElement ?? document.body)}
                       />
                     </Form.Item>
                   </Col>

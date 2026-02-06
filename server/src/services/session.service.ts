@@ -22,7 +22,7 @@ function getCascadeDeleteSpecs(): CascadeDeleteSpec[] {
         }))
         .filter((it) => it.table && it.fkColumn)
         .filter((it) => isSafeSqlIdentifier(it.table) && isSafeSqlIdentifier(it.fkColumn));
-      if (normalized.length > 0) return normalized;
+      if (normalized.length > 0) {return normalized;}
     } catch (e) {
       console.warn('[session.delete] SESSION_CASCADE_TABLES_JSON 解析失败', e);
     }
@@ -51,9 +51,9 @@ async function deleteByFkIfExists(
   spec: CascadeDeleteSpec,
   fkValue: number
 ): Promise<void> {
-  if (!isSafeSqlIdentifier(spec.table) || !isSafeSqlIdentifier(spec.fkColumn)) return;
+  if (!isSafeSqlIdentifier(spec.table) || !isSafeSqlIdentifier(spec.fkColumn)) {return;}
   const exists = await tableExists(tx, spec.table);
-  if (!exists) return;
+  if (!exists) {return;}
 
   const sql = `DELETE FROM "${spec.table}" WHERE "${spec.fkColumn}" = $1`;
   await tx.$executeRawUnsafe(sql, fkValue);
@@ -73,7 +73,7 @@ async function writeAuditLogIfExists(
 
   const auditTable = 'audit_logs';
   const exists = await tableExists(tx, auditTable);
-  if (!exists) return;
+  if (!exists) {return;}
 
   try {
     const sql =
@@ -168,9 +168,9 @@ export function canOperatorDeleteSession(params: {
   sessionDoctorId: number | null;
 }): boolean {
   const { operator, sessionDoctorId } = params;
-  if (operator.role === 'admin') return true;
+  if (operator.role === 'admin') {return true;}
   if (operator.role === 'doctor') {
-    if (sessionDoctorId === null) return false;
+    if (sessionDoctorId === null) {return false;}
     return sessionDoctorId === operator.operatorId;
   }
   return false;

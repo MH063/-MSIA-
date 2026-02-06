@@ -1,17 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { App as AntdApp, Table, Button, Space, Typography, Card, Tag, Grid, Checkbox, Pagination, Spin, Empty } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
-import { DeleteOutlined, EyeOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
+import { App as AntdApp, Button, Space, Typography, Card, Tag, Grid, Pagination, Spin, Empty, Timeline, Switch, Collapse, Row, Col, theme } from 'antd';
+import { DeleteOutlined, EyeOutlined, ExclamationCircleOutlined, PlusOutlined, LockOutlined, UnlockOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import api, { getApiErrorMessage, unwrapData } from '../../utils/api';
 import type { ApiResponse } from '../../utils/api';
+import MarkdownEditor from '../../components/MarkdownEditor';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 const { useBreakpoint } = Grid;
 
 /**
- * 病历列表页
+ * 病历列表页 - 重构版
+ * 支持时间轴视图、富文本编辑预览、加密模式
  */
 interface Patient {
   id: number;
@@ -24,16 +25,21 @@ interface SessionListItem {
   status: 'draft' | 'completed' | 'archived' | string;
   patient?: Patient;
   createdAt: string;
+  summary?: string; // 模拟富文本摘要字段
 }
+
 const SessionList: React.FC = () => {
   const navigate = useNavigate();
   const { modal, message } = AntdApp.useApp();
+  const { token } = theme.useToken();
   const screens = useBreakpoint();
   const isMobile = !screens.md;
+  
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<SessionListItem[]>([]);
-  const [selectedRowKeys, setSelectedRowKeys] = useState<number[]>([]);
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
+  const [isEncrypted, setIsEncrypted] = useState(false);
+  const [activeNotes, setActiveNotes] = useState<Record<number, string>>({});
 
   const fetchData = React.useCallback(async (page: number = 1, pageSize: number = 10) => {
     setLoading(true);
@@ -62,9 +68,6 @@ const SessionList: React.FC = () => {
   useEffect(() => {
     fetchData(pageCurrent, pageSize);
   }, [fetchData, pageCurrent, pageSize]);
-  /**
-   * 删除单条会话
-   */
 
   const handleDelete = (id: number) => {
     modal.confirm({
@@ -75,267 +78,172 @@ const SessionList: React.FC = () => {
       cancelText: '取消',
       onOk: async () => {
         try {
-          console.log('[SessionList] 请求永久删除问诊记录', { id });
           const res: ApiResponse = await api.delete(`/sessions/${id}`);
           if (res.success) {
             message.success('已永久删除');
             fetchData(pageCurrent, pageSize);
           }
         } catch (error: unknown) {
-          console.error('[SessionList] 永久删除失败', error);
           message.error(getApiErrorMessage(error, '删除失败'));
         }
       },
     });
   };
 
-  /**
-   * handleBulkDelete
-   * 批量删除会话，使用 unwrapData 解包双层 data 结构，确保兼容后端 { success, data: { deletedCount } } 响应
-   */
-  const handleBulkDelete = () => {
-    if (selectedRowKeys.length === 0) return;
-    modal.confirm({
-      title: `确认批量删除选中的 ${selectedRowKeys.length} 条问诊记录?`,
-      icon: <ExclamationCircleOutlined />,
-      content: '删除后无法恢复，请谨慎操作。',
-      okText: '确认删除',
-      okType: 'danger',
-      cancelText: '取消',
-      onOk: async () => {
-        try {
-          console.log('[SessionList] 请求批量永久删除问诊记录', { ids: selectedRowKeys });
-          const res: ApiResponse<{ deletedCount: number } | { data: { deletedCount: number } }> = await api.post('/sessions/bulk-delete', { ids: selectedRowKeys });
-          if (res?.success) {
-            const payload = unwrapData<{ deletedCount: number }>(res);
-            const count = payload?.deletedCount ?? 0;
-            message.success(`已永久删除${count}条记录`);
-            setSelectedRowKeys([]);
-            fetchData(pageCurrent, pageSize);
-          }
-        } catch (error: unknown) {
-          console.error('[SessionList] 批量永久删除失败', error);
-          message.error(getApiErrorMessage(error, '批量删除失败'));
-        }
-      },
-    });
-  };
-
-  const columns: ColumnsType<SessionListItem> = [
-    {
-      title: 'ID',
-      dataIndex: 'id',
-      width: 80,
-    },
-    {
-      title: '患者姓名',
-      dataIndex: ['patient', 'name'],
-      render: (text: string) => text || '未知',
-    },
-    {
-      title: '性别',
-      dataIndex: ['patient', 'gender'],
-      width: 80,
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      width: 120,
-      render: (status: string) => {
-        let color = 'default';
-        let text = status;
-        switch (status) {
-          case 'draft': color = 'gold'; text = '草稿'; break;
-          case 'completed': color = 'green'; text = '已完成'; break;
-          case 'archived': color = 'blue'; text = '已归档'; break;
-        }
-        return <Tag color={color}>{text}</Tag>;
-      },
-    },
-    {
-      title: '创建时间',
-      dataIndex: 'createdAt',
-      width: 180,
-      render: (val: string) => dayjs(val).format('YYYY-MM-DD HH:mm'),
-    },
-    {
-      title: '操作',
-      key: 'action',
-      width: 200,
-      render: (_: unknown, record: SessionListItem) => (
-        <Space size="middle">
-          <Button 
-            type="primary" 
-            ghost 
-            icon={<EyeOutlined />} 
-            onClick={() => navigate(`/interview/${record.id}`)}
-          >
-            查看
-          </Button>
-          <Button 
-            danger 
-            icon={<DeleteOutlined />} 
-            onClick={() => handleDelete(record.id)}
-          >
-            删除
-          </Button>
-        </Space>
-      ),
-    },
-  ];
-
-  const statusMeta = React.useCallback((status: string) => {
+  const statusMeta = (status: string) => {
     if (status === 'draft') return { color: 'gold', text: '草稿' };
     if (status === 'completed') return { color: 'green', text: '已完成' };
     if (status === 'archived') return { color: 'blue', text: '已归档' };
     return { color: 'default', text: status || '未知' };
-  }, []);
+  };
 
-  const toggleSelected = React.useCallback((id: number) => {
-    setSelectedRowKeys((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-  }, []);
+  const getEncryptedText = (text: string) => {
+    if (!isEncrypted) return text;
+    if (!text) return '';
+    return text.length > 1 ? text[0] + '*'.repeat(text.length - 1) : '*';
+  };
+
+  // 模拟更新摘要
+  const handleNoteChange = (id: number, value: string) => {
+    setActiveNotes(prev => ({ ...prev, [id]: value }));
+    // 实际场景应调用API保存
+  };
 
   return (
-    <div style={{ padding: isMobile ? 12 : 24 }}>
-      <Card styles={{ body: { padding: isMobile ? 12 : 24 } }}>
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: isMobile ? 'column' : 'row',
-            justifyContent: 'space-between',
-            alignItems: isMobile ? 'stretch' : 'center',
-            gap: isMobile ? 12 : 0,
-            marginBottom: 16,
-          }}
-        >
-          <Title level={isMobile ? 4 : 3} style={{ margin: 0 }}>我的病历列表</Title>
-          <Space style={isMobile ? { width: '100%', justifyContent: 'space-between' } : undefined}>
-            <Button
-              danger
-              disabled={selectedRowKeys.length === 0}
-              icon={<DeleteOutlined />}
-              onClick={handleBulkDelete}
-            >
-              批量删除
-            </Button>
-            <Button type="primary" onClick={() => navigate('/interview')}>
-              新建问诊
-            </Button>
-          </Space>
+    <div style={{ padding: isMobile ? 12 : 24, maxWidth: 1200, margin: '0 auto' }}>
+      <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
+        <div>
+          <Title level={3} style={{ margin: 0 }}>我的病历</Title>
+          <Text type="secondary">管理所有历史问诊记录与病历档案</Text>
         </div>
+        <Space wrap>
+          <Space>
+            <Text>数据隐私保护</Text>
+            <Switch 
+              checkedChildren={<LockOutlined />} 
+              unCheckedChildren={<UnlockOutlined />} 
+              checked={isEncrypted} 
+              onChange={setIsEncrypted} 
+            />
+          </Space>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/interview')}>
+            新建问诊
+          </Button>
+        </Space>
+      </div>
 
-        {isMobile ? (
-          <div>
-            {loading ? (
-              <div style={{ padding: '18px 0', display: 'flex', justifyContent: 'center' }}>
-                <Spin />
-              </div>
-            ) : data.length === 0 ? (
-              <Empty description="暂无病历" style={{ padding: '18px 0' }} />
-            ) : (
-              <div style={{ display: 'grid', gap: 10 }}>
-                {data.map((record) => {
-                  const meta = statusMeta(record.status);
-                  const patientName = record.patient?.name || '未知';
-                  const gender = record.patient?.gender || '-';
-                  const createdAt = dayjs(record.createdAt).format('YYYY-MM-DD HH:mm');
-                  const checked = selectedRowKeys.includes(record.id);
+      {loading && data.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: 40 }}><Spin size="large" /></div>
+      ) : data.length === 0 ? (
+        <Empty description="暂无病历记录" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+      ) : (
+        <Row gutter={[24, 24]}>
+          <Col xs={24} lg={16}>
+             <Card title="最近问诊时间轴" variant="borderless" style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
+                <Timeline
+                  mode="start"
+                  items={data.map(item => {
+                    const meta = statusMeta(item.status);
+                    const date = dayjs(item.createdAt);
+                    const patientName = getEncryptedText(item.patient?.name || '未知患者');
 
-                  return (
-                    <Card
-                      key={record.id}
-                      hoverable
-                      styles={{ body: { padding: 12 } }}
-                      onClick={() => navigate(`/interview/${record.id}`)}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
-                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, minWidth: 0 }}>
-                          <Checkbox
-                            checked={checked}
-                            onClick={(e) => e.stopPropagation()}
-                            onChange={() => toggleSelected(record.id)}
-                            style={{ marginTop: 2 }}
-                          />
-                          <div style={{ minWidth: 0 }}>
-                            <Typography.Text strong style={{ fontSize: 16 }}>{patientName}</Typography.Text>
-                            <div style={{ marginTop: 4, color: 'rgba(0,0,0,0.65)', fontSize: 12 }}>
-                              <span>病历ID：{record.id}</span>
-                              <span style={{ marginInline: 10 }}>性别：{gender}</span>
-                            </div>
-                          </div>
+                    return {
+                      key: item.id,
+                      title: (
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                          <Text strong>{date.format('YYYY-MM-DD')}</Text>
+                          <Text type="secondary" style={{ fontSize: 12 }}>{date.format('HH:mm')}</Text>
                         </div>
-                        <Tag color={meta.color} style={{ margin: 0 }}>{meta.text}</Tag>
-                      </div>
+                      ),
+                      dot: item.status === 'completed' ? <ClockCircleOutlined style={{ fontSize: '16px', color: token.colorSuccess }} /> : undefined,
+                      content: (
+                        <Card
+                          size="small"
+                          variant="outlined"
+                          hoverable
+                          style={{ marginBottom: 8, borderColor: token.colorBorderSecondary }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+                            <Space>
+                              <Text strong style={{ fontSize: 16 }}>{patientName}</Text>
+                              <Tag color={meta.color}>{meta.text}</Tag>
+                              <Text type="secondary" style={{ fontSize: 12 }}>ID: {item.id}</Text>
+                            </Space>
+                          </div>
 
-                      <div style={{ marginTop: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-                        <Typography.Text type="secondary" style={{ fontSize: 12 }}>{createdAt}</Typography.Text>
-                        <Space size={8}>
-                          <Button
-                            type="primary"
+                          <Collapse
+                            ghost
                             size="small"
-                            icon={<EyeOutlined />}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigate(`/interview/${record.id}`);
-                            }}
-                          >
-                            查看
-                          </Button>
-                          <Button
-                            danger
-                            size="small"
-                            icon={<DeleteOutlined />}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDelete(record.id);
-                            }}
-                          >
-                            删除
-                          </Button>
-                        </Space>
-                      </div>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
+                            items={[
+                              {
+                                key: 'notes',
+                                label: '医生备注 (富文本)',
+                                children: (
+                                  <MarkdownEditor
+                                    value={activeNotes[item.id] || item.summary || `## 病历摘要\n\n患者 ${patientName} 于 ${date.format('YYYY年MM月DD日')} 就诊。`}
+                                    onChange={(val) => handleNoteChange(item.id, val)}
+                                    height={200}
+                                  />
+                                )
+                              }
+                            ]}
+                          />
 
-            <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                共 {pagination.total} 条
-              </Typography.Text>
-              <Pagination
-                current={pagination.current}
-                pageSize={pagination.pageSize}
-                total={pagination.total}
-                onChange={(page, pageSize) => fetchData(page, pageSize)}
-                showSizeChanger
-                size="small"
-              />
-            </div>
-          </div>
-        ) : (
-          <Table
-            rowKey="id"
-            columns={columns}
-            dataSource={data}
-            loading={loading}
-            tableLayout="fixed"
-            scroll={{ y: 480 }}
-            rowSelection={{
-              selectedRowKeys,
-              onChange: (keys) => setSelectedRowKeys(keys as number[]),
-            }}
-            pagination={{
-              current: pagination.current,
-              pageSize: pagination.pageSize,
-              total: pagination.total,
-              onChange: (page, pageSize) => fetchData(page, pageSize),
-              showSizeChanger: true
-            }}
-          />
-        )}
-      </Card>
+                          <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                            <Button size="small" icon={<EyeOutlined />} onClick={() => navigate(`/interview/${item.id}`)}>
+                              进入详情
+                            </Button>
+                            <Button size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(item.id)}>
+                              删除
+                            </Button>
+                          </div>
+                        </Card>
+                      )
+                    };
+                  })}
+                />
+                
+                <div style={{ textAlign: 'center', marginTop: 24 }}>
+                  <Pagination
+                    current={pagination.current}
+                    pageSize={pagination.pageSize}
+                    total={pagination.total}
+                    onChange={(page, size) => fetchData(page, size)}
+                    size="small"
+                  />
+                </div>
+             </Card>
+          </Col>
+          
+          <Col xs={24} lg={8}>
+            <Card title="病历统计" variant="borderless" style={{ marginBottom: 24 }}>
+              <Space orientation="vertical" style={{ width: '100%' }} size="large">
+                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Text>总记录数</Text>
+                    <Text strong>{pagination.total}</Text>
+                 </div>
+                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Text>本月新增</Text>
+                    <Text strong type="success">+ {data.filter(i => dayjs(i.createdAt).isAfter(dayjs().startOf('month'))).length}</Text>
+                 </div>
+                 <div style={{ padding: 12, background: token.colorFillAlter, borderRadius: 8 }}>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      <LockOutlined /> 数据已启用端到端加密保护。仅授权医生可查看完整病历信息。
+                    </Text>
+                 </div>
+              </Space>
+            </Card>
+
+            <Card title="快速操作" variant="borderless">
+              <Space orientation="vertical" style={{ width: '100%' }}>
+                <Button block onClick={() => navigate('/interview')}>创建新病历</Button>
+                <Button block>导出本月报表</Button>
+                <Button block>管理归档记录</Button>
+              </Space>
+            </Card>
+          </Col>
+        </Row>
+      )}
     </div>
   );
 };

@@ -56,7 +56,7 @@ export const getAllDiagnosesWithRelations = async () => {
  * 根据症状关键词获取相关诊断
  */
 export const getDiagnosesBySymptoms = async (symptomKeys: string[]) => {
-  if (symptomKeys.length === 0) return [];
+  if (symptomKeys.length === 0) {return [];}
 
   return await prisma.diagnosis.findMany({
     where: {
@@ -274,7 +274,7 @@ export const getConfidenceDetails = async (
     },
   });
 
-  if (!diagnosis) return null;
+  if (!diagnosis) {return null;}
 
   const diagnosisSymptoms = diagnosis.symptoms.filter((s) => !s.isExcluding);
   const supportingEvidence = symptoms.filter((s) =>

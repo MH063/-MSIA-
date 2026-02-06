@@ -100,7 +100,7 @@ export const logConfig = {
  */
 function parseIntEnv(key: string, defaultValue: number): number {
   const raw = String(process.env[key] ?? '').trim();
-  if (!raw) return defaultValue;
+  if (!raw) {return defaultValue;}
   const n = Number(raw);
   return Number.isFinite(n) ? Math.trunc(n) : defaultValue;
 }
@@ -111,9 +111,9 @@ function parseIntEnv(key: string, defaultValue: number): number {
  */
 function parseBoolEnv(key: string, defaultValue: boolean): boolean {
   const raw = String(process.env[key] ?? '').trim().toLowerCase();
-  if (!raw) return defaultValue;
-  if (raw === '1' || raw === 'true' || raw === 'yes' || raw === 'y') return true;
-  if (raw === '0' || raw === 'false' || raw === 'no' || raw === 'n') return false;
+  if (!raw) {return defaultValue;}
+  if (raw === '1' || raw === 'true' || raw === 'yes' || raw === 'y') {return true;}
+  if (raw === '0' || raw === 'false' || raw === 'no' || raw === 'n') {return false;}
   return defaultValue;
 }
 
@@ -123,7 +123,7 @@ function parseBoolEnv(key: string, defaultValue: boolean): boolean {
  */
 function parseEnumEnv<T extends string>(key: string, allowed: readonly T[], defaultValue: T): T {
   const raw = String(process.env[key] ?? '').trim();
-  if (!raw) return defaultValue;
+  if (!raw) {return defaultValue;}
   return (allowed as readonly string[]).includes(raw) ? (raw as T) : defaultValue;
 }
 

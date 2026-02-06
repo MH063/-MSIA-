@@ -13,7 +13,7 @@ import {
  */
 export const suggestDiagnosis = async (req: Request, res: Response) => {
   try {
-    const { sessionId, symptoms, gender, age } = req.body as {
+    const { sessionId, symptoms, gender: _gender, age: _age } = req.body as {
       sessionId?: number;
       symptoms?: string[];
       gender?: string;
@@ -92,10 +92,10 @@ export const suggestDiagnosis = async (req: Request, res: Response) => {
 
     for (const item of knowledgeItems) {
       for (const r of (item.redFlags || []) as string[]) {
-        if (r) redFlagNames.add(r);
+        if (r) {redFlagNames.add(r);}
       }
       for (const s of (item.associatedSymptoms || []) as string[]) {
-        if (s) relatedNames.add(s);
+        if (s) {relatedNames.add(s);}
       }
     }
 
@@ -110,7 +110,7 @@ export const suggestDiagnosis = async (req: Request, res: Response) => {
     const categoryMap: Record<string, string[]> = {};
     symptomCategories.forEach(s => {
       const cat = s.category || '其他';
-      if (!categoryMap[cat]) categoryMap[cat] = [];
+      if (!categoryMap[cat]) {categoryMap[cat] = [];}
       categoryMap[cat].push(s.displayName);
     });
 
@@ -122,7 +122,7 @@ export const suggestDiagnosis = async (req: Request, res: Response) => {
     }
 
     if (redFlagNames.size > 0)
-      hints.unshift(`存在警惕征象：${Array.from(redFlagNames).join('、')}`);
+      {hints.unshift(`存在警惕征象：${Array.from(redFlagNames).join('、')}`);}
 
     const related = Array.from(relatedNames).filter(
       (n) => !normalizedInputNames.includes(n)
@@ -203,7 +203,7 @@ export const suggestEnhancedDiagnosis = async (req: Request, res: Response) => {
     // 生成置信度详情
     const confidenceDetails = await Promise.all(
       diagnoses.map(async (d) => {
-        const details = await getConfidenceDetails(
+        const _details = await getConfidenceDetails(
           d.id,
           [...(associatedSymptoms || []), currentSymptom],
           redFlags || []

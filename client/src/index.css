@@ -1,5 +1,5 @@
 :root {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', 'Source Han Sans SC', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  font-family: 'PingFang SC', Roboto, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
@@ -8,26 +8,111 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  --msia-primary: #1677ff;
-  --msia-primary-2: #1d4ed8;
-  --msia-success: #52c41a;
+  /* Light Theme (Default) */
+  --msia-primary: #0052D9;
+  --msia-primary-hover: #003CAB;
+  --msia-primary-bg: #E6EFFF;
+  --msia-secondary: #F5F7FA;
+  --msia-accent: #FF6B4B;
+  --msia-success: #2BA471;
+  --msia-warning: #E37318;
+  --msia-error: #D54941;
+  
   --msia-text: #1f1f1f;
-  --msia-muted: #8c8c8c;
-  --msia-border: #f0f0f0;
+  --msia-text-secondary: #595959;
+  --msia-text-tertiary: #8c8c8c;
+  
+  --msia-border: #E7E7E7;
   --msia-card: #ffffff;
-  --msia-bg: #f0f2f5;
+  --msia-bg: #F5F7FA;
+  
   --msia-radius-card: 14px;
-  --msia-radius-control: 12px;
+  --msia-radius-control: 6px;
   --msia-radius-pill: 999px;
-  --msia-shadow-card: 0 8px 22px rgba(0, 0, 0, 0.06);
-  --msia-shadow-card-hover: 0 14px 32px rgba(0, 0, 0, 0.10);
+  
+  --msia-shadow-card: 0 4px 16px rgba(0, 0, 0, 0.04);
+  --msia-shadow-card-hover: 0 8px 24px rgba(0, 0, 0, 0.08);
+  --msia-shadow-float: 0 12px 32px rgba(0, 0, 0, 0.12);
+
+  --msia-card-head-bg: #fafafa;
+  --msia-item-hover-bg: #f5faff;
+  --msia-item-selected-bg: #e6f4ff;
+  --msia-header-bg: rgba(240, 242, 245, 0.9);
+  --msia-header-inner-bg: #ffffff;
+  --msia-footer-bg: rgba(255, 255, 255, 0.92);
+  --msia-sider-bg: #ffffff;
+  --msia-metric-bg: #fafafa;
+  --msia-banner-kpi-bg: rgba(255, 255, 255, 0.14);
+  --msia-banner-kpi-border: rgba(255, 255, 255, 0.22);
+}
+
+[data-theme='dark'] {
+  --msia-primary: #4582E6;
+  --msia-primary-hover: #699EF5;
+  --msia-primary-bg: #1B2F51;
+  --msia-secondary: #141414;
+  --msia-accent: #FF8D72;
+  --msia-success: #298E64;
+  --msia-warning: #C76110;
+  --msia-error: #B5362E;
+  
+  --msia-text: #E8E8E8;
+  --msia-text-secondary: #A6A6A6;
+  --msia-text-tertiary: #757575;
+  
+  --msia-border: #303030;
+  --msia-card: #1F1F1F;
+  --msia-bg: #141414;
+  
+  --msia-shadow-card: 0 4px 16px rgba(0, 0, 0, 0.3);
+  --msia-shadow-card-hover: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --msia-shadow-float: 0 12px 32px rgba(0, 0, 0, 0.5);
+
+  --msia-card-head-bg: #262626;
+  --msia-item-hover-bg: rgba(255, 255, 255, 0.08);
+  --msia-item-selected-bg: #111b26;
+  --msia-header-bg: rgba(20, 20, 20, 0.9);
+  --msia-header-inner-bg: #1f1f1f;
+  --msia-footer-bg: rgba(20, 20, 20, 0.92);
+  --msia-sider-bg: #1f1f1f;
+  --msia-metric-bg: #262626;
+  --msia-banner-kpi-bg: rgba(0, 0, 0, 0.25);
+  --msia-banner-kpi-border: rgba(255, 255, 255, 0.1);
 }
 
 body {
   margin: 0;
   padding: 0;
   min-height: 100vh;
-  background-color: #f5f5f5; /* 给一个淡灰色背景，适合后台/问诊系统 */
+  background-color: var(--msia-bg);
+  color: var(--msia-text);
+  overflow-x: hidden;
+  transition: background-color 0.1s ease, color 0.1s ease;
+}
+
+/* 全局滚动条显示与样式 */
+html {
+  overflow-y: auto;
+  scrollbar-width: auto; /* Firefox 使用系统默认宽度 */
+  scrollbar-color: rgba(0, 0, 0, 0.25) transparent;
+}
+
+html::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+html::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+html::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 4px;
+}
+
+html::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.35);
 }
 
 .msia-page {
@@ -136,7 +221,7 @@ body {
 
 .home-card .ant-card-head,
 .home-subcard .ant-card-head {
-  background: #fafafa;
+  background: var(--msia-card-head-bg);
   border-bottom: 1px solid var(--msia-border);
 }
 
@@ -175,8 +260,8 @@ body {
 .home-banner-kpi {
   padding: 14px 16px;
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.14);
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: var(--msia-banner-kpi-bg);
+  border: 1px solid var(--msia-banner-kpi-border);
   backdrop-filter: blur(8px);
 }
 
@@ -239,7 +324,7 @@ body {
 .home-metric {
   padding: 10px 12px;
   border-radius: 12px;
-  background: #fafafa;
+  background: var(--msia-metric-bg);
   border: 1px solid var(--msia-border);
 }
 
@@ -288,7 +373,7 @@ body {
 }
 
 .home-list-item:hover {
-  background: #f5faff;
+  background: var(--msia-item-hover-bg);
   transform: translateY(-1px);
 }
 
@@ -447,7 +532,7 @@ body {
 }
 
 .interview-layout .ant-layout-sider {
-  background: #ffffff;
+  background: var(--msia-sider-bg);
 }
 
 .interview-nav-panel .ant-menu-item {
@@ -458,7 +543,7 @@ body {
 }
 
 .interview-nav-panel .ant-menu-item-selected {
-  background: #e6f4ff !important;
+  background: var(--msia-item-selected-bg) !important;
   position: relative;
 }
 
@@ -531,7 +616,7 @@ body {
   position: sticky;
   top: 0;
   z-index: 20;
-  background: rgba(240, 242, 245, 0.9);
+  background: var(--msia-header-bg);
   backdrop-filter: blur(6px);
   padding: 8px 0 12px;
 }
@@ -543,20 +628,20 @@ body {
   gap: 12px;
   padding: 14px 16px;
   border-radius: 12px;
-  background: #ffffff;
-  border: 1px solid #f0f0f0;
+  background: var(--msia-header-inner-bg);
+  border: 1px solid var(--msia-border);
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
 }
 
 .interview-editor-header-title {
   font-size: 16px;
   font-weight: 600;
-  color: #1f1f1f;
+  color: var(--msia-text);
 }
 
 .interview-editor-header-subtitle {
   font-size: 12px;
-  color: #8c8c8c;
+  color: var(--msia-text-tertiary);
   margin-top: 2px;
 }
 
@@ -831,8 +916,8 @@ body {
 }
 
 .interview-section-card .ant-card-head {
-  background: #fafafa;
-  border-bottom: 1px solid #f0f0f0;
+  background: var(--msia-card-head-bg);
+  border-bottom: 1px solid var(--msia-border);
 }
 
 .interview-section-card {
@@ -851,9 +936,9 @@ body {
   right: 0;
   bottom: 0;
   z-index: 30;
-  background: rgba(255, 255, 255, 0.92);
+  background: var(--msia-footer-bg);
   backdrop-filter: blur(6px);
-  border-top: 1px solid #f0f0f0;
+  border-top: 1px solid var(--msia-border);
 }
 
 .interview-editor-footer-inner {
@@ -935,6 +1020,80 @@ body {
 }
 
 .age-child .age-number,
+.age-child .age-unit,
+.age-child .age-months {
+  color: #27ae60;
+}
+
+[data-theme='dark'] .medical-record {
+  --text: #e0e0e0;
+  --muted: #a0a0a0;
+  --line: #424242;
+  --card: #1f1f1f;
+  --primary: #699EF5;
+  --primary-light: #1b2f51;
+  --positive-bg: #133020;
+  --positive: #49aa19;
+  --negative-bg: #431418;
+  --negative: #d32029;
+  --neutral-bg: #443111;
+  --neutral: #d89614;
+  
+  background: #1f1f1f;
+  border-color: #303030;
+  color: var(--text);
+}
+
+[data-theme='dark'] .medical-record h1 {
+  background: linear-gradient(135deg, #1b2f51 0%, #111b26 100%);
+  color: var(--primary);
+}
+
+[data-theme='dark'] .medical-record h1:first-of-type {
+  background: transparent;
+  border-bottom-color: var(--primary);
+}
+
+[data-theme='dark'] .medical-record h2 {
+  background: #262626;
+  color: #d9d9d9;
+}
+
+[data-theme='dark'] .medical-record h3 {
+  color: #d9d9d9;
+}
+
+[data-theme='dark'] .medical-record th {
+  background: linear-gradient(135deg, #262626 0%, #1f1f1f 100%);
+  color: #d9d9d9;
+  border-bottom-color: var(--line);
+}
+
+[data-theme='dark'] .medical-record td {
+  border-bottom-color: var(--line);
+}
+
+[data-theme='dark'] .medical-record tr:nth-child(even) {
+  background: #262626;
+}
+
+[data-theme='dark'] .medical-record tr:hover {
+  background: #303030;
+}
+
+[data-theme='dark'] .medical-record strong {
+  color: var(--primary);
+}
+
+[data-theme='dark'] .severity-block {
+  border-color: #424242;
+  background: #141414;
+}
+
+[data-theme='dark'] .severity-blocks-label {
+  color: #a6a6a6;
+}
+
 .age-child .age-unit,
 .age-child .age-months {
   color: #2ecc71;

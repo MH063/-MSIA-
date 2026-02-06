@@ -35,15 +35,30 @@ function getDevHost(): string {
   return host;
 }
 
-const baseURL = isProduction ? '/api' : `http://${getDevHost()}:4000/api`;
+export const API_BASE_URL = isProduction ? '/api' : `http://${getDevHost()}:4000/api`;
 
 const api = axios.create({
-  baseURL,
+  baseURL: API_BASE_URL,
   withCredentials: true,
 });
 
+api.interceptors.request.use((config) => {
+  try {
+    const token = typeof window !== 'undefined' ? window.localStorage.getItem('OPERATOR_TOKEN') : null;
+    if (token && typeof token === 'string' && token.trim()) {
+      config.headers = {
+        ...(config.headers || {}),
+        Authorization: `Bearer ${token.trim()}`,
+      };
+    }
+  } catch {
+    // ignore
+  }
+  return config;
+});
+
 const refreshApi = axios.create({
-  baseURL,
+  baseURL: API_BASE_URL,
   withCredentials: true,
 });
 

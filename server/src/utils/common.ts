@@ -64,7 +64,7 @@ export function buildPaginationResponse<T>(
  * @returns 解析后的对象或默认值
  */
 export function safeJsonParse<T>(jsonString: string | null | undefined, defaultValue: T): T {
-  if (!jsonString) return defaultValue;
+  if (!jsonString) {return defaultValue;}
   try {
     return JSON.parse(jsonString) as T;
   } catch {
@@ -92,7 +92,7 @@ export function safeJsonStringify(value: unknown, defaultValue: string = '{}'): 
  * @returns 清理后的字符串
  */
 export function sanitizeString(str: string | null | undefined): string {
-  if (!str) return '';
+  if (!str) {return '';}
   return str
     .replace(/[<>]/g, '') // 移除尖括号
     .trim();
@@ -104,7 +104,7 @@ export function sanitizeString(str: string | null | undefined): string {
  * @returns 清理后的纯文本
  */
 export function stripHtml(html: string | null | undefined): string {
-  if (!html) return '';
+  if (!html) {return '';}
   return html
     .replace(/<[^>]*>/g, '') // 移除HTML标签
     .replace(/&nbsp;/g, ' ') // 转换空格
@@ -154,7 +154,7 @@ export async function retry<T>(
     }
   }
 
-  throw lastError;
+  throw (lastError ?? new Error('Retry failed'));
 }
 
 /**
@@ -163,9 +163,9 @@ export async function retry<T>(
  * @returns 克隆后的对象
  */
 export function deepClone<T>(obj: T): T {
-  if (obj === null || typeof obj !== 'object') return obj;
-  if (obj instanceof Date) return new Date(obj.getTime()) as unknown as T;
-  if (Array.isArray(obj)) return obj.map(deepClone) as unknown as T;
+  if (obj === null || typeof obj !== 'object') {return obj;}
+  if (obj instanceof Date) {return new Date(obj.getTime()) as unknown as T;}
+  if (Array.isArray(obj)) {return obj.map(deepClone) as unknown as T;}
 
   const cloned = {} as T;
   for (const key in obj) {
@@ -249,7 +249,7 @@ export function redactSensitive<T>(input: T): T {
 
   const mask = (value: string) => {
     const s = String(value || '');
-    if (s.length <= 12) return '***';
+    if (s.length <= 12) {return '***';}
     return `${s.slice(0, 6)}...${s.slice(-4)}`;
   };
 
@@ -262,34 +262,41 @@ export function redactSensitive<T>(input: T): T {
   const seen = new WeakSet<object>();
   const maxDepth = 6;
 
-  const walk = (value: any, keyHint: string, depth: number): any => {
-    if (value === null || value === undefined) return value;
+  const walk = (value: unknown, keyHint: string, depth: number): unknown => {
+    if (value === null || value === undefined) {return value;}
     const t = typeof value;
     if (t === 'string') {
-      if (keyHint && sensitiveKeySet.has(keyHint)) return mask(value);
-      if (isJwtLike(value)) return mask(value);
-      return value;
+      const s = value as string;
+      if (keyHint && sensitiveKeySet.has(keyHint)) {return mask(s);}
+      if (isJwtLike(s)) {return mask(s);}
+      return s;
     }
-    if (t === 'number' || t === 'boolean' || t === 'bigint') return value;
-    if (t === 'function') return '[Function]';
-    if (t === 'symbol') return '[Symbol]';
+    if (t === 'number' || t === 'boolean' || t === 'bigint') {return value;}
+    if (t === 'function') {return '[Function]';}
+    if (t === 'symbol') {return '[Symbol]';}
 
-    if (depth >= maxDepth) return '[Truncated]';
+    if (depth >= maxDepth) {return '[Truncated]';}
 
     if (Array.isArray(value)) {
-      return value.map((v) => walk(v, keyHint, depth + 1));
+      return (value as unknown[]).map((v) => walk(v, keyHint, depth + 1));
     }
 
-    if (value instanceof Date) return value;
+    if (value instanceof Date) {return value;}
 
     if (t === 'object') {
-      if (seen.has(value)) return '[Circular]';
-      seen.add(value);
-      const out: any = {};
-      for (const [k, v] of Object.entries(value)) {
+      const obj = value as Record<string, unknown>;
+      if (seen.has(obj)) {return '[Circular]';}
+      seen.add(obj);
+      const out: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(obj)) {
         const normalizedKey = String(k || '').trim().toLowerCase();
         if (sensitiveKeySet.has(normalizedKey)) {
-          out[k] = mask(String(v ?? ''));
+          let str = '';
+          if (typeof v === 'string') { str = v; }
+          else {
+            try { str = JSON.stringify(v); } catch { str = '[object]'; }
+          }
+          out[k] = mask(str);
           continue;
         }
         out[k] = walk(v, normalizedKey, depth + 1);
@@ -300,5 +307,5 @@ export function redactSensitive<T>(input: T): T {
     return value;
   };
 
-  return walk(input as any, '', 0) as T;
+  return walk(input as unknown, '', 0) as T;
 }

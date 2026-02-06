@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { App as AntdApp, Form, Input, AutoComplete, Row, Col, Typography, Card, Space, Button, InputNumber } from 'antd';
+import { App as AntdApp, Form, Input, Row, Col, Typography, Card, Space, Button, InputNumber } from 'antd';
 import { RobotOutlined } from '@ant-design/icons';
 import type { FormInstance } from 'antd';
 import api, { unwrapData } from '../../../../utils/api';
 import type { ApiResponse } from '../../../../utils/api';
 import { useQuery } from '@tanstack/react-query';
+import LazyAutoComplete from '../../../../components/lazy/LazyAutoComplete';
 
 const { Title, Paragraph } = Typography;
 const { Search, TextArea } = Input;
@@ -41,6 +42,7 @@ const ChiefComplaintSection: React.FC<ChiefComplaintSectionProps> = ({ form }) =
   const mappingNames = mappingPayload ? Object.keys(mappingPayload.nameToKey || {}) : [];
   const [symptomOptionsState, setSymptomOptionsState] = useState<{value: string}[]>([]);
   const [analyzing, setAnalyzing] = useState(false);
+  const [smartInputValue, setSmartInputValue] = useState('');
   const lastAutoRef = useRef<string>('');
   
   const ccSymptom = Form.useWatch(['chiefComplaint', 'symptom'], form);
@@ -69,6 +71,7 @@ const ChiefComplaintSection: React.FC<ChiefComplaintSectionProps> = ({ form }) =
    * 智能识别主诉文本并填充结构化字段
    * 输入自然语言文本，调用后端 NLP 接口，使用统一解包处理双层 data 结构，
    * 将识别到的主症状、伴随症状及时长写入表单并提示缺失映射
+   * 识别成功后自动清空智能识别区的输入内容
    */
   const handleSmartAnalyze = async (text: string) => {
     if (!text) return;
@@ -122,7 +125,9 @@ const ChiefComplaintSection: React.FC<ChiefComplaintSectionProps> = ({ form }) =
           },
         });
 
-        console.log('[ChiefComplaintSection] 主诉解析结果', payload);
+        // 识别成功后清空智能识别区的输入
+        setSmartInputValue('');
+        console.log('[ChiefComplaintSection] 主诉解析完成，已清空智能识别区输入', payload);
       }
     } catch (error) {
       console.error(error);
@@ -197,6 +202,8 @@ const ChiefComplaintSection: React.FC<ChiefComplaintSectionProps> = ({ form }) =
         <Search
             placeholder="请输入患者主诉描述（例如：发热伴咳嗽3天）"
             enterButton={<Button type="primary" icon={<RobotOutlined />} loading={analyzing}>智能识别</Button>}
+            value={smartInputValue}
+            onChange={(e) => setSmartInputValue(e.target.value)}
             onSearch={handleSmartAnalyze}
             size="large"
             style={{ marginBottom: 16 }}
@@ -214,8 +221,8 @@ const ChiefComplaintSection: React.FC<ChiefComplaintSectionProps> = ({ form }) =
                label="主要症状"
                rules={[{ required: true, message: '请输入主要症状' }]}
                help="核心症状，如：发热、腹痛"
-             >
-               <AutoComplete
+            >
+              <LazyAutoComplete
                  options={symptomOptionsState}
                  onSearch={handleSymptomSearch}
                  placeholder="输入症状关键词"
@@ -274,7 +281,7 @@ const ChiefComplaintSection: React.FC<ChiefComplaintSectionProps> = ({ form }) =
                           noStyle
                           rules={[{ required: true, message: '请选择单位' }]}
                       >
-                           <AutoComplete
+                           <LazyAutoComplete
                               placeholder="单位"
                               options={durationUnits}
                            />

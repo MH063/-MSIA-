@@ -1,14 +1,17 @@
+import React from 'react';
 import { createBrowserRouter } from 'react-router-dom';
 import MainLayout from '../layouts/MainLayout';
-import Login from '../pages/Login';
-import Register from '../pages/Register';
-import Home from '../pages/Home';
-import Dashboard from '../pages/Dashboard';
-import Interview from '../pages/Interview';
-import NewInterview from '../pages/Interview/NewInterview';
-import Session from '../pages/Interview/Session';
-import SessionList from '../pages/SessionList';
-import KnowledgeList from '../pages/KnowledgeList';
+import SuspenseWrapper from './SuspenseWrapper';
+import RedirectToInterview from './RedirectToInterview';
+const Login = React.lazy(() => import('../pages/Login'));
+const Register = React.lazy(() => import('../pages/Register'));
+const Home = React.lazy(() => import('../pages/Home'));
+const Dashboard = React.lazy(() => import('../pages/Dashboard'));
+const Interview = React.lazy(() => import('../pages/Interview'));
+const NewInterview = React.lazy(() => import('../pages/Interview/NewInterview'));
+const Session = React.lazy(() => import('../pages/Interview/Session'));
+const SessionList = React.lazy(() => import('../pages/SessionList'));
+const KnowledgeList = React.lazy(() => import('../pages/KnowledgeList'));
 
 const router = createBrowserRouter([
   {
@@ -17,43 +20,87 @@ const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <Login />,
+        element: (
+          <SuspenseWrapper>
+            <Login />
+          </SuspenseWrapper>
+        ),
       },
       {
         path: '/login',
-        element: <Login />,
+        element: (
+          <SuspenseWrapper>
+            <Login />
+          </SuspenseWrapper>
+        ),
       },
       {
         path: '/register',
-        element: <Register />,
+        element: (
+          <SuspenseWrapper>
+            <Register />
+          </SuspenseWrapper>
+        ),
       },
       {
         path: '/home',
-        element: <Home />,
+        element: (
+          <SuspenseWrapper>
+            <Home />
+          </SuspenseWrapper>
+        ),
       },
       {
         path: '/dashboard',
-        element: <Dashboard />,
+        element: (
+          <SuspenseWrapper>
+            <Dashboard />
+          </SuspenseWrapper>
+        ),
       },
       {
         path: '/sessions',
-        element: <SessionList />,
+        element: (
+          <SuspenseWrapper>
+            <SessionList />
+          </SuspenseWrapper>
+        ),
+      },
+      {
+        path: '/sessions/:id',
+        element: <RedirectToInterview />,
       },
       {
         path: '/knowledge',
-        element: <KnowledgeList />,
+        element: (
+          <SuspenseWrapper>
+            <KnowledgeList />
+          </SuspenseWrapper>
+        ),
       },
       {
         path: '/interview',
-        element: <Interview />,
+        element: (
+          <SuspenseWrapper>
+            <Interview />
+          </SuspenseWrapper>
+        ),
       },
       {
         path: '/interview/new',
-        element: <NewInterview />,
+        element: (
+          <SuspenseWrapper>
+            <NewInterview />
+          </SuspenseWrapper>
+        ),
       },
       {
         path: '/interview/:id',
-        element: <Session />,
+        element: (
+          <SuspenseWrapper>
+            <Session />
+          </SuspenseWrapper>
+        ),
       },
     ],
   },

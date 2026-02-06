@@ -140,10 +140,10 @@ export const SessionSchemas = {
         symptom: z.string().max(100).optional(),
         durationNum: z.preprocess(
           (v) => {
-            if (v === null || v === undefined) return undefined;
+            if (v === null || v === undefined) {return undefined;}
             if (typeof v === 'string') {
               const t = v.trim();
-              if (!t) return undefined;
+              if (!t) {return undefined;}
               const n = Number(t);
               return Number.isFinite(n) ? n : v;
             }
@@ -153,10 +153,10 @@ export const SessionSchemas = {
         ),
         durationNumMax: z.preprocess(
           (v) => {
-            if (v === null || v === undefined) return undefined;
+            if (v === null || v === undefined) {return undefined;}
             if (typeof v === 'string') {
               const t = v.trim();
-              if (!t) return undefined;
+              if (!t) {return undefined;}
               const n = Number(t);
               return Number.isFinite(n) ? n : v;
             }
@@ -166,7 +166,7 @@ export const SessionSchemas = {
         ),
         durationUnit: z.preprocess(
           (v) => {
-            if (v === null || v === undefined) return undefined;
+            if (v === null || v === undefined) {return undefined;}
             if (typeof v === 'string') {
               const t = v.trim();
               return t ? t : undefined;
@@ -177,7 +177,7 @@ export const SessionSchemas = {
         ),
         durationRaw: z.preprocess(
           (v) => {
-            if (v === null || v === undefined) return undefined;
+            if (v === null || v === undefined) {return undefined;}
             if (typeof v === 'string') {
               const t = v.trim();
               return t ? t : undefined;

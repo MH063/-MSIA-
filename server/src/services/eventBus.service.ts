@@ -3,7 +3,7 @@ import { Response } from 'express';
 type Client = {
   id: string;
   res: Response;
-  pingTimer: NodeJS.Timeout;
+  pingTimer: ReturnType<typeof setInterval>;
 };
 
 class EventBusService {
@@ -19,7 +19,7 @@ class EventBusService {
 
     const safeWrite = (chunk: string) => {
       try {
-        if ((res as any).writableEnded || (res as any).destroyed) return false;
+        if ((res as any).writableEnded || (res as any).destroyed) {return false;}
         res.write(chunk);
         return true;
       } catch (e) {
@@ -46,7 +46,7 @@ class EventBusService {
     const cleanup = (reason: 'close' | 'error', err?: unknown) => {
       clearInterval(pingTimer);
       this.clients = this.clients.filter((c) => c.id !== id);
-      if (reason === 'error') console.error('[SSE] 客户端连接错误', { id, err });
+      if (reason === 'error') {console.error('[SSE] 客户端连接错误', { id, err });}
       console.log('[SSE] 客户端已断开', { id, reason, total: this.clients.length });
     };
 
@@ -74,7 +74,7 @@ class EventBusService {
     if (toRemove.length > 0) {
       for (const id of toRemove) {
         const client = this.clients.find((x) => x.id === id);
-        if (client) clearInterval(client.pingTimer);
+        if (client) {clearInterval(client.pingTimer);}
       }
       this.clients = this.clients.filter((c) => !toRemove.includes(c.id));
     }

@@ -106,8 +106,8 @@ export const getSymptomMappings = async (req: Request, res: Response) => {
 
     // 从数据库查询症状知识
     const where: any = {};
-    if (category) where.category = category;
-    if (priority) where.priority = priority;
+    if (category) {where.category = category;}
+    if (priority) {where.priority = priority;}
     if (bodySystem && bodySystem !== 'all') {
       where.bodySystems = {
         array_contains: bodySystem
@@ -268,7 +268,7 @@ export const getDiseases = async (req: Request, res: Response) => {
     const { category } = req.query as Record<string, string>;
     
     const where: any = { isActive: true };
-    if (category) where.category = category;
+    if (category) {where.category = category;}
     
     const diagnoses = await prisma.diagnosis.findMany({
       where,

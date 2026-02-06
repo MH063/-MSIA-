@@ -1,9 +1,12 @@
 import React from 'react';
-import { App as AntdApp, Button, Drawer, Grid, Layout, Menu, Space, theme } from 'antd';
-import { MenuOutlined } from '@ant-design/icons';
+import { App as AntdApp, Button, Grid, Layout, Menu, Space, theme } from 'antd';
+import LazyDrawer from '../components/lazy/LazyDrawer';
+import { MenuOutlined, SunOutlined, MoonOutlined } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import api, { unwrapData } from '../utils/api';
+import api, { unwrapData, API_BASE_URL } from '../utils/api';
 import type { ApiResponse } from '../utils/api';
+import Logo from '../components/Logo';
+import { useThemeStore } from '../store/theme.store';
 
 const { Header, Content, Footer } = Layout;
 const { useBreakpoint } = Grid;
@@ -12,6 +15,7 @@ const MainLayout: React.FC = () => {
   const {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken();
+  const { mode, toggleTheme } = useThemeStore();
   const screens = useBreakpoint();
   const { message } = AntdApp.useApp();
   const navigate = useNavigate();
@@ -32,6 +36,11 @@ const MainLayout: React.FC = () => {
     if (p === '/' || p.startsWith('/login') || p.startsWith('/register')) return;
     let alive = true;
     setAuthChecking(true);
+    try {
+      console.log('[MainLayout] 开始认证检查', { baseURL: API_BASE_URL, url: '/auth/me', method: 'GET', pathname: p, host: window.location.hostname });
+    } catch {
+      // ignore
+    }
     (async () => {
       try {
         const res = (await api.get('/auth/me')) as ApiResponse<
@@ -96,7 +105,9 @@ const MainLayout: React.FC = () => {
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Header style={{ display: 'flex', alignItems: 'center' }}>
-        <div className="demo-logo" style={{ color: 'white', marginRight: isMobile ? 10 : 20, fontWeight: 'bold', fontSize: isMobile ? 16 : 18 }}>MSIA</div>
+        <div className="demo-logo" style={{ display: 'flex', alignItems: 'center', marginRight: isMobile ? 10 : 20 }}>
+          <Logo width={isMobile ? 36 : 44} height={isMobile ? 36 : 44} />
+        </div>
         <>
           {screens.md ? (
             <Menu
@@ -115,7 +126,7 @@ const MainLayout: React.FC = () => {
                 onClick={() => setDrawerOpen(true)}
               />
               <div style={{ flex: 1 }} />
-              <Drawer
+              <LazyDrawer
                 title="导航"
                 placement="left"
                 open={drawerOpen}
@@ -131,11 +142,17 @@ const MainLayout: React.FC = () => {
                     navigate(e.key);
                   }}
                 />
-              </Drawer>
+              </LazyDrawer>
             </>
           )}
         </>
         <Space style={{ marginLeft: 12 }}>
+          <Button
+            type="text"
+            icon={mode === 'dark' ? <SunOutlined /> : <MoonOutlined />}
+            onClick={toggleTheme}
+            style={{ color: '#fff' }}
+          />
           <Button
             size="small"
             onClick={async () => {

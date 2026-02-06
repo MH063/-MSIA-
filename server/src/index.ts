@@ -42,24 +42,24 @@ app.use(securityHeaders);
 app.use(cors({
   origin: (origin, callback) => {
     // 允许无来源的请求（如移动应用）
-    if (!origin) return callback(null, true);
+    if (!origin) {return callback(null, true);}
 
     const allowDev = (() => {
-      if (!serverConfig.isDevelopment) return false;
+      if (!serverConfig.isDevelopment) {return false;}
       try {
         const u = new URL(origin);
         const h = u.hostname;
         const p = u.port ? Number(u.port) : (u.protocol === 'https:' ? 443 : 80);
         // 允许的前端开发端口：5173(Vite), 3000(React), 8000/8100(其他), 80(Prod)
         const allowedPorts = new Set([5173, 3000, 8000, 8100, 80, 443]);
-        if (!allowedPorts.has(p)) return false;
-        if (h === 'localhost' || h === '127.0.0.1') return true;
-        if (/^192\.168\.\d{1,3}\.\d{1,3}$/u.test(h)) return true;
-        if (/^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/u.test(h)) return true;
+        if (!allowedPorts.has(p)) {return false;}
+        if (h === 'localhost' || h === '127.0.0.1') {return true;}
+        if (/^192\.168\.\d{1,3}\.\d{1,3}$/u.test(h)) {return true;}
+        if (/^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/u.test(h)) {return true;}
         const m = /^172\.(\d{1,3})\.\d{1,3}\.\d{1,3}$/u.exec(h);
         if (m) {
           const n = Number(m[1]);
-          if (n >= 16 && n <= 31) return true;
+          if (n >= 16 && n <= 31) {return true;}
         }
         return false;
       } catch {
@@ -99,11 +99,11 @@ const findGarbledTextPaths = (value: unknown) => {
       const hasCjk = /[\u4E00-\u9FFF]/u.test(v);
       const hasLatin = /[A-Za-z]/u.test(v);
       const looksLikeLostCjk = !hasCjk && !hasLatin && /[?？]{2,}/u.test(v);
-      if (hasReplacementChar || looksLikeLostCjk) paths.push(pathKey);
+      if (hasReplacementChar || looksLikeLostCjk) {paths.push(pathKey);}
       return;
     }
     if (Array.isArray(v)) {
-      for (let i = 0; i < v.length; i += 1) walk(v[i], `${pathKey}[${i}]`);
+      for (let i = 0; i < v.length; i += 1) {walk(v[i], `${pathKey}[${i}]`);}
       return;
     }
     if (v && typeof v === 'object') {
@@ -119,7 +119,7 @@ const findGarbledTextPaths = (value: unknown) => {
 app.use((req: Request, res: Response, next) => {
   const bodyPaths = findGarbledTextPaths(req.body);
   const queryPaths = findGarbledTextPaths(req.query);
-  if (bodyPaths.length === 0 && queryPaths.length === 0) return next();
+  if (bodyPaths.length === 0 && queryPaths.length === 0) {return next();}
 
   const strictBodyPaths: string[] = [];
   const strictQueryPaths: string[] = [];
@@ -138,18 +138,18 @@ app.use((req: Request, res: Response, next) => {
           cur = cur?.[part];
         }
       }
-      if (typeof cur !== 'string') continue;
+      if (typeof cur !== 'string') {continue;}
       const hasReplacementChar = cur.includes('\uFFFD');
       const hasCjk = /[\u4E00-\u9FFF]/u.test(cur);
       const hasLatin = /[A-Za-z]/u.test(cur);
       const looksLikeLostCjk = !hasCjk && !hasLatin && /[?？]{2,}/u.test(cur);
 
       if (hasReplacementChar) {
-        if (source === 'body') strictBodyPaths.push(p);
-        else strictQueryPaths.push(p);
+        if (source === 'body') {strictBodyPaths.push(p);}
+        else {strictQueryPaths.push(p);}
       } else if (looksLikeLostCjk) {
-        if (source === 'body') suspiciousBodyPaths.push(p);
-        else suspiciousQueryPaths.push(p);
+        if (source === 'body') {suspiciousBodyPaths.push(p);}
+        else {suspiciousQueryPaths.push(p);}
       }
     }
   };
@@ -291,7 +291,7 @@ process.on('uncaughtException', (error) => {
   }
 });
 
-process.on('unhandledRejection', (reason, promise) => {
+process.on('unhandledRejection', (reason, _promise) => {
   secureLogger.error('未处理的Promise拒绝', reason as Error, {
     type: 'unhandledRejection',
     timestamp: new Date().toISOString()

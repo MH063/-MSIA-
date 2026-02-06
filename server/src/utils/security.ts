@@ -165,7 +165,7 @@ const SENSITIVE_PATTERNS = [
  * 深度过滤对象中的敏感信息
  */
 export function filterSensitiveData(obj: unknown, config: SecurityConfig = DEFAULT_CONFIG): unknown {
-  if (!config.enableFiltering) return obj;
+  if (!config.enableFiltering) {return obj;}
   
   return filterObject(obj, config);
 }
@@ -174,9 +174,9 @@ export function filterSensitiveData(obj: unknown, config: SecurityConfig = DEFAU
  * 递归过滤对象
  */
 function filterObject(obj: unknown, config: SecurityConfig, depth: number = 0): unknown {
-  if (depth > config.maxErrorDepth) return '[object]';
+  if (depth > config.maxErrorDepth) {return '[object]';}
   
-  if (obj === null || obj === undefined) return obj;
+  if (obj === null || obj === undefined) {return obj;}
   
   if (typeof obj === 'string') {
     return filterString(obj, config);
@@ -307,7 +307,7 @@ export function safeError(message: string, error: Error, ...args: unknown[]): vo
  * 限制控制台输出长度
  */
 export function truncateOutput(output: string, maxLength: number = 1000): string {
-  if (output.length <= maxLength) return output;
+  if (output.length <= maxLength) {return output;}
   return output.substring(0, maxLength) + `\n\n[OUTPUT_TRUNCATED: ${output.length - maxLength} characters hidden]`;
 }
 

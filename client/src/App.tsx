@@ -1,23 +1,34 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { RouterProvider } from 'react-router-dom';
-import { App as AntdApp, ConfigProvider } from 'antd';
+import { App as AntdApp, ConfigProvider, theme } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import router from './router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useThemeStore } from './store/theme.store';
 
 const queryClient = new QueryClient();
 
 const App: React.FC = () => {
+  const { mode } = useThemeStore();
+
+  useEffect(() => {
+    // Apply theme to body for global CSS variables
+    document.body.setAttribute('data-theme', mode);
+  }, [mode]);
+
   return (
     <ConfigProvider
       locale={zhCN}
       theme={{
+        algorithm: mode === 'dark' ? theme.darkAlgorithm : theme.defaultAlgorithm,
         token: {
-          colorPrimary: '#1677ff',
-          colorSuccess: '#52c41a',
-          borderRadius: 12,
+          colorPrimary: mode === 'dark' ? '#4582E6' : '#0052D9',
+          colorSuccess: mode === 'dark' ? '#298E64' : '#2BA471',
+          borderRadius: 6,
           fontFamily:
-            "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', 'Source Han Sans SC', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif",
+            "'PingFang SC', Roboto, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', 'Noto Sans SC', sans-serif",
+          colorBgContainer: mode === 'dark' ? '#1F1F1F' : '#ffffff',
+          colorBgLayout: mode === 'dark' ? '#141414' : '#F5F7FA',
         },
       }}
     >

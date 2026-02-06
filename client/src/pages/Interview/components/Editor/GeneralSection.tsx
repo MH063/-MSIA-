@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo } from 'react';
-import { Form, Input, Row, Col, Typography, Select, DatePicker, Card, InputNumber, Space, Grid } from 'antd';
+import { Form, Input, Row, Col, Typography, Select, Card, InputNumber, Space, Grid, theme } from 'antd';
+import LazyDatePicker from '../../../../components/lazy/LazyDatePicker';
 import dayjs from 'dayjs';
 import AgeDisplayView from './AgeDisplay';
 import { computeAgeDisplay, formatAgeText, normalizeAge, validateAge } from '../../../../utils/age';
@@ -8,6 +9,7 @@ const { Title } = Typography;
 const { useBreakpoint } = Grid;
 
 const GeneralSection: React.FC = () => {
+  const { token } = theme.useToken();
   const form = Form.useFormInstance();
   const screens = useBreakpoint();
   const isMobile = !screens.md;
@@ -183,7 +185,7 @@ const GeneralSection: React.FC = () => {
                required
              >
                {ageDisplay ? (
-                 <div style={{ width: '100%', minHeight: 32, display: 'flex', alignItems: 'center', background: '#fff', border: '1px solid #d9d9d9', borderRadius: 6, padding: '0 11px' }}>
+                 <div style={{ width: '100%', minHeight: 32, display: 'flex', alignItems: 'center', background: token.colorBgContainer, border: `1px solid ${token.colorBorder}`, borderRadius: token.borderRadius, padding: '0 11px' }}>
                    <AgeDisplayView display={ageDisplay} />
                  </div>
                ) : (
@@ -204,7 +206,7 @@ const GeneralSection: React.FC = () => {
                      ]}
                    >
                      <InputNumber<number>
-                       style={{ width: '60%', background: '#fff' }}
+                       style={{ width: '60%', background: token.colorBgContainer }}
                        placeholder="岁"
                        min={0}
                        max={150}
@@ -226,7 +228,7 @@ const GeneralSection: React.FC = () => {
                      ]}
                    >
                      <InputNumber<number>
-                       style={{ width: '40%', background: '#fff' }}
+                       style={{ width: '40%', background: token.colorBgContainer }}
                        placeholder="月"
                        min={0}
                        max={1200}
@@ -306,12 +308,12 @@ const GeneralSection: React.FC = () => {
           </Col>
           <Col xs={12} sm={12} md={6}>
              <Form.Item name="birthDate" label="出生日期">
-                <DatePicker
+                <LazyDatePicker
                   style={{ width: '100%' }}
                   placeholder="选择日期"
                   placement="bottomLeft"
                   classNames={{ popup: { root: isMobile ? 'msia-mobile-picker' : undefined } }}
-                  getPopupContainer={(trigger) => (isMobile ? document.body : trigger.parentElement ?? document.body)}
+                  getPopupContainer={(trigger: HTMLElement) => (isMobile ? document.body : trigger.parentElement ?? document.body)}
                 />
              </Form.Item>
           </Col>
@@ -323,14 +325,14 @@ const GeneralSection: React.FC = () => {
         <Row gutter={[12, 12]}>
           <Col xs={24} sm={12} md={8}>
               <Form.Item name={['generalInfo', 'admissionTime']} label="入院时间">
-                  <DatePicker
+                  <LazyDatePicker
                     showTime
                     format="YYYY-MM-DD HH:mm"
                     style={{ width: '100%' }}
                     placeholder="年-月-日 时:分"
                     placement="bottomLeft"
                     classNames={{ popup: { root: isMobile ? 'msia-mobile-picker' : undefined } }}
-                    getPopupContainer={(trigger) => (isMobile ? document.body : trigger.parentElement ?? document.body)}
+                    getPopupContainer={(trigger: HTMLElement) => (isMobile ? document.body : trigger.parentElement ?? document.body)}
                   />
               </Form.Item>
           </Col>
@@ -341,14 +343,14 @@ const GeneralSection: React.FC = () => {
                 initialValue={dayjs()}
                 rules={[{ required: true, message: '请选择记录时间' }]}
               >
-                  <DatePicker
+                  <LazyDatePicker
                     showTime
                     format="YYYY-MM-DD HH:mm"
                     style={{ width: '100%' }}
                     placeholder="年-月-日 时:分"
                     placement="bottomLeft"
                     classNames={{ popup: { root: isMobile ? 'msia-mobile-picker' : undefined } }}
-                    getPopupContainer={(trigger) => (isMobile ? document.body : trigger.parentElement ?? document.body)}
+                    getPopupContainer={(trigger: HTMLElement) => (isMobile ? document.body : trigger.parentElement ?? document.body)}
                   />
               </Form.Item>
           </Col>

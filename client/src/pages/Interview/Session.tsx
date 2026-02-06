@@ -1,18 +1,19 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { App as AntdApp, Form, Spin, Modal, Button, Space, Tooltip, Popconfirm } from 'antd';
+import { App as AntdApp, Form, Spin, Button, Space, Tooltip, Popconfirm } from 'antd';
+import LazyModal from '../../components/lazy/LazyModal';
 import { ArrowLeftOutlined, ArrowRightOutlined, EyeOutlined, FilePdfOutlined, FileWordOutlined, UndoOutlined } from '@ant-design/icons';
 import dayjs, { type Dayjs } from 'dayjs';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import LazyMarkdown from '../../components/LazyMarkdown';
 import api, { getBlob, type ApiResponse, unwrapData } from '../../utils/api';
 
 import InterviewLayout from './components/Layout/InterviewLayout';
+import { ChatPanel, type ChatMessage } from './components/Chat';
 import NavigationPanel from './components/Navigation/NavigationPanel';
 import type { SectionStatus } from './components/Navigation/NavigationPanel';
 import EditorPanel from './components/Editor/EditorPanel';
 import AssistantOverlay from './components/Assistant/AssistantOverlay';
-import { useAssistantStore, type ModuleKey } from '../../store/assistant.store';
+import { useAssistantStore, type ModuleKey, type KnowledgeContext } from '../../store/assistant.store';
 import { buildHpiNarrative } from '../../utils/narrative';
 
 type DateValue = string | number | Date | Dayjs | null | undefined;
@@ -240,10 +241,96 @@ const Session: React.FC = () => {
   const setNewMessage = useAssistantStore(s => s.setNewMessage);
   const setActions = useAssistantStore(s => s.setActions);
   const setKnowledgeContext = useAssistantStore(s => s.knowledge.setKnowledgeContext);
+  const setKnowledgeContexts = useAssistantStore(s => s.knowledge.setKnowledgeContexts);
   const setDiagnosisSuggestions = useAssistantStore(s => s.knowledge.setDiagnosisSuggestions);
   const setKnowledgeMappings = useAssistantStore(s => s.knowledge.setKnowledgeMappings);
   const setKnowledgeLoading = useAssistantStore(s => s.knowledge.setKnowledgeLoading);
   const setKnowledgeError = useAssistantStore(s => s.knowledge.setKnowledgeError);
+
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
+    {
+      id: 'welcome',
+      role: 'assistant',
+      content: '您好，我是您的智能问诊助手。请问患者主要哪里不舒服？',
+      type: 'text',
+      timestamp: Date.now(),
+      status: 'sent'
+    }
+  ]);
+  const [chatLoading, setChatLoading] = useState(false);
+
+  const handleSendMessage = useCallback(async (content: string, type: 'text' | 'voice' | 'image') => {
+    const newUserMsg: ChatMessage = {
+      id: Date.now().toString(),
+      role: 'user',
+      content,
+      type,
+      timestamp: Date.now(),
+      status: 'sending',
+      metadata: type === 'voice' ? { voiceDuration: 5 } : type === 'image' ? { imageUrl: 'https://picsum.photos/200' } : undefined
+    };
+    setChatMessages(prev => [...prev, newUserMsg]);
+    setChatLoading(true);
+
+    // Simulate network delay and AI response
+    setTimeout(() => {
+      setChatLoading(false);
+      setChatMessages(prev => prev.map(m => m.id === newUserMsg.id ? { ...m, status: 'sent' } : m));
+      
+      let aiContent = '';
+      let actionTaken = false;
+
+      if (type === 'text') {
+        const mappings = useAssistantStore.getState().knowledge.mappings;
+        const nameToKey = mappings?.nameToKey || {};
+        
+        // Check if content contains any known symptom
+        const foundSymptomName = Object.keys(nameToKey).find(name => content.includes(name));
+        
+        if (foundSymptomName) {
+           const currentCC = form.getFieldValue(['chiefComplaint', 'text']);
+           // If current CC is empty or input is short (likely just a symptom name), update it
+           if (!currentCC || content.length < 20) {
+               form.setFieldValue(['chiefComplaint', 'text'], content);
+               form.setFieldValue(['chiefComplaint', 'symptom'], foundSymptomName);
+               aiContent = `已为您记录主诉症状：“${foundSymptomName}”。\n系统将自动加载相关问诊知识。`;
+               actionTaken = true;
+           }
+        } 
+        
+        if (!actionTaken) {
+          if (content.includes('男') || content.includes('女')) {
+              const gender = content.includes('男') ? '男' : '女';
+              form.setFieldValue('gender', gender);
+              aiContent = `已更新性别为：${gender}`;
+              actionTaken = true;
+          } else if (content.match(/\d+岁/)) {
+              const ageMatch = content.match(/(\d+)岁/);
+              if (ageMatch) {
+                const age = parseInt(ageMatch[1]);
+                form.setFieldValue('age', age);
+                form.setFieldValue('ageUnit', '岁');
+                aiContent = `已更新年龄为：${age}岁`;
+                actionTaken = true;
+              }
+          }
+        }
+      }
+
+      if (!actionTaken) {
+         aiContent = `收到您的${type === 'text' ? '消息' : (type === 'voice' ? '语音' : '图片')}：${content}\n我已将其记录到右侧病历中。`;
+      }
+      
+      const aiMsg: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: aiContent,
+        type: 'text',
+        timestamp: Date.now()
+      };
+      setChatMessages(prev => [...prev, aiMsg]);
+    }, 800);
+  }, [form]);
 
   // Fetch Mappings
   useEffect(() => {
@@ -289,6 +376,8 @@ const Session: React.FC = () => {
   const [previewPlainText, setPreviewPlainText] = useState('');
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
   const [clockTick, setClockTick] = useState(0);
+  const previewHistoryPushedRef = useRef(false);
+  const previewPopStateHandlerRef = useRef<((e: PopStateEvent) => void) | null>(null);
   const [sections, setSections] = useState<SectionStatus[]>(() => SECTIONS.map(s => ({
     key: s.key,
     label: s.label,
@@ -306,6 +395,43 @@ const Session: React.FC = () => {
     () => Object.fromEntries(SECTIONS.map(s => [s.key, s.label])),
     []
   );
+
+  const closePreview = useCallback(() => {
+    console.log('[Session] 关闭病历预览（按钮）');
+    const handler = previewPopStateHandlerRef.current;
+    if (handler) {
+      window.removeEventListener('popstate', handler);
+      previewPopStateHandlerRef.current = null;
+    }
+    setShowPreview(false);
+    if (previewHistoryPushedRef.current) {
+      previewHistoryPushedRef.current = false;
+      window.history.back();
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!showPreview) return;
+
+    if (!previewHistoryPushedRef.current) {
+      const currentState = (window.history.state ?? {}) as Record<string, unknown>;
+      window.history.pushState({ ...currentState, __msia_preview: true }, document.title);
+      previewHistoryPushedRef.current = true;
+    }
+
+    const handler = () => {
+      console.log('[Session] 已阻止通过浏览器回退关闭病历预览');
+      const currentState = (window.history.state ?? {}) as Record<string, unknown>;
+      window.history.pushState({ ...currentState, __msia_preview: true }, document.title);
+    };
+    previewPopStateHandlerRef.current = handler;
+    window.addEventListener('popstate', handler);
+
+    return () => {
+      window.removeEventListener('popstate', handler);
+      if (previewPopStateHandlerRef.current === handler) previewPopStateHandlerRef.current = null;
+    };
+  }, [showPreview]);
 
   useEffect(() => {
     return () => {
@@ -447,6 +573,10 @@ const Session: React.FC = () => {
   const watchedGender = Form.useWatch('gender', form) as string | undefined;
   const watchedAge = Form.useWatch('age', form) as number | undefined;
   const knowledgeContext = useAssistantStore(s => s.knowledge.context);
+  const watchedAssociated = Form.useWatch(['presentIllness', 'associatedSymptoms'], form) as string[] | undefined;
+  const watchedRos = Form.useWatch(['reviewOfSystems'], form) as Record<string, { symptoms?: string[]; details?: string }> | undefined;
+  const watchedIllnessHistory = Form.useWatch(['pastHistory', 'illnessHistory'], form) as string | undefined;
+  const watchedInfectiousHistory = Form.useWatch(['pastHistory', 'infectiousHistory'], form) as string | undefined;
 
   const hasAssistantValue = React.useCallback((x: unknown): boolean => {
     if (x === 0) return true;
@@ -585,52 +715,78 @@ const Session: React.FC = () => {
     console.log('[Session] 助手面板刷新', { sectionKey, pendingCount: pendingItems.length });
   }, [getPendingItemsForSection, setNewMessage, setPanel]);
 
+  // 单症状知识加载函数已由多症状汇总逻辑替代
+
   /**
-   * loadKnowledgeForSymptom
-   * 根据主诉“症状”字段加载知识库上下文与诊断建议
+   * refreshKnowledgeFromAllSymptoms
+   * 汇总主诉、伴随症状与系统回顾中的所有症状，批量加载知识上下文并合并诊断建议
    */
-  const loadKnowledgeForSymptom = useCallback(async (symptomName: string) => {
-    const name = String(symptomName || '').trim();
-    if (!name) {
+  const refreshKnowledgeFromAllSymptoms = useCallback(async () => {
+    const { nameToKey, synonyms } = useAssistantStore.getState().knowledge;
+    const getKey = (n: string): string => {
+      const name = String(n || '').trim();
+      if (!name) return '';
+      if (nameToKey[name]) return nameToKey[name];
+      const canonical = synonyms[name];
+      if (canonical && nameToKey[canonical]) return nameToKey[canonical];
+      return name;
+    };
+    const extractKeysFromText = (text: string | undefined): string[] => {
+      const t = String(text || '').trim();
+      if (!t) return [];
+      const termToKey: Record<string, string> = {};
+      Object.keys(nameToKey).forEach((canonical) => {
+        const key = nameToKey[canonical];
+        if (canonical && key) termToKey[canonical] = key;
+      });
+      Object.keys(synonyms).forEach((syn) => {
+        const canonical = synonyms[syn];
+        const key = canonical ? nameToKey[canonical] : '';
+        if (syn && key) termToKey[syn] = key;
+      });
+      const terms = Object.keys(termToKey).sort((a, b) => b.length - a.length);
+      const found: string[] = [];
+      for (const term of terms) {
+        if (term && t.includes(term)) {
+          const k = termToKey[term];
+          if (k) found.push(k);
+        }
+      }
+      // 去重
+      return Array.from(new Set(found));
+    };
+
+    const keys = new Set<string>();
+    if (watchedCcSymptom) {
+      const k = getKey(watchedCcSymptom);
+      if (k) keys.add(k);
+    }
+    const assoc = Array.isArray(watchedAssociated) ? watchedAssociated : [];
+    assoc.forEach(k => {
+      const t = String(k || '').trim();
+      if (t) keys.add(t);
+    });
+    if (watchedRos && typeof watchedRos === 'object') {
+      for (const sys of Object.values(watchedRos)) {
+        const list = Array.isArray(sys?.symptoms) ? sys!.symptoms! : [];
+        list.forEach(k => {
+          const t = String(k || '').trim();
+          if (t) keys.add(t);
+        });
+      }
+    }
+    // 解析自由文本中的症状（既往史/家族史）
+    const freeTextKeys = [
+      ...extractKeysFromText(watchedIllnessHistory),
+      ...extractKeysFromText(watchedInfectiousHistory),
+    ];
+    freeTextKeys.forEach(k => { const t = String(k || '').trim(); if (t) keys.add(t); });
+
+    const allKeys = Array.from(keys);
+    if (allKeys.length === 0) {
       useAssistantStore.getState().knowledge.clearKnowledge();
       setDiagnosisSuggestions([]);
       setPanel({ diseases: [] });
-      return;
-    }
-
-    const { nameToKey, synonyms } = useAssistantStore.getState().knowledge;
-    
-    // 辅助函数：根据症状名称获取 symptomKey（支持同义词）
-    const getSymptomKey = (symptomName: string): string => {
-      // 1. 直接匹配主名称
-      if (nameToKey[symptomName]) return nameToKey[symptomName];
-      // 2. 匹配同义词
-      const canonicalName = synonyms[symptomName];
-      if (canonicalName && nameToKey[canonicalName]) {
-        return nameToKey[canonicalName];
-      }
-      // 3. 返回原名称
-      return symptomName;
-    };
-    
-    const key = getSymptomKey(name);
-    
-    // 如果没有找到对应的key，但有映射数据，说明症状映射还没准备好
-    // 这种情况应该等待映射加载完成，而不是直接报错
-    if (!nameToKey[name] && !synonyms[name] && Object.keys(nameToKey).length > 0) {
-      console.warn('[Session] 症状映射中未找到对应映射', { symptomName: name, availableKeys: Object.keys(nameToKey).slice(0, 10), synonyms: Object.keys(synonyms).slice(0, 10) });
-      setKnowledgeContext(null);
-      setKnowledgeError(`症状 "${name}" 未在映射中找到，可能需要更新症状库`);
-      setKnowledgeLoading(false);
-      return;
-    }
-    
-    // 如果映射数据为空，说明可能还在加载中，这种情况应该等待
-    if (Object.keys(nameToKey).length === 0) {
-      console.warn('[Session] 症状映射数据为空，可能还在加载中', { symptomName: name });
-      setKnowledgeContext(null);
-      setKnowledgeError('症状映射正在加载中，请稍后重试');
-      setKnowledgeLoading(false);
       return;
     }
 
@@ -643,31 +799,52 @@ const Session: React.FC = () => {
       physicalSigns?: unknown;
       updatedAt?: string;
     };
-
     setKnowledgeLoading(true);
     setKnowledgeError(null);
     try {
-      // 确保使用symptomKey而不是中文名称
-      const apiKey = key && key !== name ? key : name;
-      const kRes = await api.get(`/knowledge/${encodeURIComponent(apiKey)}`) as ApiResponse<SymptomKnowledgeLite>;
-      const k = unwrapData<SymptomKnowledgeLite>(kRes) || null;
-      if (k) {
-        const toArr = (v: unknown): string[] => Array.isArray(v) ? v.map(x => String(x)).filter(Boolean) : [];
-        setKnowledgeContext({
-          name: k.displayName || name,
-          questions: toArr(k.requiredQuestions),
-          relatedSymptoms: toArr(k.associatedSymptoms),
-          redFlags: toArr(k.redFlags),
-          physicalSigns: toArr(k.physicalSigns),
-          updatedAt: k.updatedAt,
-        });
-        console.log('[Session] 症状选择触发知识库上下文更新', { symptomName: name, symptomKey: key });
+      const contextsRaw = await Promise.all(
+        allKeys.map(async (key) => {
+          try {
+            const kRes = await api.get(`/knowledge/${encodeURIComponent(key)}`) as ApiResponse<SymptomKnowledgeLite>;
+            const k = unwrapData<SymptomKnowledgeLite>(kRes) || null;
+            if (!k) return null;
+            const toArr = (v: unknown): string[] => Array.isArray(v) ? v.map(x => String(x)).filter(Boolean) : [];
+            return {
+              name: k.displayName || key,
+              questions: toArr(k.requiredQuestions),
+              relatedSymptoms: toArr(k.associatedSymptoms),
+              redFlags: toArr(k.redFlags),
+              physicalSigns: toArr(k.physicalSigns),
+              updatedAt: k.updatedAt,
+            } as const;
+          } catch (e) {
+            console.warn('[Session] 加载症状知识失败', { key, e });
+            return null;
+          }
+        })
+      );
+      const contexts: KnowledgeContext[] = (contextsRaw.filter(Boolean) as Array<{
+        name: string;
+        questions?: string[];
+        relatedSymptoms?: string[];
+        redFlags?: string[];
+        physicalSigns?: string[];
+        updatedAt?: string;
+      }>) as KnowledgeContext[];
+
+      if (contexts.length > 0) {
+        if (setKnowledgeContexts) {
+          setKnowledgeContexts(contexts);
+        } else {
+          setKnowledgeContext(contexts[0]);
+        }
+        console.log('[Session] 批量更新知识上下文', { count: contexts.length });
       } else {
         setKnowledgeContext(null);
         setKnowledgeError('暂无对应的知识库条目');
       }
     } catch (e) {
-      console.warn('[Session] 根据症状加载知识失败', e);
+      console.warn('[Session] 批量加载知识失败', e);
       setKnowledgeContext(null);
       setKnowledgeError('知识加载失败，请稍后重试');
     } finally {
@@ -675,6 +852,13 @@ const Session: React.FC = () => {
     }
 
     try {
+      const names = (() => {
+        const arr = setKnowledgeContexts ? (useAssistantStore.getState().knowledge.contexts || []) : [];
+        if (Array.isArray(arr) && arr.length > 0) return arr.map(c => String(c?.name || '').trim()).filter(Boolean);
+        // 兜底：使用 keys 作为名称
+        return allKeys.slice(0);
+      })();
+
       const sessionId = (() => {
         const n = Number(id);
         return Number.isFinite(n) && n > 0 ? n : null;
@@ -685,12 +869,12 @@ const Session: React.FC = () => {
         if (typeof watchedAge === 'number' && Number.isFinite(watchedAge)) return Math.max(0, Math.floor(watchedAge));
         return undefined;
       })();
-      const sRes = await api.post('/diagnosis/suggest', { symptoms: [name], age: normalizedAge, gender: watchedGender, sessionId }) as ApiResponse<string[]>;
+      const sRes = await api.post('/diagnosis/suggest', { symptoms: names, age: normalizedAge, gender: watchedGender, sessionId }) as ApiResponse<string[]>;
       const suggestions = unwrapData<string[]>(sRes);
       if (Array.isArray(suggestions) && suggestions.length > 0) {
         setDiagnosisSuggestions(suggestions);
         setPanel({ diseases: suggestions });
-        console.log('[Session] 根据症状更新诊断建议', { count: suggestions.length });
+        console.log('[Session] 多症状更新诊断建议', { count: suggestions.length, symptomCount: names.length });
       } else {
         setDiagnosisSuggestions([]);
         setPanel({ diseases: [] });
@@ -700,8 +884,7 @@ const Session: React.FC = () => {
       setDiagnosisSuggestions([]);
       setPanel({ diseases: [] });
     }
-  }, [form, id, setKnowledgeContext, setKnowledgeError, setKnowledgeLoading, setPanel, setDiagnosisSuggestions, watchedAge, watchedGender]);
-
+  }, [form, id, setKnowledgeContext, setKnowledgeContexts, setKnowledgeError, setKnowledgeLoading, setPanel, setDiagnosisSuggestions, watchedAssociated, watchedCcSymptom, watchedRos, watchedAge, watchedGender, watchedIllnessHistory, watchedInfectiousHistory]);
   const analyzeChiefComplaint = React.useCallback(async (rawText: string, options: { writeBack: boolean; notify: boolean }) => {
     const text = String(rawText || '').trim();
     if (!text) {
@@ -844,14 +1027,8 @@ const Session: React.FC = () => {
   }, [analyzeChiefComplaint, currentSection, watchedCcText]);
 
   useEffect(() => {
-    if (watchedCcSymptom) {
-      loadKnowledgeForSymptom(watchedCcSymptom);
-    } else {
-      useAssistantStore.getState().knowledge.clearKnowledge();
-      setDiagnosisSuggestions([]);
-      setPanel({ diseases: [] });
-    }
-  }, [watchedCcSymptom, loadKnowledgeForSymptom, setDiagnosisSuggestions, setPanel]);
+    refreshKnowledgeFromAllSymptoms();
+  }, [refreshKnowledgeFromAllSymptoms]);
 
   const assistantImproveChiefComplaint = useCallback(async () => {
     const text = String(form.getFieldValue(['chiefComplaint', 'text']) || '').trim();
@@ -882,27 +1059,42 @@ const Session: React.FC = () => {
     console.log('[Session] 打开助手帮助', { currentSection, pendingCount: pending.length });
   }, [currentSection, getPendingItemsForSection, labelBySectionKey, modal]);
 
+  const knowledgeContexts = useAssistantStore(s => s.knowledge.contexts);
   const assistantRemindRedFlags = useCallback(() => {
-    const flags = knowledgeContext?.redFlags || [];
-    if (Array.isArray(flags) && flags.length > 0) {
-      setPanel({ redFlagsTip: `红旗征：${flags.slice(0, 6).join('、')}` });
+    const unionFlags = (() => {
+      const arr = Array.isArray(knowledgeContexts) && knowledgeContexts.length > 0
+        ? knowledgeContexts.map(c => c?.redFlags || [])
+        : [knowledgeContext?.redFlags || []];
+      const set = new Set<string>();
+      arr.forEach(list => (list || []).forEach(x => { const t = String(x || '').trim(); if (t) set.add(t); }));
+      return Array.from(set);
+    })();
+    if (unionFlags.length > 0) {
+      setPanel({ redFlagsTip: `红旗征：${unionFlags.slice(0, 6).map(String).join('、')}` });
       setNewMessage(true);
-      console.log('[Session] 红旗征提醒', { count: flags.length });
+      console.log('[Session] 红旗征提醒', { count: unionFlags.length });
     } else {
       message.info('暂无红旗征提示');
     }
-  }, [knowledgeContext?.redFlags, message, setNewMessage, setPanel]);
+  }, [knowledgeContexts, knowledgeContext?.redFlags, message, setNewMessage, setPanel]);
 
   const assistantGuideReviewOfSystems = useCallback(() => {
-    const qs = knowledgeContext?.questions || [];
-    if (Array.isArray(qs) && qs.length > 0) {
-      setPanel({ tips: qs.slice(0, 6) });
+    const unionQs = (() => {
+      const arr = Array.isArray(knowledgeContexts) && knowledgeContexts.length > 0
+        ? knowledgeContexts.map(c => c?.questions || [])
+        : [knowledgeContext?.questions || []];
+      const set = new Set<string>();
+      arr.forEach(list => (list || []).forEach(x => { const t = String(x || '').trim(); if (t) set.add(t); }));
+      return Array.from(set);
+    })();
+    if (unionQs.length > 0) {
+      setPanel({ tips: unionQs.slice(0, 6) });
       setNewMessage(true);
-      console.log('[Session] 系统回顾引导', { count: qs.length });
+      console.log('[Session] 系统回顾引导', { count: unionQs.length });
     } else {
       message.info('暂无引导要点');
     }
-  }, [knowledgeContext?.questions, message, setNewMessage, setPanel]);
+  }, [knowledgeContexts, knowledgeContext?.questions, message, setNewMessage, setPanel]);
 
   /**
    * 智能补全既往史
@@ -2224,10 +2416,13 @@ const Session: React.FC = () => {
         { key: 'cardiovascular', label: '循环系统' },
         { key: 'digestive', label: '消化系统' },
         { key: 'urinary', label: '泌尿系统' },
-        { key: 'neurological', label: '神经系统' },
+        { key: 'hematologic', label: '血液系统' },
+        { key: 'endocrine', label: '内分泌及代谢系统' },
+        { key: 'neurological', label: '神经精神系统' },
+        { key: 'musculoskeletal', label: '肌肉骨骼系统' },
       ];
       return systemsOrder.map(sys => {
-        const data = ros[sys.key];
+        const data = (ros as Record<string, { symptoms?: string[]; details?: string } | undefined>)[sys.key];
         if (!data) return `- ${sys.label}：未询问`;
         const positives =
           data.symptoms && data.symptoms.length > 0
@@ -2696,6 +2891,37 @@ const Session: React.FC = () => {
     }
     lines.push('');
 
+    lines.push('系统回顾');
+    const ros = val.reviewOfSystems;
+    const rosOrder = [
+      { key: 'respiratory', label: '呼吸系统' },
+      { key: 'cardiovascular', label: '循环系统' },
+      { key: 'digestive', label: '消化系统' },
+      { key: 'urinary', label: '泌尿系统' },
+      { key: 'hematologic', label: '血液系统' },
+      { key: 'endocrine', label: '内分泌及代谢系统' },
+      { key: 'neurological', label: '神经精神系统' },
+      { key: 'musculoskeletal', label: '肌肉骨骼系统' },
+    ];
+    if (!ros || Object.keys(ros).length === 0) {
+      lines.push('未录入。');
+    } else {
+      rosOrder.forEach(sys => {
+        const data = (ros as Record<string, { symptoms?: string[]; details?: string } | undefined>)[sys.key];
+        if (!data) {
+          lines.push(`${sys.label}：未询问。`);
+          return;
+        }
+        const positives =
+          data.symptoms && data.symptoms.length > 0
+            ? `有${data.symptoms.map(k => keyToNameMap[k] || k).join('、')}`
+            : '无特殊症状';
+        const details = data.details ? `，${data.details}` : '';
+        lines.push(`${sys.label}：${ensureEnd(`${positives}${details}`)}`);
+      });
+    }
+    lines.push('');
+
     lines.push('体格检查');
     const pe = val.physicalExam;
     const vital = pe?.vitalSigns;
@@ -3154,6 +3380,13 @@ const Session: React.FC = () => {
           onGoInterviewStart={() => navigate('/sessions')}
         />
       }
+      chat={
+        <ChatPanel
+          messages={chatMessages}
+          onSendMessage={handleSendMessage}
+          loading={chatLoading}
+        />
+      }
       editor={
         <>
           <div className="interview-editor-shell">
@@ -3225,16 +3458,21 @@ const Session: React.FC = () => {
 
                 <AssistantOverlay />
 
-                <Modal
+                <LazyModal
                   title={
                     <div style={{ textAlign: 'center', fontSize: '18px', fontWeight: 600, color: '#1e40af' }}>
                       病历预览
                     </div>
                   }
                   open={showPreview}
-                  onCancel={() => setShowPreview(false)}
+                  closable={false}
+                  maskClosable={false}
+                  keyboard={false}
+                  onCancel={() => {
+                    console.log('[Session] 已阻止默认方式关闭病历预览');
+                  }}
                   footer={[
-                    <Button key="close" onClick={() => setShowPreview(false)}>关闭</Button>,
+                    <Button key="close" onClick={closePreview}>关闭</Button>,
                     <Button
                       key="copyText"
                       onClick={() => {
@@ -3265,11 +3503,9 @@ const Session: React.FC = () => {
                   styles={{ body: { padding: 0, background: '#fff' } }}
                 >
                   <div className="medical-record" style={{ maxHeight: '70vh', overflow: 'auto' }}>
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                      {previewContent}
-                    </ReactMarkdown>
+                    <LazyMarkdown content={previewContent} />
                   </div>
-                </Modal>
+                </LazyModal>
               </div>
             </div>
 

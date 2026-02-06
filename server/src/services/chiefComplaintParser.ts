@@ -74,21 +74,21 @@ function normalizeText(input: string) {
 }
 
 function clamp01(v: number) {
-  if (!Number.isFinite(v)) return 0;
-  if (v < 0) return 0;
-  if (v > 1) return 1;
+  if (!Number.isFinite(v)) {return 0;}
+  if (v < 0) {return 0;}
+  if (v > 1) {return 1;}
   return v;
 }
 
 function parseRomanNumber(input: string): number | null {
   const s = String(input || '').trim().toUpperCase();
-  if (!s || !/^[IVXLCDM]+$/u.test(s)) return null;
+  if (!s || !/^[IVXLCDM]+$/u.test(s)) {return null;}
   let total = 0;
   let prev = 0;
   for (let i = s.length - 1; i >= 0; i -= 1) {
     const n = ROMAN_VALUE[s[i]];
-    if (!n) return null;
-    if (n < prev) total -= n;
+    if (!n) {return null;}
+    if (n < prev) {total -= n;}
     else {
       total += n;
       prev = n;
@@ -99,9 +99,9 @@ function parseRomanNumber(input: string): number | null {
 
 function parseChineseNumber(input: string): number | null {
   const s = String(input || '').trim();
-  if (!s) return null;
-  if (s === '半') return 0.5;
-  if (!/^[零〇一二三四五六七八九十百千两]+$/u.test(s)) return null;
+  if (!s) {return null;}
+  if (s === '半') {return 0.5;}
+  if (!/^[零〇一二三四五六七八九十百千两]+$/u.test(s)) {return null;}
 
   const digit: Record<string, number> = {
     零: 0,
@@ -140,19 +140,19 @@ function parseChineseNumber(input: string): number | null {
 
 function parseNumberToken(input: string): number | null {
   const raw = String(input || '').trim();
-  if (!raw) return null;
+  if (!raw) {return null;}
   const arabic = Number(raw);
-  if (Number.isFinite(arabic)) return arabic;
+  if (Number.isFinite(arabic)) {return arabic;}
   const roman = parseRomanNumber(raw);
-  if (roman !== null) return roman;
+  if (roman !== null) {return roman;}
   const chinese = parseChineseNumber(raw);
-  if (chinese !== null) return chinese;
+  if (chinese !== null) {return chinese;}
   return null;
 }
 
 function normalizeUnit(rawUnit: string): UnitMatch | null {
   const u = String(rawUnit || '').trim();
-  if (!u) return null;
+  if (!u) {return null;}
   for (const rule of UNIT_RULES) {
     for (const p of rule.patterns) {
       if (p.test(u)) {
@@ -166,15 +166,15 @@ function normalizeUnit(rawUnit: string): UnitMatch | null {
 function getKeywordBoost(text: string, start: number) {
   const left = text.slice(Math.max(0, start - 6), start);
   for (const k of DURATION_KEYWORDS) {
-    if (left.includes(k)) return 12;
+    if (left.includes(k)) {return 12;}
   }
   return 0;
 }
 
 function getNoisePenalty(text: string, start: number) {
   const left = text.slice(Math.max(0, start - 6), start);
-  if (/加重|加剧|恶化|加深|再发/u.test(left)) return 28;
-  if (/间断|反复/u.test(left)) return 10;
+  if (/加重|加剧|恶化|加深|再发/u.test(left)) {return 28;}
+  if (/间断|反复/u.test(left)) {return 10;}
   return 0;
 }
 
@@ -192,13 +192,13 @@ function buildDurationCandidates(text: string): DurationCandidate[] {
     const b = String(m[2] || '');
     const unitRaw = String(m[3] || '');
     const idx = typeof m.index === 'number' ? m.index : normalized.indexOf(raw);
-    if (idx < 0) continue;
+    if (idx < 0) {continue;}
 
     const unit = normalizeUnit(unitRaw)?.unit || null;
-    if (!unit) continue;
+    if (!unit) {continue;}
 
     const v1 = parseNumberToken(a);
-    if (v1 === null) continue;
+    if (v1 === null) {continue;}
     const v2 = b ? parseNumberToken(b) : null;
     const value: DurationValue = v2 !== null ? { min: Math.min(v1, v2), max: Math.max(v1, v2) } : v1;
 
@@ -222,7 +222,7 @@ function removeDurationSpan(text: string, span: { start: number; end: number }) 
   const merged = `${left} ${right}`;
   return normalizeWhitespace(
     merged
-      .replace(/[，,。.;；:：（）()\[\]【】]/gu, ' ')
+      .replace(/[，,。.;；:：（）()[\]【】]/gu, ' ')
       .replace(/\s+/gu, ' ')
       .trim()
   );
@@ -230,13 +230,13 @@ function removeDurationSpan(text: string, span: { start: number; end: number }) 
 
 function normalizeComplaintText(text: string, synonyms?: Record<string, string>) {
   let t = String(text || '').trim();
-  if (!t) return '';
+  if (!t) {return '';}
 
   if (synonyms && typeof synonyms === 'object') {
     const entries = Object.entries(synonyms).filter(([k, v]) => k && v);
     entries.sort((a, b) => b[0].length - a[0].length);
     for (const [k, v] of entries) {
-      if (t.includes(k)) t = t.split(k).join(v);
+      if (t.includes(k)) {t = t.split(k).join(v);}
     }
   }
 
@@ -257,22 +257,22 @@ function extractCoreSymptom(
   options?: { knownSymptoms?: string[]; synonyms?: Record<string, string> }
 ) {
   const t = normalizeComplaintText(text, options?.synonyms);
-  if (!t) return '';
+  if (!t) {return '';}
 
   const candidates: Array<{ idx: number; value: string; len: number }> = [];
 
   const known = Array.isArray(options?.knownSymptoms) ? options?.knownSymptoms : [];
   for (const name of known) {
-    if (!name) continue;
+    if (!name) {continue;}
     const idx = t.indexOf(name);
-    if (idx >= 0) candidates.push({ idx, value: name, len: name.length });
+    if (idx >= 0) {candidates.push({ idx, value: name, len: name.length });}
   }
 
   if (options?.synonyms) {
     for (const [syn, standard] of Object.entries(options.synonyms)) {
-      if (!syn || !standard) continue;
+      if (!syn || !standard) {continue;}
       const idx = t.indexOf(syn);
-      if (idx >= 0) candidates.push({ idx, value: standard, len: syn.length });
+      if (idx >= 0) {candidates.push({ idx, value: standard, len: syn.length });}
     }
   }
 
@@ -295,18 +295,18 @@ function extractCoreSymptom(
     }
   }
 
-  if (candidates.length === 0) return t;
+  if (candidates.length === 0) {return t;}
   candidates.sort((a, b) => a.idx - b.idx || b.len - a.len);
   return candidates[0].value;
 }
 
 function chooseBestCandidate(candidates: DurationCandidate[]) {
-  if (candidates.length === 0) return null;
+  if (candidates.length === 0) {return null;}
   let best = candidates[0];
   for (let i = 1; i < candidates.length; i += 1) {
     const c = candidates[i];
-    if (c.score > best.score) best = c;
-    else if (c.score === best.score && c.start > best.start) best = c;
+    if (c.score > best.score) {best = c;}
+    else if (c.score === best.score && c.start > best.start) {best = c;}
   }
   return best;
 }

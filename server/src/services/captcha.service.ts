@@ -1,6 +1,5 @@
 import crypto from 'crypto';
 import { getRedisClient } from '../utils/redis-client';
-import { serverConfig } from '../config';
 
 type StoreItem = { hash: string; expireAt: number; used?: boolean };
 
@@ -82,7 +81,7 @@ export async function createCaptcha(): Promise<{ id: string; svg: string; ttlMs:
     FALLBACK_STORE.set(id, { hash, expireAt: Date.now() + ttlMs, used: false });
     // 清理过期
     for (const [k, v] of FALLBACK_STORE.entries()) {
-      if (Date.now() > v.expireAt) FALLBACK_STORE.delete(k);
+      if (Date.now() > v.expireAt) {FALLBACK_STORE.delete(k);}
     }
   }
 
@@ -95,14 +94,14 @@ export async function createCaptcha(): Promise<{ id: string; svg: string; ttlMs:
  */
 export async function verifyCaptcha(id: string, input: string): Promise<boolean> {
   const normalized = String(input || '').trim();
-  if (!id || !normalized) return false;
+  if (!id || !normalized) {return false;}
   const hash = crypto.createHash('sha256').update(normalized).digest('hex');
 
   const redis = await getRedisClient();
   if (redis) {
     const key = `captcha:${id}`;
     const stored = await redis.get(key);
-    if (!stored) return false;
+    if (!stored) {return false;}
     const ok = stored === hash;
     if (ok) {
       // 删除防重用
@@ -112,7 +111,7 @@ export async function verifyCaptcha(id: string, input: string): Promise<boolean>
   }
 
   const item = FALLBACK_STORE.get(id);
-  if (!item || item.used || Date.now() > item.expireAt) return false;
+  if (!item || item.used || Date.now() > item.expireAt) {return false;}
   const ok = item.hash === hash;
   if (ok) {
     item.used = true;

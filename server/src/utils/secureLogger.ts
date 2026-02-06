@@ -3,6 +3,7 @@
  */
 
 import { securityConfig, LogLevel, canLog } from '../config/security';
+import type { Request, Response } from 'express';
 import { filterSensitiveData, truncateOutput, sanitizeError } from './security';
 
 interface LogEntry {
@@ -132,8 +133,8 @@ class SecureLogger {
   /**
    * HTTP请求日志 - 自动过滤敏感信息
    */
-  logRequest(req: any, res: any, responseTime?: number): void {
-    if (!canLog(LogLevel.INFO)) return;
+  logRequest(req: Request, res: Response, responseTime?: number): void {
+    if (!canLog(LogLevel.INFO)) {return;}
 
     const metadata: Record<string, unknown> = {
       method: req.method,
@@ -145,7 +146,7 @@ class SecureLogger {
     };
 
     // 过滤请求体中的敏感信息
-    if (req.body && Object.keys(req.body).length > 0) {
+    if (req.body && typeof req.body === 'object' && Object.keys(req.body as Record<string, unknown>).length > 0) {
       metadata.requestBody = filterSensitiveData(req.body);
     }
 
@@ -257,7 +258,7 @@ export const logInfo = (message: string, metadata?: Record<string, unknown>) =>
 export const logDebug = (message: string, metadata?: Record<string, unknown>) => 
   secureLogger.debug(message, metadata);
 
-export const logRequest = (req: any, res: any, responseTime?: number) => 
+export const logRequest = (req: Request, res: Response, responseTime?: number) => 
   secureLogger.logRequest(req, res, responseTime);
 
 export const logDatabase = (operation: string, table: string, duration?: number, metadata?: Record<string, unknown>) => 

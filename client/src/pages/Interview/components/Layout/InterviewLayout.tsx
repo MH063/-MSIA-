@@ -1,5 +1,6 @@
 import React from 'react';
-import { Button, Drawer, Grid, Layout } from 'antd';
+import { Button, Grid, Layout } from 'antd';
+import LazyDrawer from '../../../../components/lazy/LazyDrawer';
 import { MenuOutlined } from '@ant-design/icons';
 
 const { Sider, Content, Header } = Layout;
@@ -8,20 +9,23 @@ const { useBreakpoint } = Grid;
 interface InterviewLayoutProps {
   navigation: React.ReactNode;
   editor: React.ReactNode;
+  chat?: React.ReactNode;
   knowledge?: React.ReactNode | null;
 }
 
 const InterviewLayout: React.FC<InterviewLayoutProps> = ({
   navigation,
   editor,
+  chat,
 }) => {
+  const { token } = Layout.useApp().theme.useToken();
   const screens = useBreakpoint();
   const isDesktop = Boolean(screens.md);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
 
   if (!isDesktop) {
     return (
-      <Layout className="interview-layout" style={{ minHeight: '100vh', background: '#f0f2f5' }}>
+      <Layout className="interview-layout" style={{ minHeight: '100vh', background: token.colorBgLayout }}>
         <Header
           style={{
             position: 'sticky',
@@ -31,36 +35,38 @@ const InterviewLayout: React.FC<InterviewLayoutProps> = ({
             alignItems: 'center',
             gap: 12,
             padding: '0 12px',
-            background: '#ffffff',
-            borderBottom: '1px solid #f0f0f0',
+            background: token.colorBgContainer,
+            borderBottom: `1px solid ${token.colorSplit}`,
           }}
         >
           <Button type="text" icon={<MenuOutlined />} onClick={() => setDrawerOpen(true)} />
-          <div style={{ fontWeight: 700, color: '#1f1f1f' }}>问诊</div>
+          <div style={{ fontWeight: 700, color: token.colorText }}>问诊</div>
         </Header>
 
-        <Content style={{ margin: 0, padding: 12, background: '#f0f2f5', minHeight: 'calc(100vh - 64px)' }}>
-          {editor}
+        <Content style={{ margin: 0, padding: 0, background: token.colorBgLayout, minHeight: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column' }}>
+          {/* Mobile: Chat on top (collapsible?) or Tabs? For now stack them or just show editor */}
+          {chat && <div style={{ height: '40vh', borderBottom: `1px solid ${token.colorSplit}` }}>{chat}</div>}
+          <div style={{ flex: 1, padding: 12, overflowY: 'auto' }}>{editor}</div>
         </Content>
 
-        <Drawer
+        <LazyDrawer
           open={drawerOpen}
           placement="left"
           onClose={() => setDrawerOpen(false)}
-          styles={{ wrapper: { width: '100vw' }, body: { padding: 0 } }}
+          styles={{ wrapper: { width: '80vw' }, body: { padding: 0 } }}
           title={null}
         >
           <div onClick={() => setDrawerOpen(false)}>{navigation}</div>
-        </Drawer>
+        </LazyDrawer>
       </Layout>
     );
   }
 
   return (
-    <Layout className="interview-layout" style={{ minHeight: '100vh', background: '#f0f2f5' }}>
+    <Layout className="interview-layout" style={{ minHeight: '100vh', background: token.colorBgLayout }}>
       {/* Left Navigation Panel */}
       <Sider
-        width={280}
+        width={220}
         theme="light"
         style={{
           height: '100vh',
@@ -68,7 +74,7 @@ const InterviewLayout: React.FC<InterviewLayoutProps> = ({
           left: 0,
           top: 0,
           bottom: 0,
-          borderRight: '1px solid #f0f0f0',
+          borderRight: `1px solid ${token.colorSplit}`,
           zIndex: 10,
           overflow: 'hidden',
         }}
@@ -76,41 +82,39 @@ const InterviewLayout: React.FC<InterviewLayoutProps> = ({
         {navigation}
       </Sider>
 
-      {/* Center Editor Panel - 知识库已集成到智能问诊助手，此处占满右侧空间 */}
-      <Layout style={{ marginLeft: 280, minHeight: '100vh' }}>
+      {/* Main Content Area: Split Chat and Editor */}
+      <Layout style={{ marginLeft: 220, minHeight: '100vh', flexDirection: 'row' }}>
+        {/* Chat Panel */}
+        {chat && (
+          <div style={{ 
+            width: '35%', 
+            minWidth: 320,
+            maxWidth: 500,
+            height: '100vh', 
+            borderRight: `1px solid ${token.colorSplit}`,
+            background: token.colorBgContainer,
+            position: 'sticky',
+            top: 0,
+            zIndex: 5
+          }}>
+            {chat}
+          </div>
+        )}
+
+        {/* Editor Panel */}
         <Content
           style={{
+            flex: 1,
             margin: 0,
             padding: 20,
-            background: '#f0f2f5',
+            background: token.colorBgLayout,
             overflowY: 'auto',
-            minHeight: '100vh',
+            height: '100vh',
           }}
         >
           {editor}
         </Content>
       </Layout>
-
-      {/* Knowledge Panel - 已移除固定右侧面板，知识库内容集成到智能问诊助手Drawer中 */}
-      {/* 原有的右侧Sider已移除，如果需要恢复，可参考以下代码： */}
-      {/* {knowledge && (
-        <Sider
-          width={350}
-          theme="light"
-          style={{
-            overflow: 'auto',
-            height: '100vh',
-            position: 'fixed',
-            right: 0,
-            top: 0,
-            bottom: 0,
-            borderLeft: '1px solid #f0f0f0',
-            zIndex: 10,
-          }}
-        >
-          {knowledge}
-        </Sider>
-      )} */}
     </Layout>
   );
 };

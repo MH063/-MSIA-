@@ -69,30 +69,32 @@ export function signRefreshToken(input: { operatorId: number; role: string; sid:
  */
 export function verifyToken(token: string): JwtPayload | null {
   try {
-    const payload = jwt.verify(token, JWT_SECRET) as AccessJwtPayload;
-    if (!payload || typeof payload !== 'object') return null;
-    if (payload.typ && payload.typ !== 'access') return null;
-    if (!Number.isFinite((payload as any).operatorId)) return null;
-    if (typeof (payload as any).role !== 'string') return null;
-    return { operatorId: Number((payload as any).operatorId), role: String((payload as any).role) };
-  } catch (error) {
+    const raw = jwt.verify(token, JWT_SECRET) as unknown;
+    if (!raw || typeof raw !== 'object') {return null;}
+    const p = raw as Partial<AccessJwtPayload>;
+    if (p.typ && p.typ !== 'access') {return null;}
+    if (!('operatorId' in p) || typeof p.operatorId !== 'number' || !Number.isFinite(p.operatorId)) {return null;}
+    if (!('role' in p) || typeof p.role !== 'string') {return null;}
+    return { operatorId: p.operatorId, role: p.role };
+  } catch (_error) {
     return null;
   }
 }
 
 export function verifyRefreshToken(token: string): RefreshJwtPayload | null {
   try {
-    const payload = jwt.verify(token, REFRESH_JWT_SECRET) as RefreshJwtPayload;
-    if (!payload || typeof payload !== 'object') return null;
-    if ((payload as any).typ !== 'refresh') return null;
-    if (!Number.isFinite((payload as any).operatorId)) return null;
-    if (typeof (payload as any).role !== 'string') return null;
-    const sid = String((payload as any).sid || '').trim();
-    const jti = String((payload as any).jti || '').trim();
-    if (!sid || !jti) return null;
+    const raw = jwt.verify(token, REFRESH_JWT_SECRET) as unknown;
+    if (!raw || typeof raw !== 'object') {return null;}
+    const p = raw as Partial<RefreshJwtPayload>;
+    if (p.typ !== 'refresh') {return null;}
+    if (!('operatorId' in p) || typeof p.operatorId !== 'number' || !Number.isFinite(p.operatorId)) {return null;}
+    if (!('role' in p) || typeof p.role !== 'string') {return null;}
+    const sid = typeof p.sid === 'string' ? p.sid.trim() : '';
+    const jti = typeof p.jti === 'string' ? p.jti.trim() : '';
+    if (!sid || !jti) {return null;}
     return {
-      operatorId: Number((payload as any).operatorId),
-      role: String((payload as any).role),
+      operatorId: p.operatorId,
+      role: p.role,
       typ: 'refresh',
       sid,
       jti,

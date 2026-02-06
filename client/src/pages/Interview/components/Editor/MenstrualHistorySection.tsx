@@ -1,5 +1,6 @@
 import React from 'react';
-import { Form, Input, InputNumber, Card, Row, Col, DatePicker, Radio, Select, Grid } from 'antd';
+import { Form, Input, InputNumber, Card, Row, Col, Radio, Select, Grid } from 'antd';
+import LazyDatePicker from '../../../../components/lazy/LazyDatePicker';
 
 const { Option } = Select;
 const { useBreakpoint } = Grid;
@@ -37,12 +38,12 @@ const MenstrualHistorySection: React.FC = () => {
           </Col>
           <Col xs={24} sm={12} md={6}>
             <Form.Item name={['menstrualHistory', 'lmp_date']} label="末次月经(LMP)">
-              <DatePicker
+              <LazyDatePicker
                 style={{ width: '100%' }}
                 format="YYYY-MM-DD"
                 placement="bottomLeft"
                 classNames={{ popup: { root: isMobile ? 'msia-mobile-picker' : undefined } }}
-                getPopupContainer={(trigger) => (isMobile ? document.body : trigger.parentElement ?? document.body)}
+                getPopupContainer={(trigger: HTMLElement) => (isMobile ? document.body : trigger.parentElement ?? document.body)}
               />
             </Form.Item>
           </Col>

@@ -8,7 +8,7 @@ dotenv.config();
 
 const getConnectionString = () => {
   const base = databaseConfig.url;
-  if (!base) return '';
+  if (!base) {return '';}
   
   // 如果已强制要求 SSL 且连接字符串中没有 sslmode 参数，则追加
   if (databaseConfig.ssl && !base.includes('sslmode=')) {

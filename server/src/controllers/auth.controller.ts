@@ -6,6 +6,7 @@ import { comparePassword, hashPassword, signAccessToken, signRefreshToken, verif
 import { authCookieConfig, authGuardConfig, authSessionConfig } from '../config';
 import { getRedisClient, incrWithExpire, incrWithTtl } from '../utils/redis-client';
 import { createCaptcha, verifyCaptcha as verifyCaptchaPair } from '../services/captcha.service';
+import { secureLogger } from '../utils/secureLogger';
 
 type LoginFailRecord = {
   count: number;
@@ -51,23 +52,23 @@ let warnedLoginDbMissing = false;
 function getClientIp(req: Request): string {
   const xf = String(req.headers['x-forwarded-for'] || '').trim();
   const raw = xf ? xf.split(',')[0].trim() : String(req.ip || '').trim();
-  if (!raw) return 'unknown';
+  if (!raw) {return 'unknown';}
   return raw.startsWith('::ffff:') ? raw.slice('::ffff:'.length) : raw;
 }
 
 function parseCookieHeader(raw: string): Record<string, string> {
   const out: Record<string, string> = {};
   const s = String(raw || '').trim();
-  if (!s) return out;
+  if (!s) {return out;}
   const parts = s.split(';');
   for (const part of parts) {
     const p = part.trim();
-    if (!p) continue;
+    if (!p) {continue;}
     const idx = p.indexOf('=');
-    if (idx <= 0) continue;
+    if (idx <= 0) {continue;}
     const k = p.slice(0, idx).trim();
     const v = p.slice(idx + 1).trim();
-    if (!k) continue;
+    if (!k) {continue;}
     try {
       out[k] = decodeURIComponent(v);
     } catch {
@@ -79,7 +80,7 @@ function parseCookieHeader(raw: string): Record<string, string> {
 
 function readCookie(req: Request, name: string): string | null {
   const raw = String(req.header('cookie') || '').trim();
-  if (!raw) return null;
+  if (!raw) {return null;}
   const jar = parseCookieHeader(raw);
   const v = String(jar[name] || '').trim();
   return v || null;
@@ -150,18 +151,18 @@ function getRolePolicy(role?: string | null): AuthRolePolicy {
 function cleanupCounters(now: number) {
   for (const [k, v] of loginFailByKey.entries()) {
     const expired = now - v.lastAt > authGuardConfig.loginFailWindowMs + LOGIN_MAX_LOCK_MS;
-    if (expired) loginFailByKey.delete(k);
+    if (expired) {loginFailByKey.delete(k);}
   }
   for (const [k, v] of loginIpCounter.entries()) {
     const expired = now - v.lastAt > authGuardConfig.loginIpWindowMs * 2;
-    if (expired) loginIpCounter.delete(k);
+    if (expired) {loginIpCounter.delete(k);}
   }
   for (const [k, v] of registerIpCounter.entries()) {
     const expired = now - v.lastAt > authGuardConfig.registerIpWindowMs * 2;
-    if (expired) registerIpCounter.delete(k);
+    if (expired) {registerIpCounter.delete(k);}
   }
   for (const [k, v] of refreshSessionBySid.entries()) {
-    if (now >= v.expiresAt) refreshSessionBySid.delete(k);
+    if (now >= v.expiresAt) {refreshSessionBySid.delete(k);}
   }
 }
 
@@ -177,8 +178,7 @@ async function putRefreshSession(input: { sid: string; operatorId: number; role:
       );
       return;
     } catch (e) {
-      console.warn('[auth.refresh] Redis 写入失败，将使用内存兜底');
-      console.warn(e);
+      secureLogger.warn('[auth.refresh] Redis 写入失败，将使用内存兜底');
     }
   }
   refreshSessionBySid.set(input.sid, {
@@ -194,22 +194,21 @@ async function getRefreshSession(sid: string): Promise<{ operatorId: number; rol
   if (redis) {
     try {
       const raw = await redis.get(`auth:refresh:${sid}`);
-      if (!raw) return null;
+      if (!raw) {return null;}
       const parsed = JSON.parse(raw) as { operatorId?: unknown; role?: unknown; jti?: unknown };
       const operatorId = Number((parsed as any).operatorId);
       const role = String((parsed as any).role || '').trim();
       const jti = String((parsed as any).jti || '').trim();
-      if (!Number.isFinite(operatorId) || !role || !jti) return null;
+      if (!Number.isFinite(operatorId) || !role || !jti) {return null;}
       return { operatorId, role, jti };
     } catch (e) {
-      console.warn('[auth.refresh] Redis 读取失败，将尝试内存兜底');
-      console.warn(e);
+      secureLogger.warn('[auth.refresh] Redis 读取失败，将尝试内存兜底');
     }
   }
   const now = Date.now();
   cleanupCounters(now);
   const mem = refreshSessionBySid.get(sid);
-  if (!mem || now >= mem.expiresAt) return null;
+  if (!mem || now >= mem.expiresAt) {return null;}
   return { operatorId: mem.operatorId, role: mem.role, jti: mem.jti };
 }
 
@@ -219,8 +218,7 @@ async function deleteRefreshSession(sid: string): Promise<void> {
     try {
       await redis.del(`auth:refresh:${sid}`);
     } catch (e) {
-      console.warn('[auth.refresh] Redis 删除失败，将继续清理内存兜底');
-      console.warn(e);
+      secureLogger.warn('[auth.refresh] Redis 删除失败，将继续清理内存兜底');
     }
   }
   refreshSessionBySid.delete(sid);
@@ -254,16 +252,16 @@ async function checkLoginGuard(req: Request, username?: string | null): Promise<
   const ip = getClientIp(req);
   const redis = await getRedisClient();
   const ipBlocked = await checkLoginIpRateLimit(ip, now, redis);
-  if (ipBlocked) return ipBlocked;
+  if (ipBlocked) {return ipBlocked;}
 
   const u = normalizeUsername(username);
-  if (!u) return null;
+  if (!u) {return null;}
 
   const lockedUntil = await getLoginLockedUntil(ip, u, now, redis);
   if (lockedUntil && lockedUntil > now) {
     const remainMs = lockedUntil - now;
     const remainMin = Math.ceil(remainMs / 60000);
-    console.warn('[auth.login] 账号已被临时锁定', { ip, username: u, remainMin });
+    secureLogger.warn('[auth.login] 账号已被临时锁定', { ip, username: u, remainMin });
     return { blocked: true, status: 429, message: `登录失败次数过多，请${remainMin}分钟后再试`, reason: 'locked', lockedUntil };
   }
 
@@ -283,13 +281,12 @@ async function checkLoginIpRateLimit(
     try {
       const count = await incrWithExpire(redis, redisKey, Math.ceil(authGuardConfig.loginIpWindowMs / 1000));
       if (count > authGuardConfig.loginIpMax) {
-        console.warn('[auth.login] IP请求过于频繁（Redis）', { ip, count });
+        secureLogger.warn('[auth.login] IP请求过于频繁（Redis）', { ip, count });
         return { blocked: true, status: 429, message: '请求过于频繁，请稍后再试', reason: 'rate_limited' };
       }
       return null;
     } catch (e) {
-      console.warn('[auth.login] Redis 限流检查失败，尝试数据库兜底', { ip });
-      console.warn(e);
+      secureLogger.warn('[auth.login] Redis 限流检查失败，尝试数据库兜底', { ip });
     }
   }
 
@@ -299,17 +296,17 @@ async function checkLoginIpRateLimit(
       where: { ip, createdAt: { gte: since } },
     });
     if (count >= authGuardConfig.loginIpMax) {
-      console.warn('[auth.login] IP请求过于频繁（DB兜底）', { ip, count });
+      secureLogger.warn('[auth.login] IP请求过于频繁（DB兜底）', { ip, count });
       return { blocked: true, status: 429, message: '请求过于频繁，请稍后再试', reason: 'rate_limited' };
     }
     return null;
   } catch (e: any) {
-    if (isMissingTableError(e)) warnLoginDbMissingOnce(e);
+    if (isMissingTableError(e)) {warnLoginDbMissingOnce(e);}
   }
 
   const ipWait = bumpWindowCounter(loginIpCounter, ip, now, authGuardConfig.loginIpWindowMs, authGuardConfig.loginIpMax);
   if (ipWait !== null) {
-    console.warn('[auth.login] IP请求过于频繁（内存兜底）', { ip, waitMs: ipWait });
+    secureLogger.warn('[auth.login] IP请求过于频繁（内存兜底）', { ip, waitMs: ipWait });
     return { blocked: true, status: 429, message: '请求过于频繁，请稍后再试', reason: 'rate_limited' };
   }
 
@@ -326,18 +323,17 @@ async function getLoginLockedUntil(
   redis: Awaited<ReturnType<typeof getRedisClient>>
 ): Promise<number | null> {
   const u = normalizeUsername(username);
-  if (!u) return null;
+  if (!u) {return null;}
 
   const lockKey = `rl:auth:login:lock:${ip}:${u}`;
   if (redis) {
     try {
       const v = await redis.get(lockKey);
-      if (!v) return null;
+      if (!v) {return null;}
       const lockedUntil = Number(v);
       return Number.isFinite(lockedUntil) ? lockedUntil : null;
     } catch (e) {
-      console.warn('[auth.login] Redis 锁定检查失败，尝试数据库兜底', { ip, username: u });
-      console.warn(e);
+      secureLogger.warn('[auth.login] Redis 锁定检查失败，尝试数据库兜底', { ip, username: u });
     }
   }
 
@@ -366,12 +362,12 @@ async function getLoginLockedUntil(
     }
     return null;
   } catch (e: any) {
-    if (isMissingTableError(e)) warnLoginDbMissingOnce(e);
+    if (isMissingTableError(e)) {warnLoginDbMissingOnce(e);}
   }
 
   const key = `${ip}::${u}`;
   const mem = loginFailByKey.get(key);
-  if (mem?.lockedUntil && mem.lockedUntil > now) return mem.lockedUntil;
+  if (mem?.lockedUntil && mem.lockedUntil > now) {return mem.lockedUntil;}
   return null;
 }
 
@@ -386,7 +382,7 @@ async function recordLoginFailure(
   const now = Date.now();
   const ip = getClientIp(req);
   const u = normalizeUsername(username);
-  if (!u) return { failCount: 0, lockedUntil: null };
+  if (!u) {return { failCount: 0, lockedUntil: null };}
 
   const meta = getRequestMeta(req);
   const redis = await getRedisClient();
@@ -408,11 +404,10 @@ async function recordLoginFailure(
       if (failCount >= policy.maxFails) {
         lockedUntil = now + policy.lockMs;
         await redis.set(lockKey, String(lockedUntil), { EX: Math.ceil(policy.lockMs / 1000) });
-        console.warn('[auth.login] 触发登录失败锁定（Redis）', { ip, username: u, lockedUntil: new Date(lockedUntil).toISOString() });
+        secureLogger.warn('[auth.login] 触发登录失败锁定（Redis）', { ip, username: u, lockedUntil: new Date(lockedUntil).toISOString() });
       }
     } catch (e) {
-      console.warn('[auth.login] Redis 失败计数写入失败，尝试数据库兜底', { ip, username: u });
-      console.warn(e);
+      secureLogger.warn('[auth.login] Redis 失败计数写入失败，尝试数据库兜底', { ip, username: u });
     }
   }
 
@@ -428,9 +423,9 @@ async function recordLoginFailure(
       failWindowMs: authGuardConfig.loginFailWindowMs,
     });
     failCount = Math.max(failCount, db.failCount);
-    if (db.lockedUntil) lockedUntil = Math.max(lockedUntil || 0, db.lockedUntil);
+    if (db.lockedUntil) {lockedUntil = Math.max(lockedUntil || 0, db.lockedUntil);}
   } catch (e: any) {
-    if (isMissingTableError(e)) warnLoginDbMissingOnce(e);
+    if (isMissingTableError(e)) {warnLoginDbMissingOnce(e);}
   }
 
   const key = `${ip}::${u}`;
@@ -450,9 +445,9 @@ async function recordLoginFailure(
   const nextFirstAt = authGuardConfig.loginFailWindowMode === 'sliding' ? now : prev.firstAt;
   loginFailByKey.set(key, { count: nextCount, firstAt: nextFirstAt, lockedUntil: nextLockedUntil, lastAt: now });
   if (nextCount >= policy.maxFails) {
-    console.warn('[auth.login] 触发登录失败锁定', { ip, username: u, lockedUntil: new Date(nextLockedUntil).toISOString() });
+    secureLogger.warn('[auth.login] 触发登录失败锁定', { ip, username: u, lockedUntil: new Date(nextLockedUntil).toISOString() });
   }
-  if (nextLockedUntil > now) lockedUntil = Math.max(lockedUntil || 0, nextLockedUntil);
+  if (nextLockedUntil > now) {lockedUntil = Math.max(lockedUntil || 0, nextLockedUntil);}
   return { failCount: Math.max(failCount, nextCount), lockedUntil };
 }
 
@@ -462,14 +457,13 @@ async function recordLoginFailure(
 async function clearLoginFailures(req: Request, username: string) {
   const ip = getClientIp(req);
   const u = normalizeUsername(username);
-  if (!u) return;
+  if (!u) {return;}
   const redis = await getRedisClient();
   if (redis) {
     try {
       await redis.del([`rl:auth:login:fail:${ip}:${u}`, `rl:auth:login:lock:${ip}:${u}`]);
     } catch (e) {
-      console.warn('[auth.login] Redis 清理失败计数失败', { ip, username: u });
-      console.warn(e);
+      secureLogger.warn('[auth.login] Redis 清理失败计数失败', { ip, username: u });
     }
   }
 
@@ -484,7 +478,7 @@ async function clearLoginFailures(req: Request, username: string) {
       },
     });
   } catch (e: any) {
-    if (isMissingTableError(e)) warnLoginDbMissingOnce(e);
+    if (isMissingTableError(e)) {warnLoginDbMissingOnce(e);}
   }
 
   const key = `${ip}::${u}`;
@@ -500,7 +494,7 @@ function checkRegisterGuard(req: Request): { blocked: boolean; status: number; m
   const ip = getClientIp(req);
   const wait = bumpWindowCounter(registerIpCounter, ip, now, authGuardConfig.registerIpWindowMs, authGuardConfig.registerIpMax);
   if (wait !== null) {
-    console.warn('[auth.register] IP请求过于频繁', { ip, waitMs: wait });
+    secureLogger.warn('[auth.register] IP请求过于频繁', { ip, waitMs: wait });
     return { blocked: true, status: 429, message: '请求过于频繁，请稍后再试' };
   }
   return null;
@@ -511,7 +505,7 @@ function checkRegisterGuard(req: Request): { blocked: boolean; status: number; m
  */
 async function buildCaptchaErrorResponse(message: string) {
   const captcha = await createCaptcha();
-  console.warn('[auth.captcha] 校验失败，生成新验证码', { reason: message });
+  secureLogger.warn('[auth.captcha] 校验失败，生成新验证码', { reason: message });
   return {
     success: false,
     message,
@@ -528,6 +522,7 @@ export const login = async (req: Request, res: Response) => {
 
     // 验证码校验
     if (!captchaId || !captcha) {
+      secureLogger.warn('[auth.login] 验证码校验失败');
       return res.status(400).json({ success: false, message: '请先获取验证码并填写' });
     }
     const captchaOk = await verifyCaptchaPair(String(captchaId), String(captcha));
@@ -574,7 +569,7 @@ export const login = async (req: Request, res: Response) => {
       await putRefreshSession({ sid, operatorId: operator.operatorId, role: operator.role, jti });
       setAuthCookies(res, { accessToken, refreshToken });
 
-      console.log('[auth.login] Token登录成功', { operatorId: operator.operatorId, role: operator.role });
+      secureLogger.info('[auth.login] Token登录成功', { operatorId: operator.operatorId, role: operator.role });
       await persistLoginAttempt({
         ip: meta.ip,
         username: null,
@@ -589,7 +584,7 @@ export const login = async (req: Request, res: Response) => {
       if (operator.operatorId > 0) {
         try {
           const dbOp = await prisma.operator.findUnique({ where: { id: operator.operatorId } });
-          if (dbOp) name = dbOp.name || dbOp.username;
+          if (dbOp) {name = dbOp.name || dbOp.username;}
         } catch {
           // ignore
         }
@@ -646,7 +641,7 @@ export const login = async (req: Request, res: Response) => {
       await putRefreshSession({ sid, operatorId: operator.id, role: operator.role, jti });
       setAuthCookies(res, { accessToken, refreshToken });
 
-      console.log('[auth.login] 密码登录成功', { operatorId: operator.id, role: operator.role });
+      secureLogger.info('[auth.login] 密码登录成功', { operatorId: operator.id, role: operator.role });
       await persistLoginAttempt({
         ip: meta.ip,
         username: normalizeUsername(username),
@@ -671,7 +666,7 @@ export const login = async (req: Request, res: Response) => {
 
     return res.status(400).json({ success: false, message: '请提供Token或用户名密码' });
   } catch (error) {
-    console.error('[auth.login] 登录失败', error);
+    secureLogger.error('[auth.login] 登录失败', error instanceof Error ? error : undefined);
     return res.status(500).json({ success: false, message: '登录失败' });
   }
 };
@@ -719,7 +714,7 @@ export const register = async (req: Request, res: Response) => {
     const refreshToken = signRefreshToken({ operatorId: operator.id, role: operator.role, sid, jti });
     await putRefreshSession({ sid, operatorId: operator.id, role: operator.role, jti });
     setAuthCookies(res, { accessToken, refreshToken });
-    console.log('[auth.register] 注册成功', { operatorId: operator.id });
+    secureLogger.info('[auth.register] 注册成功', { operatorId: operator.id });
 
     return res.json({
       success: true,
@@ -732,7 +727,7 @@ export const register = async (req: Request, res: Response) => {
     });
 
   } catch (error) {
-    console.error('[auth.register] 注册失败', error);
+    secureLogger.error('[auth.register] 注册失败', error instanceof Error ? error : undefined);
     return res.status(500).json({ success: false, message: '注册失败' });
   }
 };
@@ -757,7 +752,7 @@ export const me = async (req: Request, res: Response) => {
             if (dbOp) {
                 name = dbOp.name || dbOp.username;
             }
-        } catch(e) {
+        } catch (_e) {
             // ignore if table doesn't exist yet or other error
         }
     }
@@ -771,7 +766,7 @@ export const me = async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    console.error('[auth.me] 获取当前用户失败', error);
+    secureLogger.error('[auth.me] 获取当前用户失败', error instanceof Error ? error : undefined);
     return res.status(500).json({ success: false, message: '获取当前用户失败' });
   }
 };
@@ -810,13 +805,13 @@ export const refresh = async (req: Request, res: Response) => {
     }
     setAuthCookies(res, { accessToken, refreshToken });
 
-    console.log('[auth.refresh] 刷新成功', { operatorId: payload.operatorId, role: payload.role, rotate: authSessionConfig.refreshRotateOnUse });
+    secureLogger.info('[auth.refresh] 刷新成功', { operatorId: payload.operatorId, role: payload.role, rotate: authSessionConfig.refreshRotateOnUse });
     return res.json({
       success: true,
       data: { operatorId: payload.operatorId, role: payload.role },
     });
   } catch (e) {
-    console.error('[auth.refresh] 刷新失败', e);
+    secureLogger.error('[auth.refresh] 刷新失败', e instanceof Error ? e : undefined);
     return res.status(500).json({ success: false, message: '刷新失败' });
   }
 };
@@ -829,10 +824,10 @@ export const logout = async (req: Request, res: Response) => {
       await deleteRefreshSession(payload.sid);
     }
     clearAuthCookies(res);
-    console.log('[auth.logout] 退出登录', { hasSession: Boolean(payload) });
+    secureLogger.info('[auth.logout] 退出登录', { hasSession: Boolean(payload) });
     return res.json({ success: true, data: { ok: true } });
   } catch (e) {
-    console.error('[auth.logout] 退出失败', e);
+    secureLogger.error('[auth.logout] 退出失败', e instanceof Error ? e : undefined);
     clearAuthCookies(res);
     return res.status(500).json({ success: false, message: '退出失败' });
   }
@@ -964,7 +959,7 @@ async function upsertLockoutFromBlocked(ip: string, username: string, lockedUnti
       },
     });
   } catch (e: any) {
-    if (isMissingTableError(e)) warnLoginDbMissingOnce(e);
+    if (isMissingTableError(e)) {warnLoginDbMissingOnce(e);}
   }
 }
 
@@ -996,7 +991,7 @@ async function persistLoginAttempt(input: {
       },
     });
   } catch (e: any) {
-    if (isMissingTableError(e)) warnLoginDbMissingOnce(e);
+    if (isMissingTableError(e)) {warnLoginDbMissingOnce(e);}
   }
 }
 
@@ -1006,7 +1001,7 @@ async function persistLoginAttempt(input: {
  */
 function isMissingTableError(e: any): boolean {
   const code = String(e?.code || '').trim();
-  if (code === 'P2021') return true;
+  if (code === 'P2021') {return true;}
   const msg = String(e?.message || '').toLowerCase();
   return msg.includes('does not exist') || msg.includes('relation') || msg.includes('table');
 }
@@ -1016,8 +1011,7 @@ function isMissingTableError(e: any): boolean {
  * 首次检测到登录审计相关表不存在时打印提示日志，避免刷屏
  */
 function warnLoginDbMissingOnce(e: any) {
-  if (warnedLoginDbMissing) return;
+  if (warnedLoginDbMissing) {return;}
   warnedLoginDbMissing = true;
-  console.warn('[auth.login] 登录审计/锁定相关表不存在，已自动退化为 Redis/内存方案，请先执行建表 SQL');
-  console.warn(e);
+  secureLogger.warn('[auth.login] 登录审计/锁定相关表不存在，已自动退化为 Redis/内存方案，请先执行建表 SQL');
 }

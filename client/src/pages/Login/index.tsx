@@ -90,6 +90,24 @@ const PasswordLogin: React.FC<{ onSuccess: (data: LoginResult) => void }> = ({ o
       const res = (await api.post('/auth/login', values)) as ApiResponse<LoginResult | { data: LoginResult }>;
       const payload = unwrapData<LoginResult>(res);
       if (!res?.success || !payload) throw new Error('登录响应无效');
+      try {
+        const token = ((res as unknown as Record<string, unknown>)?.data as Record<string, unknown>)?.['token']
+          ?? (((res as unknown as Record<string, unknown>)?.data as Record<string, unknown>)?.['data'] as Record<string, unknown> | undefined)?.['token'];
+        if (typeof token === 'string' && token.trim()) {
+          window.localStorage.setItem('OPERATOR_TOKEN', token.trim());
+        }
+        if (typeof payload.operatorId === 'number') {
+          window.localStorage.setItem('OPERATOR_ID', String(payload.operatorId));
+        }
+        if (typeof payload.role === 'string') {
+          window.localStorage.setItem('OPERATOR_ROLE', String(payload.role));
+        }
+        if (typeof payload.name === 'string') {
+          window.localStorage.setItem('OPERATOR_NAME', String(payload.name));
+        }
+      } catch {
+        // ignore
+      }
       onSuccess(payload);
     } catch (err) {
       console.error('[Login] Password login failed', err);
@@ -203,6 +221,24 @@ const TokenLogin: React.FC<{ onSuccess: (data: LoginResult) => void }> = ({ onSu
       const res = (await api.post('/auth/login', values)) as ApiResponse<LoginResult | { data: LoginResult }>;
       const payload = unwrapData<LoginResult>(res);
       if (!res?.success || !payload) throw new Error('登录响应无效');
+      try {
+        const token = ((res as unknown as Record<string, unknown>)?.data as Record<string, unknown>)?.['token']
+          ?? (((res as unknown as Record<string, unknown>)?.data as Record<string, unknown>)?.['data'] as Record<string, unknown> | undefined)?.['token'];
+        if (typeof token === 'string' && token.trim()) {
+          window.localStorage.setItem('OPERATOR_TOKEN', token.trim());
+        }
+        if (typeof payload.operatorId === 'number') {
+          window.localStorage.setItem('OPERATOR_ID', String(payload.operatorId));
+        }
+        if (typeof payload.role === 'string') {
+          window.localStorage.setItem('OPERATOR_ROLE', String(payload.role));
+        }
+        if (typeof payload.name === 'string') {
+          window.localStorage.setItem('OPERATOR_NAME', String(payload.name));
+        }
+      } catch {
+        // ignore
+      }
       onSuccess(payload);
     } catch (err) {
       console.error('[Login] Token login failed', err);
@@ -289,6 +325,18 @@ const Login: React.FC = () => {
   useEffect(() => {
     if (!shouldAutoRedirect) {
       console.log('[Login] 检测到redirect参数，跳过自动重定向', { search: location.search });
+      return;
+    }
+    const hasToken = (() => {
+      try {
+        const t = window.localStorage.getItem('OPERATOR_TOKEN') || '';
+        return typeof t === 'string' && t.trim().length > 0;
+      } catch {
+        return false;
+      }
+    })();
+    if (!hasToken) {
+      console.log('[Login] 无令牌，跳过 /auth/me 自动检查');
       return;
     }
     let alive = true;

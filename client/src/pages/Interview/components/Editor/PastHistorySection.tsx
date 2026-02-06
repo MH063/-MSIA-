@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
-import { Form, Checkbox, Input, Typography, Card, Radio, Space, Button, DatePicker, Select, Grid } from 'antd';
+import { Form, Checkbox, Input, Typography, Card, Radio, Space, Button, Select, Grid } from 'antd';
+import LazyDatePicker from '../../../../components/lazy/LazyDatePicker';
 import { PlusOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import type { FormInstance } from 'antd';
 
@@ -127,24 +128,24 @@ const PastHistorySection: React.FC<PastHistorySectionProps> = ({ form }) => {
                {!noSurgeriesTrauma && (
                  <>
                    {fields.map(({ key, name, ...restField }) => (
-                     <Space
+                      <Space
                        key={key}
                        style={{ display: 'flex', marginBottom: 8, width: '100%' }}
                        align={isMobile ? 'start' : 'baseline'}
-                       direction={isMobile ? 'vertical' : 'horizontal'}
+                        orientation={isMobile ? 'vertical' : 'horizontal'}
                      >
                        <Form.Item
                          {...restField}
                          name={[name, 'date']}
                          style={isMobile ? { marginBottom: 0, width: '100%' } : { marginBottom: 0 }}
                        >
-                         <DatePicker
+                         <LazyDatePicker
                            placeholder="时间"
                            picker="month"
                            style={isMobile ? { width: '100%' } : undefined}
                            placement="bottomLeft"
                            classNames={{ popup: { root: isMobile ? 'msia-mobile-picker' : undefined } }}
-                           getPopupContainer={(trigger) => (isMobile ? document.body : trigger.parentElement ?? document.body)}
+                           getPopupContainer={(trigger: HTMLElement) => (isMobile ? document.body : trigger.parentElement ?? document.body)}
                          />
                        </Form.Item>
                        <Form.Item
@@ -204,23 +205,23 @@ const PastHistorySection: React.FC<PastHistorySectionProps> = ({ form }) => {
                {!noTransfusions && (
                  <>
                    {fields.map(({ key, name, ...restField }) => (
-                     <Space
+                    <Space
                        key={key}
                        style={{ display: 'flex', marginBottom: 8, width: '100%' }}
                        align={isMobile ? 'start' : 'baseline'}
-                       direction={isMobile ? 'vertical' : 'horizontal'}
+                      orientation={isMobile ? 'vertical' : 'horizontal'}
                      >
                        <Form.Item
                          {...restField}
                          name={[name, 'date']}
                          style={isMobile ? { marginBottom: 0, width: '100%' } : { marginBottom: 0 }}
                        >
-                         <DatePicker
+                         <LazyDatePicker
                            placeholder="输血时间"
                            style={isMobile ? { width: '100%' } : undefined}
                            placement="bottomLeft"
                            classNames={{ popup: { root: isMobile ? 'msia-mobile-picker' : undefined } }}
-                           getPopupContainer={(trigger) => (isMobile ? document.body : trigger.parentElement ?? document.body)}
+                           getPopupContainer={(trigger: HTMLElement) => (isMobile ? document.body : trigger.parentElement ?? document.body)}
                          />
                        </Form.Item>
                        <Form.Item

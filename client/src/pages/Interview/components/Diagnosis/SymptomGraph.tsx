@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as d3 from 'd3';
-import { Card, Tag, Tooltip, Button, Space, Typography, Modal, Progress, Skeleton, Empty } from 'antd';
+import { Card, Tag, Tooltip, Button, Space, Typography, Progress, Skeleton, Empty } from 'antd';
+import LazyModal from '../../../../components/lazy/LazyModal';
 import { 
   BranchesOutlined, 
   ZoomInOutlined, 
@@ -568,7 +569,7 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
     >
       {renderContent()}
 
-      <Modal
+      <LazyModal
         title={
           <Space>
             <InfoCircleOutlined style={{ color: '#1890ff' }} />
@@ -627,9 +628,9 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
             </div>
           </div>
         )}
-      </Modal>
+      </LazyModal>
 
-      <Modal
+      <LazyModal
         title={
           <Space>
             <FullscreenOutlined />
@@ -655,7 +656,7 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
             loading={loading}
           />
         </div>
-      </Modal>
+      </LazyModal>
     </Card>
   );
 };

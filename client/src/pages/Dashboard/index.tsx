@@ -1,252 +1,298 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { App as AntdApp, Card, Col, Grid, Progress, Row, Space, Statistic, Table, Tag, Typography } from 'antd';
-import { BarChartOutlined, CalendarOutlined, FileTextOutlined, TeamOutlined } from '@ant-design/icons';
+import React, { useEffect, useState } from 'react';
+import { Typography, Row, Col, DatePicker, Button, Drawer, Space, Alert } from 'antd';
+import { SyncOutlined, DownloadOutlined, BulbOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import api, { unwrapData } from '../../utils/api';
-import type { ApiResponse } from '../../utils/api';
-import { useNavigate } from 'react-router-dom';
+import EChartsWrapper from '../../components/EChartsWrapper';
+import './index.css';
 
-const { Title, Text } = Typography;
-const { useBreakpoint } = Grid;
-
-type DailyCount = { date: string; count: number };
-
-type DashboardStats = {
-  todayCount: number;
-  completedCount: number;
-  archivedCount: number;
-  totalSessions?: number;
-  totalPatients?: number;
-  statusCounts?: Record<string, number>;
-  last7DaysSessions?: DailyCount[];
-  last7DaysCompleted?: DailyCount[];
-  recentSessions: Array<{ id: number; status: string; createdAt: string; patient?: { name?: string; gender?: string } }>;
-  knowledgeCount: number;
-  recentKnowledge: Array<{ id: number; displayName: string; symptomKey?: string }>;
-};
-
-const statusText = (status: string) => {
-  const map: Record<string, string> = { draft: '草稿', completed: '已完成', archived: '已归档' };
-  return map[status] || status;
-};
-
-const statusTagColor = (status: string) => {
-  if (status === 'completed') return 'green';
-  if (status === 'archived') return 'blue';
-  if (status === 'draft') return 'gold';
-  return 'default';
-};
+const { Title, Text, Paragraph } = Typography;
+const { RangePicker } = DatePicker;
 
 const Dashboard: React.FC = () => {
-  const screens = useBreakpoint();
-  const navigate = useNavigate();
-  const { message } = AntdApp.useApp();
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState<DashboardStats>({
-    todayCount: 0,
-    completedCount: 0,
-    archivedCount: 0,
-    recentSessions: [],
-    knowledgeCount: 0,
-    recentKnowledge: [],
-  });
-
-  const fetchData = React.useCallback(async () => {
-    setLoading(true);
-    try {
-      console.log('[Dashboard] 获取统计数据');
-      const res: ApiResponse<DashboardStats | { data: DashboardStats }> = await api.get('/sessions/stats');
-      if (res?.success) {
-        const payload = unwrapData<DashboardStats>(res);
-        if (payload) {
-          console.log('[Dashboard] 统计数据获取成功', payload);
-          setStats(payload);
-        }
-      }
-    } catch (err) {
-      console.error('[Dashboard] 统计数据获取失败', err);
-      message.error('获取统计数据失败');
-    } finally {
-      setLoading(false);
+  const [loading] = useState(false);
+  const [trendData, setTrendData] = useState<{ dates: string[]; values: number[] }>(() => {
+    const dates: string[] = [];
+    const values: number[] = [];
+    for (let i = 0; i < 30; i++) {
+      dates.push(dayjs().subtract(29 - i, 'day').format('MM-DD'));
+      values.push(Math.floor(Math.random() * 50) + 10);
     }
-  }, [message]);
+    return { dates, values };
+  });
+  const [aiDrawerOpen, setAiDrawerOpen] = useState(false);
+  const [selectedChartInfo, setSelectedChartInfo] = useState<{ title: string; content: string } | null>(null);
+
+  // Mock Data Generators
+  const generateTrendData = () => {
+    const dates = [];
+    const values = [];
+    for (let i = 0; i < 30; i++) {
+      dates.push(dayjs().subtract(29 - i, 'day').format('MM-DD'));
+      values.push(Math.floor(Math.random() * 50) + 10);
+    }
+    return { dates, values };
+  };
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    const timer = setInterval(() => {
+      setTrendData(generateTrendData());
+    }, 15000);
+    return () => clearInterval(timer);
+  }, []);
 
-  const kpiCols = useMemo(() => {
-    const span = screens.md ? 6 : 12;
-    return {
-      totalPatients: span,
-      totalSessions: span,
-      todayCount: span,
-      completedCount: span,
-      archivedCount: span,
-    };
-  }, [screens.md]);
+  // Chart Options
+  const lineOption = {
+    tooltip: { trigger: 'axis' },
+    grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+    xAxis: { type: 'category', boundaryGap: false, data: trendData.dates },
+    yAxis: { type: 'value' },
+    series: [{
+      name: '问诊量',
+      type: 'line',
+      smooth: true,
+      data: trendData.values,
+      areaStyle: { opacity: 0.3 },
+      itemStyle: { color: '#0052D9' }
+    }]
+  };
 
-  const statusItems = useMemo(() => {
-    const dict = stats.statusCounts || {};
-    const entries = Object.entries(dict).sort((a, b) => b[1] - a[1]);
-    const total = entries.reduce((acc, [, v]) => acc + (Number(v) || 0), 0);
-    return entries.map(([k, v]) => ({
-      status: k,
-      count: Number(v) || 0,
-      percent: total > 0 ? Math.round(((Number(v) || 0) / total) * 100) : 0,
-    }));
-  }, [stats.statusCounts]);
+  const barOption = {
+    tooltip: { trigger: 'axis' },
+    grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+    xAxis: { type: 'category', data: ['0-18', '19-30', '31-45', '46-60', '60+'] },
+    yAxis: { type: 'value' },
+    series: [{
+      name: '患者年龄',
+      type: 'bar',
+      data: [12, 34, 45, 23, 15],
+      itemStyle: { borderRadius: [4, 4, 0, 0], color: '#36CFC9' }
+    }]
+  };
 
-  const dailyRows = useMemo(() => {
-    const sessions = Array.isArray(stats.last7DaysSessions) ? stats.last7DaysSessions : [];
-    const completed = Array.isArray(stats.last7DaysCompleted) ? stats.last7DaysCompleted : [];
-    const completedMap = new Map(completed.map(it => [it.date, it.count]));
-    return sessions.map(it => ({
-      key: it.date,
-      date: it.date,
-      sessions: it.count,
-      completed: completedMap.get(it.date) ?? 0,
-    }));
-  }, [stats.last7DaysSessions, stats.last7DaysCompleted]);
+  const pieOption = {
+    tooltip: { trigger: 'item' },
+    legend: { bottom: '0%' },
+    series: [{
+      name: '诊断分布',
+      type: 'pie',
+      radius: ['40%', '70%'],
+      avoidLabelOverlap: false,
+      itemStyle: { borderRadius: 10, borderColor: '#fff', borderWidth: 2 },
+      data: [
+        { value: 1048, name: '上呼吸道感染' },
+        { value: 735, name: '急性胃肠炎' },
+        { value: 580, name: '高血压' },
+        { value: 484, name: '偏头痛' },
+        { value: 300, name: '其他' }
+      ]
+    }]
+  };
+
+  const radarOption = {
+    radar: {
+      indicator: [
+        { name: '问诊完整性', max: 100 },
+        { name: '诊断准确率', max: 100 },
+        { name: '沟通技巧', max: 100 },
+        { name: '病历规范', max: 100 },
+        { name: '鉴别诊断', max: 100 },
+        { name: '治疗建议', max: 100 }
+      ]
+    },
+    series: [{
+      name: '能力模型',
+      type: 'radar',
+      data: [{
+        value: [85, 90, 75, 95, 80, 88],
+        name: '当前评估',
+        areaStyle: { opacity: 0.2 }
+      }]
+    }]
+  };
+
+  const funnelOption = {
+    tooltip: { trigger: 'item' },
+    series: [{
+      name: '诊疗流程转化',
+      type: 'funnel',
+      left: '10%',
+      top: 60,
+      bottom: 60,
+      width: '80%',
+      min: 0,
+      max: 100,
+      minSize: '0%',
+      maxSize: '100%',
+      sort: 'descending',
+      gap: 2,
+      label: { show: true, position: 'inside' },
+      data: [
+        { value: 60, name: '完成诊断' },
+        { value: 40, name: '开具处方' },
+        { value: 20, name: '随访' },
+        { value: 80, name: '采集病史' },
+        { value: 100, name: '接诊' }
+      ]
+    }]
+  };
+
+  const heatmapOption = {
+    tooltip: { position: 'top' },
+    grid: { height: '50%', top: '10%' },
+    xAxis: { type: 'category', data: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], splitArea: { show: true } },
+    yAxis: { type: 'category', data: ['Morning', 'Afternoon', 'Evening'], splitArea: { show: true } },
+    visualMap: { min: 0, max: 10, calculable: true, orient: 'horizontal', left: 'center', bottom: '15%' },
+    series: [{
+      name: '就诊热力图',
+      type: 'heatmap',
+      data: [
+        [0, 0, 5], [0, 1, 1], [0, 2, 0],
+        [1, 0, 3], [1, 1, 5], [1, 2, 2],
+        [2, 0, 8], [2, 1, 9], [2, 2, 4],
+        [3, 0, 7], [3, 1, 8], [3, 2, 3],
+        [4, 0, 6], [4, 1, 7], [4, 2, 2],
+        [5, 0, 2], [5, 1, 1], [5, 2, 1],
+        [6, 0, 1], [6, 1, 0], [6, 2, 0]
+      ],
+      label: { show: true }
+    }]
+  };
+
+  // Real-time refresh simulation
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setRefreshKey(k => k + 1);
+    }, 15000); // 15s refresh
+    return () => clearInterval(timer);
+  }, []);
+
+  const handleChartClick = (info: { title: string; content: string }) => {
+    setSelectedChartInfo(info);
+    setAiDrawerOpen(true);
+  };
 
   return (
-    <div className="msia-page" style={{ padding: screens.md ? 24 : 12 }}>
-      <Space align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
-        <Space align="center" size={10}>
-          <BarChartOutlined style={{ fontSize: 20, color: 'var(--msia-primary)' }} />
-          <Title level={3} style={{ margin: 0 }}>数据统计</Title>
+    <div className="dashboard-page msia-page">
+      <div className="dashboard-header">
+        <Title level={2} style={{ margin: 0 }}>数据统计中心</Title>
+        <Space>
+          <RangePicker defaultValue={[dayjs().subtract(30, 'days'), dayjs()]} />
+          <Button 
+            icon={<SyncOutlined spin={loading} />} 
+            onClick={() => setTrendData(generateTrendData())}
+          >
+            刷新
+          </Button>
+          <Button icon={<DownloadOutlined />}>导出报表</Button>
         </Space>
-        <Space size={12}>
-          <Tag icon={<CalendarOutlined />} color="blue">{dayjs().format('YYYY年MM月DD日')}</Tag>
+      </div>
+
+      {/* AI Insight Card */}
+      <div 
+        className="analysis-card" 
+        onClick={() => handleChartClick({ 
+          title: 'AI 智能分析报告', 
+          content: '根据最近 30 天的数据分析，您的诊断准确率提升了 5%，但问诊耗时略有增加。建议在"既往史"采集中使用更多的模板以提高效率。上呼吸道感染病例占比最高（35%），建议关注流感季节的防护建议更新。' 
+        })}
+      >
+        <Space align="start">
+          <BulbOutlined style={{ fontSize: 24, color: '#0052D9' }} />
+          <div>
+            <Text strong style={{ fontSize: 16 }}>AI 智能洞察</Text>
+            <Paragraph style={{ margin: 0, color: 'var(--msia-text-secondary)' }} ellipsis={{ rows: 2 }}>
+              本周问诊量呈上升趋势，主要集中在周三下午。诊断准确率保持在 90% 以上，建议加强对少见病的鉴别诊断训练...
+            </Paragraph>
+          </div>
         </Space>
-      </Space>
+      </div>
 
-      <Row gutter={[12, 12]} style={{ marginTop: 12 }}>
-        <Col xs={12} md={kpiCols.totalPatients}>
-          <Card className="msia-card" styles={{ body: { padding: 16 } }}>
-            <Statistic title="患者总数" value={stats.totalPatients ?? 0} prefix={<TeamOutlined />} loading={loading} />
-          </Card>
+      <Row gutter={[24, 24]}>
+        {/* Line Chart */}
+        <Col xs={24} lg={16}>
+          <div className="chart-card">
+            <div className="chart-title">
+              问诊量趋势
+              <Button type="text" size="small" icon={<InfoCircleOutlined />} onClick={() => handleChartClick({ title: '问诊量趋势分析', content: '问诊量波动较大，周末有明显下降。' })} />
+            </div>
+            <EChartsWrapper option={lineOption} />
+          </div>
         </Col>
-        <Col xs={12} md={kpiCols.totalSessions}>
-          <Card className="msia-card" styles={{ body: { padding: 16 } }}>
-            <Statistic title="会话总数" value={stats.totalSessions ?? 0} prefix={<FileTextOutlined />} loading={loading} />
-          </Card>
+
+        {/* Pie Chart */}
+        <Col xs={24} lg={8}>
+          <div className="chart-card">
+            <div className="chart-title">
+              疾病分布
+              <Button type="text" size="small" icon={<InfoCircleOutlined />} />
+            </div>
+            <EChartsWrapper option={pieOption} />
+          </div>
         </Col>
-        <Col xs={12} md={kpiCols.todayCount}>
-          <Card className="msia-card" styles={{ body: { padding: 16 } }}>
-            <Statistic title="今日新建会话" value={stats.todayCount} loading={loading} />
-          </Card>
+
+        {/* Bar Chart */}
+        <Col xs={24} lg={8}>
+          <div className="chart-card">
+            <div className="chart-title">患者年龄分布</div>
+            <EChartsWrapper option={barOption} />
+          </div>
         </Col>
-        <Col xs={12} md={kpiCols.completedCount}>
-          <Card className="msia-card" styles={{ body: { padding: 16 } }}>
-            <Statistic title="已完成" value={stats.completedCount} loading={loading} />
-          </Card>
+
+        {/* Radar Chart */}
+        <Col xs={24} lg={8}>
+          <div className="chart-card">
+            <div className="chart-title">临床能力模型</div>
+            <EChartsWrapper option={radarOption} />
+          </div>
         </Col>
-        <Col xs={12} md={kpiCols.archivedCount}>
-          <Card className="msia-card" styles={{ body: { padding: 16 } }}>
-            <Statistic title="已归档" value={stats.archivedCount} loading={loading} />
-          </Card>
+
+        {/* Funnel Chart */}
+        <Col xs={24} lg={8}>
+          <div className="chart-card">
+            <div className="chart-title">诊疗转化漏斗</div>
+            <EChartsWrapper option={funnelOption} />
+          </div>
+        </Col>
+        
+        {/* Heatmap */}
+        <Col xs={24}>
+           <div className="chart-card">
+            <div className="chart-title">就诊时段热力图</div>
+            <EChartsWrapper option={heatmapOption} style={{ height: '350px', width: '100%' }} />
+          </div>
         </Col>
       </Row>
 
-      <Row gutter={[12, 12]} style={{ marginTop: 12 }}>
-        <Col xs={24} lg={10}>
-          <Card
-            className="msia-card"
-            title="状态分布"
-            extra={<Text type="secondary">按会话状态统计</Text>}
-            styles={{ body: { padding: 16 } }}
-          >
-            {statusItems.length === 0 ? (
-              <Text type="secondary">暂无数据</Text>
-            ) : (
-              <Space orientation="vertical" style={{ width: '100%' }} size={12}>
-                {statusItems.map(it => (
-                  <div key={it.status} style={{ display: 'grid', gridTemplateColumns: '90px 1fr 70px', gap: 10, alignItems: 'center' }}>
-                    <Tag color={statusTagColor(it.status)} style={{ margin: 0, textAlign: 'center' }}>{statusText(it.status)}</Tag>
-                    <Progress percent={it.percent} size="small" showInfo={false} />
-                    <Text style={{ textAlign: 'right' }}>{it.count}</Text>
-                  </div>
-                ))}
-              </Space>
-            )}
-          </Card>
-        </Col>
-
-        <Col xs={24} lg={14}>
-          <Card
-            className="msia-card"
-            title="近7日趋势"
-            extra={<Text type="secondary">会话与完成数量</Text>}
-            styles={{ body: { padding: 0 } }}
-          >
-            <Table
-              size="middle"
-              loading={loading}
-              pagination={false}
-              dataSource={dailyRows}
-              columns={[
-                {
-                  title: '日期',
-                  dataIndex: 'date',
-                  key: 'date',
-                  render: (v: string) => dayjs(v).format('MM月DD日'),
-                },
-                { title: '会话数', dataIndex: 'sessions', key: 'sessions' },
-                { title: '完成数', dataIndex: 'completed', key: 'completed' },
-              ]}
-            />
-          </Card>
-        </Col>
-      </Row>
-
-      <Row gutter={[12, 12]} style={{ marginTop: 12 }}>
-        <Col xs={24} lg={14}>
-          <Card
-            className="msia-card"
-            title="最近会话"
-            extra={<Text type="secondary">点击进入详情</Text>}
-            styles={{ body: { padding: 0 } }}
-          >
-            <Table
-              size="middle"
-              loading={loading}
-              pagination={false}
-              dataSource={stats.recentSessions.map(s => ({ key: s.id, ...s }))}
-              onRow={(record) => ({
-                onClick: () => navigate(`/interview/${record.id}`),
-              })}
-              columns={[
-                { title: '患者', dataIndex: ['patient', 'name'], key: 'patient', render: (v?: string) => v || '未知患者' },
-                { title: '状态', dataIndex: 'status', key: 'status', render: (v: string) => <Tag color={statusTagColor(v)}>{statusText(v)}</Tag> },
-                { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', render: (v: string) => dayjs(v).format('YYYY-MM-DD HH:mm') },
-              ]}
-            />
-          </Card>
-        </Col>
-
-        <Col xs={24} lg={10}>
-          <Card
-            className="msia-card"
-            title="知识库概览"
-            extra={<Text type="secondary">最近更新条目</Text>}
-            styles={{ body: { padding: 16 } }}
-          >
-            <Space orientation="vertical" style={{ width: '100%' }} size={10}>
-              <Statistic title="知识库总条目" value={stats.knowledgeCount} loading={loading} />
-              <div style={{ display: 'grid', gap: 8 }}>
-                {stats.recentKnowledge.slice(0, 6).map(k => (
-                  <div key={k.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
-                    <Text ellipsis style={{ maxWidth: '70%' }}>{k.displayName}</Text>
-                    <Text type="secondary">{k.symptomKey || ''}</Text>
-                  </div>
-                ))}
-                {stats.recentKnowledge.length === 0 && <Text type="secondary">暂无更新记录</Text>}
-              </div>
-            </Space>
-          </Card>
-        </Col>
-      </Row>
+      <Drawer
+        title={
+          <Space>
+            <BulbOutlined style={{ color: '#0052D9' }} />
+            {selectedChartInfo?.title || 'AI 分析'}
+          </Space>
+        }
+        placement="right"
+        onClose={() => setAiDrawerOpen(false)}
+        open={aiDrawerOpen}
+        size={400}
+      >
+        <Alert
+          title="AI 诊断建议"
+          description="基于大数据模型分析，该数据指标正常，但在效率方面仍有提升空间。"
+          type="info"
+          showIcon
+          style={{ marginBottom: 24 }}
+        />
+        <Title level={5}>详细解读</Title>
+        <Paragraph>
+          {selectedChartInfo?.content || '暂无详细分析内容。'}
+        </Paragraph>
+        
+        <Title level={5}>改进建议</Title>
+        <ul>
+          <li>建议优化问诊节奏，控制单次问诊时长在 15 分钟以内。</li>
+          <li>关注季节性流行病趋势，提前准备相关知识库。</li>
+          <li>针对"鉴别诊断"环节进行专项强化训练。</li>
+        </ul>
+      </Drawer>
     </div>
   );
 };

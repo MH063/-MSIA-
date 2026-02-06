@@ -25,7 +25,7 @@ type EvalSummary = {
 };
 
 function percent(n: number, d: number) {
-  if (!d) return 0;
+  if (!d) {return 0;}
   return (n / d) * 100;
 }
 
@@ -34,10 +34,10 @@ function isRange(v: DurationValue | null): v is { min: number; max: number } {
 }
 
 function equalDurationValue(a: DurationValue | null, b: DurationValue | null) {
-  if (a === null && b === null) return true;
-  if (a === null || b === null) return false;
-  if (typeof a === 'number' && typeof b === 'number') return a === b;
-  if (isRange(a) && isRange(b)) return a.min === b.min && a.max === b.max;
+  if (a === null && b === null) {return true;}
+  if (a === null || b === null) {return false;}
+  if (typeof a === 'number' && typeof b === 'number') {return a === b;}
+  if (isRange(a) && isRange(b)) {return a.min === b.min && a.max === b.max;}
   return false;
 }
 
@@ -74,16 +74,16 @@ function roman(n: number) {
 
 function chinese(n: number) {
   const digit = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
-  if (n < 10) return digit[n] || String(n);
-  if (n === 10) return '十';
-  if (n < 20) return `十${digit[n - 10]}`;
+  if (n < 10) {return digit[n] || String(n);}
+  if (n === 10) {return '十';}
+  if (n < 20) {return `十${digit[n - 10]}`;}
   const tens = Math.floor(n / 10);
   const ones = n % 10;
   return `${digit[tens]}十${ones ? digit[ones] : ''}`;
 }
 
 function percentile(sorted: number[], p: number) {
-  if (sorted.length === 0) return 0;
+  if (sorted.length === 0) {return 0;}
   const idx = Math.min(sorted.length - 1, Math.max(0, Math.floor((p / 100) * sorted.length)));
   return sorted[idx];
 }
@@ -203,7 +203,7 @@ function makeCases(): TestCase[] {
 function loadFromJson(filePath: string): TestCase[] {
   const raw = fs.readFileSync(filePath, 'utf-8');
   const parsed = JSON.parse(raw) as unknown;
-  if (!Array.isArray(parsed)) throw new Error('JSON 必须为数组');
+  if (!Array.isArray(parsed)) {throw new Error('JSON 必须为数组');}
   return parsed as TestCase[];
 }
 
@@ -238,15 +238,15 @@ function main() {
     const unitOk = (got.duration_unit || null) === (c.expected.duration_unit || null);
     const valueOk = equalDurationValue(got.duration_value, c.expected.duration_value);
 
-    if (complaintOk) correctComplaint += 1;
-    if (unitOk) correctUnit += 1;
-    if (valueOk) correctValue += 1;
+    if (complaintOk) {correctComplaint += 1;}
+    if (unitOk) {correctUnit += 1;}
+    if (valueOk) {correctValue += 1;}
 
     const expectedHasDur = Boolean(c.expected.duration_unit && c.expected.duration_value !== null);
     const gotHasDur = Boolean(got.duration_unit && got.duration_value !== null);
-    if (expectedHasDur && gotHasDur) tpDetect += 1;
-    else if (!expectedHasDur && gotHasDur) fpDetect += 1;
-    else if (expectedHasDur && !gotHasDur) fnDetect += 1;
+    if (expectedHasDur && gotHasDur) {tpDetect += 1;}
+    else if (!expectedHasDur && gotHasDur) {fpDetect += 1;}
+    else if (expectedHasDur && !gotHasDur) {fnDetect += 1;}
 
     if (complaintOk && unitOk && valueOk) {
       exactAll += 1;

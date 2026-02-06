@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { App as AntdApp, Form, Input, Radio, Checkbox, Row, Col, Typography, Card, Select, Collapse, Timeline, Button, Space, Modal, InputNumber } from 'antd';
+import { App as AntdApp, Form, Input, Radio, Checkbox, Row, Col, Typography, Card, Select, Collapse, Timeline, Button, Space, InputNumber } from 'antd';
+import LazyModal from '../../../../components/lazy/LazyModal';
 import { ClockCircleOutlined, PlusOutlined, SyncOutlined, ArrowUpOutlined, ArrowDownOutlined, DeleteOutlined } from '@ant-design/icons';
 import api, { unwrapData, type ApiResponse } from '../../../../utils/api';
 import { buildHpiNarrative } from '../../../../utils/narrative';
@@ -51,6 +52,7 @@ const SeverityBlocks: React.FC<{ value?: string; onChange?: (v: string) => void 
  */
 const HPISection: React.FC = () => {
   const { message } = AntdApp.useApp();
+  const { token } = AntdApp.useApp().theme.useToken();
   const form = Form.useFormInstance();
   const mappingQuery = useQuery({
     queryKey: ['mapping', 'symptoms'],
@@ -445,7 +447,7 @@ const HPISection: React.FC = () => {
       </Form.Item>
       
       {/* 0. 时间线视图 (可视化辅助) */}
-      <Card type="inner" title="【病史时间线】" size="small" style={{ marginBottom: 24, background: '#f6ffed', borderColor: '#b7eb8f' }}>
+      <Card type="inner" title="【病史时间线】" size="small" style={{ marginBottom: 24, background: token.colorSuccessBg, borderColor: token.colorSuccessBorder }}>
         <div style={{ padding: '20px 0 0 20px' }}>
             <Timeline mode="start" items={timelineItems} />
         </div>
@@ -576,7 +578,7 @@ const HPISection: React.FC = () => {
                     </Row>
                   </Checkbox.Group>
                 </Form.Item>
-                <div style={{ background: '#e6f7ff', padding: 12, borderRadius: 4, marginBottom: 16 }}>
+                <div style={{ background: token.colorInfoBg, padding: 12, borderRadius: 4, marginBottom: 16 }}>
                   <Space align="center" style={{ marginBottom: 8 }}>
                     <Text type="secondary">自动生成描述：</Text>
                     <Button
@@ -613,7 +615,7 @@ const HPISection: React.FC = () => {
             children: (
               <div id="hpi-panel-5">
                 <Form.Item label="诊治记录">
-                  <div style={{ border: '1px solid #f0f0f0', borderRadius: 6, padding: 12, background: '#fafafa' }}>
+                  <div style={{ border: `1px solid ${token.colorBorderSecondary}`, borderRadius: 6, padding: 12, background: token.colorFillAlter }}>
                     {treatmentRecords.length === 0 ? (
                       <Text type="secondary">未添加诊治记录</Text>
                     ) : (
@@ -627,8 +629,8 @@ const HPISection: React.FC = () => {
                               gap: 8,
                               padding: '8px 10px',
                               borderRadius: 6,
-                              background: '#fff',
-                              border: '1px solid #f0f0f0',
+                              background: token.colorBgContainer,
+                              border: `1px solid ${token.colorBorderSecondary}`,
                             }}
                           >
                             <div style={{ flex: 1, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{line}</div>
@@ -780,7 +782,7 @@ const HPISection: React.FC = () => {
         type="inner"
         title="现病史叙述（自动生成/手动润色）"
         size="small"
-        style={{ marginTop: 16, background: '#fff7e6', borderColor: '#ffd591' }}
+        style={{ marginTop: 16, background: token.colorWarningBg, borderColor: token.colorWarningBorder }}
       >
         <div style={{ marginBottom: 12 }}>
           <Text type="secondary">系统将按时间顺序整合上述内容生成段落，请在此基础上做最终润色。</Text>
@@ -816,7 +818,7 @@ const HPISection: React.FC = () => {
           />
         </Form.Item>
       </Card>
-      <Modal
+      <LazyModal
         title="添加诊治节点"
         open={addModalOpen}
         onOk={confirmAddTreatment}
@@ -839,7 +841,7 @@ const HPISection: React.FC = () => {
         <Form.Item label="治疗方案/疗效">
           <TextArea rows={2} value={addTreatment} onChange={(e) => setAddTreatment(e.target.value)} placeholder="如：予止痛、抗感染治疗，症状好转..." />
         </Form.Item>
-      </Modal>
+      </LazyModal>
     </div>
   );
 };

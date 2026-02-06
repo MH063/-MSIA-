@@ -1,0 +1,98 @@
+/**
+ * 知识库列表页面样式
+ */
+
+.knowledge-page {
+  background: var(--msia-bg);
+}
+
+.knowledge-page .ant-layout {
+  background: transparent;
+}
+
+.knowledge-page .ant-layout-sider {
+  background: var(--msia-card) !important;
+  border-right: 1px solid var(--msia-border);
+}
+
+.knowledge-page .ant-tree {
+  background: transparent;
+}
+
+.knowledge-page .ant-tree-node-content-wrapper {
+  color: var(--msia-text);
+}
+
+.knowledge-page .ant-tree-node-content-wrapper:hover {
+  background: var(--msia-bg);
+}
+
+.knowledge-page .ant-tree-node-selected .ant-tree-node-content-wrapper {
+  background: var(--msia-primary) !important;
+  color: #fff !important;
+}
+
+.markdown-body {
+  color: var(--msia-text);
+  line-height: 1.8;
+}
+
+.markdown-body h1 {
+  font-size: 28px;
+  font-weight: 600;
+  margin-bottom: 24px;
+  color: var(--msia-text);
+  border-bottom: 1px solid var(--msia-border);
+  padding-bottom: 16px;
+}
+
+.markdown-body h2 {
+  font-size: 20px;
+  font-weight: 600;
+  margin-top: 32px;
+  margin-bottom: 16px;
+  color: var(--msia-text);
+}
+
+.markdown-body p {
+  margin-bottom: 16px;
+  color: var(--msia-text-secondary);
+}
+
+.markdown-body ul {
+  padding-left: 24px;
+  margin-bottom: 16px;
+}
+
+.markdown-body li {
+  margin-bottom: 8px;
+  color: var(--msia-text-secondary);
+}
+
+.markdown-body blockquote {
+  border-left: 4px solid var(--msia-primary);
+  padding-left: 16px;
+  margin: 16px 0;
+  color: var(--msia-text-tertiary);
+  font-style: italic;
+}
+
+.markdown-body code {
+  background: var(--msia-bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'Monaco', 'Menlo', monospace;
+  font-size: 14px;
+}
+
+.markdown-body pre {
+  background: var(--msia-bg);
+  padding: 16px;
+  border-radius: 8px;
+  overflow-x: auto;
+}
+
+.markdown-body pre code {
+  background: transparent;
+  padding: 0;
+}

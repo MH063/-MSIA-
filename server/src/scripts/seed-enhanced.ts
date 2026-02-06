@@ -50,7 +50,7 @@ function loadKnowledgeFromFile(filename: string): any | null {
 /**
  * 验证症状数据
  */
-function validateSymptomData(data: any, filename: string): ValidationResult {
+function validateSymptomData(data: any, _filename: string): ValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
   

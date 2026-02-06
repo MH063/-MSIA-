@@ -78,9 +78,9 @@ const ROLE_PERMISSIONS: Record<OperatorRole, OperatorPermission[]> = {
 export function parseBearerToken(req: Request): string | null {
   const raw = req.header('authorization') || req.header('Authorization') || '';
   const trimmed = String(raw || '').trim();
-  if (!trimmed) return null;
+  if (!trimmed) {return null;}
   const match = /^Bearer\s+(.+)$/iu.exec(trimmed);
-  if (!match) return null;
+  if (!match) {return null;}
   const token = String(match[1] || '').trim();
   return token || null;
 }
@@ -88,16 +88,16 @@ export function parseBearerToken(req: Request): string | null {
 function parseCookieHeader(raw: string): Record<string, string> {
   const out: Record<string, string> = {};
   const s = String(raw || '').trim();
-  if (!s) return out;
+  if (!s) {return out;}
   const parts = s.split(';');
   for (const part of parts) {
     const p = part.trim();
-    if (!p) continue;
+    if (!p) {continue;}
     const idx = p.indexOf('=');
-    if (idx <= 0) continue;
+    if (idx <= 0) {continue;}
     const k = p.slice(0, idx).trim();
     const v = p.slice(idx + 1).trim();
-    if (!k) continue;
+    if (!k) {continue;}
     try {
       out[k] = decodeURIComponent(v);
     } catch {
@@ -109,7 +109,7 @@ function parseCookieHeader(raw: string): Record<string, string> {
 
 function parseAccessTokenFromCookie(req: Request): string | null {
   const raw = String(req.header('cookie') || '').trim();
-  if (!raw) return null;
+  if (!raw) {return null;}
   const jar = parseCookieHeader(raw);
   const t = String(jar[authCookieConfig.accessCookieName] || '').trim();
   return t || null;
@@ -118,7 +118,7 @@ function parseAccessTokenFromCookie(req: Request): string | null {
 function parseTokenFromQuery(req: Request): string | null {
   const accept = String(req.header('accept') || '').toLowerCase();
   const maybeSse = accept.includes('text/event-stream') || String(req.path || '').endsWith('/stream');
-  if (!maybeSse) return null;
+  if (!maybeSse) {return null;}
 
   const raw = (req.query as any)?.token;
   const t = Array.isArray(raw) ? String(raw[0] || '').trim() : String(raw || '').trim();
@@ -131,7 +131,7 @@ export function parseOperatorToken(req: Request): string | null {
 
 export function loadOperatorFromToken(token: string): OperatorIdentity | null {
   const t = String(token || '').trim();
-  if (!t) return null;
+  if (!t) {return null;}
 
   // 1. 尝试验证 JWT
   const jwtPayload = verifyToken(t);
@@ -169,14 +169,14 @@ export function loadOperatorFromToken(token: string): OperatorIdentity | null {
       }
     } catch (e) {
       console.warn('[auth] OPERATOR_TOKENS_JSON 解析失败');
-      if (serverConfig.isDevelopment) console.warn(e);
+      if (serverConfig.isDevelopment) {console.warn(e);}
     }
   }
 
   const single = (() => {
     const raw = String(process.env.OPERATOR_TOKEN || '').trim();
-    if (!raw) return '';
-    if (serverConfig.isProduction && raw === 'default_token_change_in_production') return '';
+    if (!raw) {return '';}
+    if (serverConfig.isProduction && raw === 'default_token_change_in_production') {return '';}
     return raw;
   })();
   if (single && t === single) {

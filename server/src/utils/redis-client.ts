@@ -13,13 +13,13 @@ let disabledUntil = 0;
  */
 export async function getRedisClient(): Promise<RedisClient | null> {
   const now = Date.now();
-  if (disabledUntil && now < disabledUntil) return null;
+  if (disabledUntil && now < disabledUntil) {return null;}
 
   const url = String(process.env.REDIS_URL || '').trim();
-  if (!url) return null;
+  if (!url) {return null;}
 
-  if (client) return client;
-  if (connecting) return connecting;
+  if (client) {return client;}
+  if (connecting) {return connecting;}
 
   connecting = (async () => {
     try {
@@ -85,7 +85,7 @@ export async function incrWithTtl(
 function sanitizeRedisUrl(raw: string): string {
   try {
     const u = new URL(raw);
-    if (u.password) u.password = '******';
+    if (u.password) {u.password = '******';}
     return u.toString();
   } catch {
     return 'invalid_redis_url';

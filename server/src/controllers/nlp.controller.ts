@@ -62,7 +62,7 @@ export const analyzeComplaint = async (req: Request, res: Response) => {
       let start = 0;
       while (true) {
         const idx = source.indexOf(phrase, start);
-        if (idx === -1) break;
+        if (idx === -1) {break;}
         result.push(idx);
         start = idx + phrase.length;
       }
@@ -81,14 +81,14 @@ export const analyzeComplaint = async (req: Request, res: Response) => {
       const idxs = findAllOccurrences(probe, synonym);
       if (idxs.length > 0) {
         foundNames.add(standard);
-        for (const i of idxs) occurrences.push({ name: standard, index: i });
+        for (const i of idxs) {occurrences.push({ name: standard, index: i });}
       }
     }
     for (const name of Object.keys(SYMPTOM_NAME_TO_KEY)) {
       const idxs = findAllOccurrences(probe, name);
       if (idxs.length > 0) {
         foundNames.add(name);
-        for (const i of idxs) occurrences.push({ name, index: i });
+        for (const i of idxs) {occurrences.push({ name, index: i });}
       }
     }
 

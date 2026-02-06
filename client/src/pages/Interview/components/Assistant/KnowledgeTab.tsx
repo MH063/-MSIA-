@@ -38,6 +38,7 @@ const KnowledgeTab: React.FC = () => {
   
   const { 
     context: symptomContext, 
+    contexts = [],
     diagnosisSuggestions = [], 
     loading = false,
     nameToKey = {},
@@ -60,7 +61,13 @@ const KnowledgeTab: React.FC = () => {
     }
   };
   
-  if (!symptomContext?.name) {
+  const activeContexts: Array<NonNullable<typeof symptomContext>> = (() => {
+    const arr = Array.isArray(contexts) ? contexts.filter(Boolean) as typeof contexts : [];
+    if (arr.length > 0) return arr as Array<NonNullable<typeof symptomContext>>;
+    return symptomContext && symptomContext.name ? [symptomContext] as Array<NonNullable<typeof symptomContext>> : [];
+  })();
+
+  if (activeContexts.length === 0) {
     return (
       <div style={{ padding: '0 16px 16px', textAlign: 'center' }}>
         <Empty description="请先选择或填写症状以获取动态提示" image={Empty.PRESENTED_IMAGE_SIMPLE} />
@@ -68,12 +75,25 @@ const KnowledgeTab: React.FC = () => {
     );
   }
   
-  const currentSymptomKey = nameToKey[symptomContext.name] || symptomContext.name;
-  const currentSymptomName = mapToName(symptomContext.name);
-  const icon = SYMPTOM_ICON_MAP[currentSymptomKey] || { emoji: '🩺', bg: '#f0f5ff', ring: '#adc6ff' };
-  const relatedSource = symptomContext.relatedSymptoms || [];
-  const physicalDisplay = (symptomContext.physicalSigns || []).map(mapToName);
-  const redFlagsDisplay = (symptomContext.redFlags || []).map(mapToName);
+  const currentKeys = activeContexts.map(c => nameToKey[c.name] || c.name);
+  const currentNames = activeContexts.map(c => mapToName(c.name));
+  const icon = SYMPTOM_ICON_MAP[currentKeys[0]] || { emoji: '🩺', bg: '#f0f5ff', ring: '#adc6ff' };
+
+  const union = <T extends string>(lists: Array<T[] | undefined>): T[] => {
+    const set = new Set<T>();
+    for (const l of lists) {
+      (l || []).forEach((x) => {
+        const t = String(x || '').trim();
+        if (t) set.add(t as T);
+      });
+    }
+    return Array.from(set);
+  };
+
+  const relatedSource = union(activeContexts.map(c => c.relatedSymptoms));
+  const physicalDisplay = union(activeContexts.map(c => c.physicalSigns)).map(mapToName);
+  const redFlagsDisplay = union(activeContexts.map(c => c.redFlags)).map(mapToName);
+  const requiredQuestions = union(activeContexts.map(c => c.questions)).map(mapToName);
   
   const items = [
     {
@@ -108,7 +128,7 @@ const KnowledgeTab: React.FC = () => {
       ),
       children: (
         <ul style={{ margin: 0, paddingLeft: 20 }}>
-          {(symptomContext.questions || []).map((q, idx) => (
+          {requiredQuestions.map((q, idx) => (
             <li key={idx}>{mapToName(q)}</li>
           ))}
         </ul>
@@ -164,17 +184,15 @@ const KnowledgeTab: React.FC = () => {
             </div>
             <div style={{ minWidth: 0 }}>
               <Title level={5} style={{ margin: 0, color: '#10239e' }}>
-                当前症状：{currentSymptomName}
+                当前症状：{currentNames.join('、')}
               </Title>
-              {symptomContext.updatedAt && (
-                <div style={{ marginTop: 4, color: '#8c8c8c' }}>
-                  来源更新时间：{new Date(symptomContext.updatedAt).toLocaleString()}
-                </div>
-              )}
+              <div style={{ marginTop: 4, color: '#8c8c8c' }}>
+                {activeContexts[0]?.updatedAt ? `首症状来源更新时间：${new Date(activeContexts[0].updatedAt!).toLocaleString()}` : ''}
+              </div>
             </div>
           </div>
           <Tag className="msia-tag" color="processing" style={{ marginInlineEnd: 0 }}>
-            {currentSymptomKey}
+            {currentKeys.join('、')}
           </Tag>
         </div>
         {redFlagsDisplay && redFlagsDisplay.length > 0 && (

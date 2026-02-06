@@ -17,12 +17,34 @@ export const getKnowledgeSince = async (since: Date) => {
 };
 
 /**
- * 根据 Key 获取症状知识
+ * 根据 Key 或 DisplayName 获取症状知识
+ * 支持通过 symptomKey、displayName 或模糊匹配查询
  */
 export const getKnowledgeByKey = async (key: string) => {
-  return await prisma.symptomKnowledge.findUnique({
+  // 首先尝试通过 symptomKey 查询
+  let knowledge = await prisma.symptomKnowledge.findUnique({
     where: { symptomKey: key },
   });
+
+  // 如果没找到，尝试通过 displayName 精确查询
+  if (!knowledge) {
+    knowledge = await prisma.symptomKnowledge.findFirst({
+      where: { displayName: key },
+    });
+  }
+
+  // 如果还没找到，尝试通过 displayName 模糊查询（包含该症状名）
+  if (!knowledge) {
+    knowledge = await prisma.symptomKnowledge.findFirst({
+      where: {
+        displayName: {
+          contains: key,
+        },
+      },
+    });
+  }
+
+  return knowledge;
 };
 
 /**

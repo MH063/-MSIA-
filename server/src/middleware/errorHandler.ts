@@ -70,13 +70,14 @@ export const ErrorTypes = {
 function handlePrismaError(error: Prisma.PrismaClientKnownRequestError): AppError {
   switch (error.code) {
     // 唯一约束冲突
-    case 'P2002':
+    case 'P2002': {
       const target = (error.meta?.target as string[])?.join(', ') || '字段';
       return new AppError(
         `${target}已存在，请勿重复创建`,
         409,
         'DUPLICATE_ENTRY'
       );
+    }
 
     // 外键约束失败
     case 'P2003':
@@ -250,7 +251,9 @@ export const notFoundHandler = (req: Request, res: Response) => {
  * 异步路由处理包装器
  * 用于自动捕获异步函数中的错误
  */
-export const asyncHandler = (fn: Function) => {
+type AsyncRequestHandler = (req: Request, res: Response, next: NextFunction) => Promise<unknown>;
+
+export const asyncHandler = (fn: AsyncRequestHandler) => {
   return (req: Request, res: Response, next: NextFunction) => {
     Promise.resolve(fn(req, res, next)).catch(next);
   };

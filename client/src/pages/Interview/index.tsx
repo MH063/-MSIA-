@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { App as AntdApp, Table, Button, Space, Typography, Card, Tag, Tabs, Input, Grid, Pagination, Segmented, Spin, Empty } from 'antd';
+import { App as AntdApp, Button, Space, Typography, Card, Tag, Tabs, Input, Grid, Pagination, Segmented, Spin, Empty } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { TablePaginationConfig, FilterValue, SorterResult, TableCurrentDataSource } from 'antd/es/table/interface';
 import { DeleteOutlined, EyeOutlined, ExclamationCircleOutlined, PlusOutlined } from '@ant-design/icons';
@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import api, { getApiErrorMessage, unwrapData } from '../../utils/api';
 import type { ApiResponse } from '../../utils/api';
+import LazyTable from '../../components/lazy/LazyTable';
 
 const { Title } = Typography;
 const { Search } = Input;
@@ -362,14 +363,14 @@ const InterviewOverview: React.FC = () => {
             </div>
           </div>
         ) : (
-          <Table
+          <LazyTable
             columns={columns}
             dataSource={data}
             rowKey="id"
             loading={loading}
             pagination={{
               ...pagination,
-              showTotal: (total) => `共 ${total} 条记录`,
+              showTotal: (total: number) => `共 ${total} 条记录`,
               showSizeChanger: true
             }}
             onChange={handleTableChange}
