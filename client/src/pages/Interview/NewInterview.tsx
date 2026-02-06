@@ -16,7 +16,8 @@ import {
   Badge,
   InputNumber,
   Alert,
-  Grid
+  Grid,
+  theme
 } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -137,6 +138,7 @@ const convertToSessionFormat = (values: PatientBasicInfo) => {
 
 const NewInterview: React.FC = () => {
   const { message } = AntdApp.useApp();
+  const { token } = theme.useToken();
   const [form] = Form.useForm();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -365,7 +367,7 @@ const NewInterview: React.FC = () => {
   return (
     <div style={{ 
       minHeight: '100vh',
-      background: 'linear-gradient(135deg, #f0f7ff 0%, #e6f7ff 50%, #f0f9ff 100%)',
+      background: token.colorBgLayout,
       padding: isMobile ? '16px' : '24px'
     }}>
       {/* 页面头部 */}
@@ -400,12 +402,12 @@ const NewInterview: React.FC = () => {
             size={64} 
             icon={<MedicineBoxOutlined />} 
             style={{ 
-              background: 'linear-gradient(135deg, #1890ff 0%, #36cfc9 100%)',
-              boxShadow: '0 4px 12px rgba(24, 144, 255, 0.3)'
+              background: token.colorPrimary,
+              boxShadow: token.boxShadow
             }} 
           />
         </div>
-        <Title level={2} style={{ marginBottom: 8, color: '#262626', fontSize: isMobile ? 24 : 30 }}>
+        <Title level={2} style={{ marginBottom: 8, color: token.colorTextHeading, fontSize: isMobile ? 24 : 30 }}>
           开始新问诊
         </Title>
         <Text type="secondary" style={{ fontSize: isMobile ? 14 : 16 }}>
@@ -418,10 +420,10 @@ const NewInterview: React.FC = () => {
         {isMobile ? (
           <div
             style={{
-              background: '#fff',
+              background: token.colorBgContainer,
               padding: '12px 16px',
               borderRadius: 16,
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+              boxShadow: token.boxShadowSecondary,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -431,17 +433,17 @@ const NewInterview: React.FC = () => {
             <Button
               type="text"
               onClick={() => handleStepChange(0)}
-              icon={<UserOutlined style={{ fontSize: 20, color: currentStep === 0 ? '#1890ff' : '#bfbfbf' }} />}
+              icon={<UserOutlined style={{ fontSize: 20, color: currentStep === 0 ? token.colorPrimary : token.colorTextQuaternary }} />}
             />
             <Button
               type="text"
               onClick={() => handleStepChange(1)}
-              icon={<PhoneOutlined style={{ fontSize: 20, color: currentStep === 1 ? '#1890ff' : '#bfbfbf' }} />}
+              icon={<PhoneOutlined style={{ fontSize: 20, color: currentStep === 1 ? token.colorPrimary : token.colorTextQuaternary }} />}
             />
             <Button
               type="text"
               onClick={() => handleStepChange(2)}
-              icon={<CheckCircleOutlined style={{ fontSize: 20, color: currentStep === 2 ? '#1890ff' : '#bfbfbf' }} />}
+              icon={<CheckCircleOutlined style={{ fontSize: 20, color: currentStep === 2 ? token.colorPrimary : token.colorTextQuaternary }} />}
             />
           </div>
         ) : (
@@ -594,8 +596,8 @@ const NewInterview: React.FC = () => {
                       minHeight: 40, 
                       display: 'flex', 
                       alignItems: 'center', 
-                      background: '#f6ffed', 
-                      border: '1px solid #b7eb8f', 
+                      background: token.colorSuccessBg, 
+                      border: `1px solid ${token.colorSuccessBorder}`, 
                       borderRadius: 8, 
                       padding: '0 11px' 
                     }}>
@@ -681,7 +683,7 @@ const NewInterview: React.FC = () => {
                 onClick={() => handleStepChange(1)}
                 style={{ 
                   borderRadius: 8,
-                  background: 'linear-gradient(135deg, #1890ff 0%, #36cfc9 100%)',
+                  background: token.colorPrimary,
                   border: 'none',
                   padding: '0 48px'
                 }}
@@ -696,7 +698,7 @@ const NewInterview: React.FC = () => {
             style={{ 
               marginBottom: 24, 
               borderRadius: 16,
-              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+              boxShadow: token.boxShadow,
               border: 'none',
               display: currentStep === 1 ? 'block' : 'none'
             }}
@@ -707,7 +709,7 @@ const NewInterview: React.FC = () => {
                 size={40} 
                 icon={<PhoneOutlined />} 
                 style={{ 
-                  background: 'linear-gradient(135deg, #52c41a 0%, #95de64 100%)',
+                  background: token.colorSuccess,
                   marginRight: 16
                 }} 
               />
@@ -754,7 +756,7 @@ const NewInterview: React.FC = () => {
                 size={32} 
                 icon={<CalendarOutlined />} 
                 style={{ 
-                  background: '#722ed1',
+                  background: token.colorPrimary,
                   marginRight: 12
                 }} 
               />
@@ -830,7 +832,7 @@ const NewInterview: React.FC = () => {
                 size={40} 
                 icon={<CheckCircleOutlined />} 
                 style={{ 
-                  background: 'linear-gradient(135deg, #722ed1 0%, #b37feb 100%)',
+                  background: token.colorPrimary,
                   marginRight: 16
                 }} 
               />
@@ -849,25 +851,25 @@ const NewInterview: React.FC = () => {
                   <Select size="large" style={{ borderRadius: 8 }}>
                     <Option value="本人">
                       <Space>
-                        <CheckCircleOutlined style={{ color: '#52c41a' }} />
+                        <CheckCircleOutlined style={{ color: token.colorSuccess }} />
                         本人
                       </Space>
                     </Option>
                     <Option value="家属">
                       <Space>
-                        <TeamOutlined style={{ color: '#1890ff' }} />
+                        <TeamOutlined style={{ color: token.colorPrimary }} />
                         家属
                       </Space>
                     </Option>
                     <Option value="同事/朋友">
                       <Space>
-                        <TeamOutlined style={{ color: '#faad14' }} />
+                        <TeamOutlined style={{ color: token.colorWarning }} />
                         同事/朋友
                       </Space>
                     </Option>
                     <Option value="其他">
                       <Space>
-                        <InfoCircleOutlined style={{ color: '#8c8c8c' }} />
+                        <InfoCircleOutlined style={{ color: token.colorTextQuaternary }} />
                         其他
                       </Space>
                     </Option>
@@ -950,7 +952,7 @@ const NewInterview: React.FC = () => {
                 icon={loading ? <LoadingOutlined /> : <CheckCircleOutlined />}
                 style={{ 
                   borderRadius: 8,
-                  background: 'linear-gradient(135deg, #52c41a 0%, #95de64 100%)',
+                  background: token.colorSuccess,
                   border: 'none',
                   padding: '0 48px'
                 }}

@@ -28,12 +28,21 @@ const EChartsWrapper: React.FC<EChartsWrapperProps> = ({
   useEffect(() => {
     if (chartRef.current) {
       const theme = mode === 'dark' ? 'dark' : undefined;
+      // 销毁旧实例以防万一
+      if (chartInstance.current) {
+        chartInstance.current.dispose();
+      }
       chartInstance.current = echarts.init(chartRef.current, theme);
 
       const resizeObserver = new ResizeObserver(() => {
         chartInstance.current?.resize();
       });
       resizeObserver.observe(chartRef.current);
+
+      // 初始 Resize (延迟以处理 Tab 切换动画)
+      setTimeout(() => {
+        chartInstance.current?.resize();
+      }, 100);
 
       return () => {
         resizeObserver.disconnect();

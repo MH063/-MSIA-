@@ -3,7 +3,7 @@
  */
 
 .knowledge-page {
-  background: var(--msia-bg);
+  /* Background handled by token in index.tsx */
 }
 
 .knowledge-page .ant-layout {
@@ -11,82 +11,81 @@
 }
 
 .knowledge-page .ant-layout-sider {
-  background: var(--msia-card) !important;
-  border-right: 1px solid var(--msia-border);
+  /* Background and border handled by token in index.tsx */
 }
 
 .knowledge-page .ant-tree {
   background: transparent;
 }
 
+/* Tree styles */
 .knowledge-page .ant-tree-node-content-wrapper {
-  color: var(--msia-text);
+  /* Color inherited or handled by token */
+  transition: all 0.3s;
 }
 
 .knowledge-page .ant-tree-node-content-wrapper:hover {
-  background: var(--msia-bg);
+  background: rgba(0, 0, 0, 0.04); /* Light hover effect, compatible with most themes */
+}
+
+[data-theme='dark'] .knowledge-page .ant-tree-node-content-wrapper:hover {
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .knowledge-page .ant-tree-node-selected .ant-tree-node-content-wrapper {
-  background: var(--msia-primary) !important;
-  color: #fff !important;
+  /* Background and color usually handled by Antd theme, but can force if needed */
+  /* Keeping default Antd behavior usually best, but if we need custom: */
+  font-weight: 500;
 }
 
+/* Markdown Styles - Reset colors to inherit */
 .markdown-body {
-  color: var(--msia-text);
   line-height: 1.8;
+  /* Color handled by parent container style */
+}
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+  font-weight: 600;
+  margin-top: 24px;
+  margin-bottom: 16px;
+  color: inherit; /* Inherit from token.colorText */
 }
 
 .markdown-body h1 {
   font-size: 28px;
-  font-weight: 600;
-  margin-bottom: 24px;
-  color: var(--msia-text);
-  border-bottom: 1px solid var(--msia-border);
+  border-bottom: 1px solid rgba(128, 128, 128, 0.2); /* Semi-transparent border */
   padding-bottom: 16px;
 }
 
-.markdown-body h2 {
-  font-size: 20px;
-  font-weight: 600;
-  margin-top: 32px;
-  margin-bottom: 16px;
-  color: var(--msia-text);
-}
-
-.markdown-body p {
-  margin-bottom: 16px;
-  color: var(--msia-text-secondary);
-}
-
-.markdown-body ul {
-  padding-left: 24px;
-  margin-bottom: 16px;
-}
-
+.markdown-body p,
 .markdown-body li {
-  margin-bottom: 8px;
-  color: var(--msia-text-secondary);
+  margin-bottom: 16px;
+  color: inherit; /* Inherit from token.colorText */
 }
 
 .markdown-body blockquote {
-  border-left: 4px solid var(--msia-primary);
+  border-left: 4px solid rgba(22, 119, 255, 0.5); /* Primary color fallback */
   padding-left: 16px;
   margin: 16px 0;
-  color: var(--msia-text-tertiary);
+  opacity: 0.8;
   font-style: italic;
 }
 
 .markdown-body code {
-  background: var(--msia-bg);
+  background: rgba(128, 128, 128, 0.1);
   padding: 2px 6px;
   border-radius: 4px;
   font-family: 'Monaco', 'Menlo', monospace;
-  font-size: 14px;
+  font-size: 0.9em;
 }
 
 .markdown-body pre {
-  background: var(--msia-bg);
+  background: rgba(128, 128, 128, 0.1);
   padding: 16px;
   border-radius: 8px;
   overflow-x: auto;

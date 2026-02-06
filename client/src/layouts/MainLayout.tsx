@@ -1,5 +1,6 @@
 import React from 'react';
 import { App as AntdApp, Button, Grid, Layout, Menu, Space, theme } from 'antd';
+import Loader from '../components/common/Loader';
 import LazyDrawer from '../components/lazy/LazyDrawer';
 import { MenuOutlined, SunOutlined, MoonOutlined } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
@@ -21,6 +22,20 @@ const MainLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const isMobile = !screens.md;
+  const [appLoading, setAppLoading] = React.useState(() => {
+    const p = location.pathname || '/';
+    const noLoader = p === '/'
+      || p.startsWith('/login')
+      || p.startsWith('/register')
+      || p === '/home'
+      || p === '/dashboard'
+      || p === '/interview'
+      || p === '/sessions'
+      || p === '/knowledge'
+      || p === '/interview/new';
+    return !noLoader;
+  });
+  const [loadingProgress, setLoadingProgress] = React.useState(() => (appLoading ? 0 : 100));
   const [authChecking, setAuthChecking] = React.useState(false);
 
   const items = [
@@ -33,9 +48,29 @@ const MainLayout: React.FC = () => {
 
   React.useEffect(() => {
     const p = location.pathname || '/';
-    if (p === '/' || p.startsWith('/login') || p.startsWith('/register')) return;
+    const noLoader = p === '/'
+      || p.startsWith('/login')
+      || p.startsWith('/register')
+      || p === '/home'
+      || p === '/dashboard'
+      || p === '/interview'
+      || p === '/sessions'
+      || p === '/knowledge'
+      || p === '/interview/new';
+    if (noLoader) {
+      setAppLoading(false);
+      setLoadingProgress(100);
+      setAuthChecking(false);
+      return;
+    }
+    
+    // Initial progress
+    setAppLoading(true);
+    setLoadingProgress(0);
+    
     let alive = true;
     setAuthChecking(true);
+    
     try {
       console.log('[MainLayout] 开始认证检查', { baseURL: API_BASE_URL, url: '/auth/me', method: 'GET', pathname: p, host: window.location.hostname });
     } catch {
@@ -43,17 +78,39 @@ const MainLayout: React.FC = () => {
     }
     (async () => {
       try {
+        setLoadingProgress(10);
+        // Wait for a small delay to simulate initial connection
+        await new Promise(r => setTimeout(r, 100));
+        
+        setLoadingProgress(30);
         const res = (await api.get('/auth/me')) as ApiResponse<
           { operatorId: number; role: 'admin' | 'doctor'; name?: string } | { data: { operatorId: number; role: 'admin' | 'doctor'; name?: string } }
         >;
-        const payload = unwrapData<{ operatorId: number; role: 'admin' | 'doctor'; name?: string }>(res);
+        
         if (!alive) return;
+        setLoadingProgress(70);
+        
+        const payload = unwrapData<{ operatorId: number; role: 'admin' | 'doctor'; name?: string }>(res);
+        
+        setLoadingProgress(90);
+        
         if (!res?.success || !payload) {
           navigate(`/login?redirect=${encodeURIComponent(p)}`, { replace: true });
+        } else {
+          // Success
+          setLoadingProgress(100);
+          // Wait a bit to show 100%
+          setTimeout(() => {
+            if (alive) setAppLoading(false);
+          }, 500);
         }
       } catch {
         if (!alive) return;
-        navigate(`/login?redirect=${encodeURIComponent(p)}`, { replace: true });
+        setLoadingProgress(100);
+        setTimeout(() => {
+           navigate(`/login?redirect=${encodeURIComponent(p)}`, { replace: true });
+           if (alive) setAppLoading(false);
+        }, 500);
       } finally {
         if (alive) setAuthChecking(false);
       }
@@ -81,6 +138,10 @@ const MainLayout: React.FC = () => {
 
   const isInterviewSession = location.pathname.startsWith('/interview/') && location.pathname !== '/interview';
   const isLogin = React.useMemo(() => selectedKey === '/login', [selectedKey]);
+
+  if (appLoading) {
+    return <Loader fullscreen percent={loadingProgress} />;
+  }
 
   if (isInterviewSession) {
     return (

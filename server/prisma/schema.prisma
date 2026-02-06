@@ -15,7 +15,7 @@ model Patient {
   name        String   @db.VarChar(100)
   gender      String?  @db.VarChar(10)
   birthDate   DateTime? @map("birth_date") @db.Date
-  
+
   nativePlace String?  @map("native_place") @db.VarChar(50)
   placeOfBirth String? @map("place_of_birth") @db.VarChar(100)
   ethnicity   String?  @db.VarChar(20)
@@ -25,8 +25,12 @@ model Patient {
 
   contactInfo Json?    @map("contact_info")
   createdAt   DateTime @default(now()) @map("created_at")
-  
+
   sessions    InterviewSession[]
+
+  // 索引优化
+  @@index([name])
+  @@index([createdAt])
 
   @@map("patients")
 }
@@ -36,7 +40,7 @@ model InterviewSession {
   patientId       Int      @map("patient_id")
   doctorId        Int?     @map("doctor_id")
   status          String   @default("draft") @db.VarChar(20)
-  
+
   historian       String?  @db.VarChar(50)
   reliability     String?  @db.VarChar(20)
   historianRelationship String? @map("historian_relationship") @db.VarChar(50)
@@ -59,6 +63,15 @@ model InterviewSession {
   updatedAt       DateTime @default(now()) @updatedAt @map("updated_at")
 
   patient         Patient  @relation(fields: [patientId], references: [id])
+
+  // 索引优化
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([patientId, status])
+  @@index([doctorId, status])
 
   @@map("interview_sessions")
 }
@@ -96,6 +109,12 @@ model SymptomKnowledge {
 
   sourceFile          KnowledgeSource? @relation(fields: [sourceFileId], references: [id])
   sourceFileId        Int?             @map("source_file_id")
+
+  // 索引优化
+  @@index([displayName])
+  @@index([category])
+  @@index([updatedAt])
+  @@index([sourceFileId])
 
   @@map("symptom_knowledge")
 }

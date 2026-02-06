@@ -1,4 +1,5 @@
 import React, { Suspense } from 'react';
+import Loading from '../common/Loading';
 type AnyProps = Record<string, unknown>;
 
 const TableLazy = React.lazy(async () => {
@@ -8,7 +9,7 @@ const TableLazy = React.lazy(async () => {
 
 const LazyTable: React.FC<AnyProps> = (props) => {
   return (
-    <Suspense fallback={<div style={{ padding: 12 }}>表格加载中…</div>}>
+    <Suspense fallback={<Loading height={200} />}>
       <TableLazy {...props} />
     </Suspense>
   );

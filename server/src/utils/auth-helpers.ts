@@ -1,20 +1,24 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { serverConfig } from '../config';
 
 const SALT_ROUNDS = 10;
-const DEFAULT_JWT_SECRET = 'your-secret-key';
-const JWT_SECRET = process.env.JWT_SECRET || DEFAULT_JWT_SECRET;
+
+// 从环境变量获取 JWT 密钥，不提供默认值以确保安全
+const JWT_SECRET = process.env.JWT_SECRET || '';
+const REFRESH_JWT_SECRET = process.env.REFRESH_JWT_SECRET || process.env.JWT_SECRET || '';
+
+// 验证 JWT 密钥是否已配置
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET 未配置：请在环境变量中设置 JWT_SECRET');
+}
+
+if (!REFRESH_JWT_SECRET) {
+  throw new Error('REFRESH_JWT_SECRET 未配置：请在环境变量中设置 REFRESH_JWT_SECRET');
+}
+
 const JWT_EXPIRES_IN = '7d' as const;
 const ACCESS_JWT_EXPIRES_IN = (process.env.AUTH_ACCESS_EXPIRES_IN || '15m') as jwt.SignOptions['expiresIn'];
 const REFRESH_JWT_EXPIRES_IN = (process.env.AUTH_REFRESH_EXPIRES_IN || '7d') as jwt.SignOptions['expiresIn'];
-const DEFAULT_REFRESH_JWT_SECRET = `${DEFAULT_JWT_SECRET}-refresh`;
-const REFRESH_JWT_SECRET =
-  process.env.REFRESH_JWT_SECRET || process.env.JWT_SECRET || DEFAULT_REFRESH_JWT_SECRET;
-
-if (serverConfig.isProduction && JWT_SECRET === DEFAULT_JWT_SECRET) {
-  throw new Error('JWT_SECRET 未配置：生产环境禁止使用默认密钥');
-}
 
 /**
  * 对明文密码进行加盐哈希

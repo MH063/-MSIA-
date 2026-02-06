@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { App as AntdApp, Form, Spin, Button, Space, Tooltip, Popconfirm } from 'antd';
+import { App as AntdApp, Form, Button, Space, Tooltip, Popconfirm } from 'antd';
+import Loader from '../../components/common/Loader';
 import LazyModal from '../../components/lazy/LazyModal';
 import { ArrowLeftOutlined, ArrowRightOutlined, EyeOutlined, FilePdfOutlined, FileWordOutlined, UndoOutlined } from '@ant-design/icons';
 import dayjs, { type Dayjs } from 'dayjs';
@@ -8,13 +9,13 @@ import LazyMarkdown from '../../components/LazyMarkdown';
 import api, { getBlob, type ApiResponse, unwrapData } from '../../utils/api';
 
 import InterviewLayout from './components/Layout/InterviewLayout';
-import { ChatPanel, type ChatMessage } from './components/Chat';
 import NavigationPanel from './components/Navigation/NavigationPanel';
 import type { SectionStatus } from './components/Navigation/NavigationPanel';
 import EditorPanel from './components/Editor/EditorPanel';
 import AssistantOverlay from './components/Assistant/AssistantOverlay';
 import { useAssistantStore, type ModuleKey, type KnowledgeContext } from '../../store/assistant.store';
 import { buildHpiNarrative } from '../../utils/narrative';
+
 
 type DateValue = string | number | Date | Dayjs | null | undefined;
 
@@ -247,127 +248,11 @@ const Session: React.FC = () => {
   const setKnowledgeLoading = useAssistantStore(s => s.knowledge.setKnowledgeLoading);
   const setKnowledgeError = useAssistantStore(s => s.knowledge.setKnowledgeError);
 
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
-    {
-      id: 'welcome',
-      role: 'assistant',
-      content: '您好，我是您的智能问诊助手。请问患者主要哪里不舒服？',
-      type: 'text',
-      timestamp: Date.now(),
-      status: 'sent'
-    }
-  ]);
-  const [chatLoading, setChatLoading] = useState(false);
-
-  const handleSendMessage = useCallback(async (content: string, type: 'text' | 'voice' | 'image') => {
-    const newUserMsg: ChatMessage = {
-      id: Date.now().toString(),
-      role: 'user',
-      content,
-      type,
-      timestamp: Date.now(),
-      status: 'sending',
-      metadata: type === 'voice' ? { voiceDuration: 5 } : type === 'image' ? { imageUrl: 'https://picsum.photos/200' } : undefined
-    };
-    setChatMessages(prev => [...prev, newUserMsg]);
-    setChatLoading(true);
-
-    // Simulate network delay and AI response
-    setTimeout(() => {
-      setChatLoading(false);
-      setChatMessages(prev => prev.map(m => m.id === newUserMsg.id ? { ...m, status: 'sent' } : m));
-      
-      let aiContent = '';
-      let actionTaken = false;
-
-      if (type === 'text') {
-        const mappings = useAssistantStore.getState().knowledge.mappings;
-        const nameToKey = mappings?.nameToKey || {};
-        
-        // Check if content contains any known symptom
-        const foundSymptomName = Object.keys(nameToKey).find(name => content.includes(name));
-        
-        if (foundSymptomName) {
-           const currentCC = form.getFieldValue(['chiefComplaint', 'text']);
-           // If current CC is empty or input is short (likely just a symptom name), update it
-           if (!currentCC || content.length < 20) {
-               form.setFieldValue(['chiefComplaint', 'text'], content);
-               form.setFieldValue(['chiefComplaint', 'symptom'], foundSymptomName);
-               aiContent = `已为您记录主诉症状：“${foundSymptomName}”。\n系统将自动加载相关问诊知识。`;
-               actionTaken = true;
-           }
-        } 
-        
-        if (!actionTaken) {
-          if (content.includes('男') || content.includes('女')) {
-              const gender = content.includes('男') ? '男' : '女';
-              form.setFieldValue('gender', gender);
-              aiContent = `已更新性别为：${gender}`;
-              actionTaken = true;
-          } else if (content.match(/\d+岁/)) {
-              const ageMatch = content.match(/(\d+)岁/);
-              if (ageMatch) {
-                const age = parseInt(ageMatch[1]);
-                form.setFieldValue('age', age);
-                form.setFieldValue('ageUnit', '岁');
-                aiContent = `已更新年龄为：${age}岁`;
-                actionTaken = true;
-              }
-          }
-        }
-      }
-
-      if (!actionTaken) {
-         aiContent = `收到您的${type === 'text' ? '消息' : (type === 'voice' ? '语音' : '图片')}：${content}\n我已将其记录到右侧病历中。`;
-      }
-      
-      const aiMsg: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: aiContent,
-        type: 'text',
-        timestamp: Date.now()
-      };
-      setChatMessages(prev => [...prev, aiMsg]);
-    }, 800);
-  }, [form]);
-
   // Fetch Mappings
-  useEffect(() => {
-    const load = async () => {
-      type MappingPayload = { nameToKey: Record<string, string>; synonyms: Record<string, string> };
-      try {
-        const res = await api.get('/mapping/symptoms') as ApiResponse<MappingPayload>;
-        const payload = unwrapData<MappingPayload>(res);
-        if (payload) {
-          const inverted: Record<string, string> = {};
-          for (const [name, key] of Object.entries(payload.nameToKey || {})) {
-            if (key && name && !inverted[key]) inverted[key] = name;
-          }
-          setKnowledgeMappings({ 
-            nameToKey: payload.nameToKey || {}, 
-            keyToName: inverted,
-            synonyms: payload.synonyms || {}
-          });
-          console.log('[Session] 症状映射加载成功', { synonymsCount: Object.keys(payload.synonyms || {}).length });
-        } else {
-          console.warn('[Session] 症状映射数据为空，不展示模拟数据');
-          // 不展示模拟数据，清空映射并提示错误
-          setKnowledgeMappings({ nameToKey: {}, keyToName: {}, synonyms: {} });
-          setKnowledgeError('症状映射加载失败或为空，请稍后重试');
-        }
-      } catch (e) {
-        console.error('[Session] 症状映射加载失败，不展示模拟数据', e);
-        // 不展示模拟数据，清空映射并提示错误
-        setKnowledgeMappings({ nameToKey: {}, keyToName: {} });
-        setKnowledgeError('症状映射加载失败，请检查网络或联系管理员');
-        message.warning('症状映射加载失败，请稍后重试');
-      }
-    };
-    load();
-  }, [setKnowledgeMappings, setKnowledgeError, message]);
+  // Mappings are loaded in the main loading effect below
   
   const [loading, setLoading] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState(0);
   const [isValidId, setIsValidId] = useState<boolean | null>(null);
   const [sessionStatus, setSessionStatus] = useState<string>('draft');
   const [currentSection, setCurrentSection] = useState('general');
@@ -389,6 +274,7 @@ const Session: React.FC = () => {
   const autoSaveDebounceRef = useRef<number | null>(null);
   const linkageCheckDebounceRef = useRef<number | null>(null);
   const basicCheckDebounceRef = useRef<number | null>(null);
+  const panelUpdateDebounceRef = useRef<number | null>(null);
   const isHydratingRef = useRef(false);
   
   const labelBySectionKey = React.useMemo<Record<string, string>>(
@@ -438,6 +324,7 @@ const Session: React.FC = () => {
       if (autoSaveDebounceRef.current) window.clearTimeout(autoSaveDebounceRef.current);
       if (linkageCheckDebounceRef.current) window.clearTimeout(linkageCheckDebounceRef.current);
       if (basicCheckDebounceRef.current) window.clearTimeout(basicCheckDebounceRef.current);
+      if (panelUpdateDebounceRef.current) window.clearTimeout(panelUpdateDebounceRef.current);
     };
   }, []);
 
@@ -838,6 +725,19 @@ const Session: React.FC = () => {
         } else {
           setKnowledgeContext(contexts[0]);
         }
+        
+        // 自动更新教学指导：提取必问问题
+        const allQuestions = new Set<string>();
+        contexts.forEach(c => {
+          if (c.questions && Array.isArray(c.questions)) {
+            c.questions.forEach(q => allQuestions.add(q));
+          }
+        });
+        
+        if (allQuestions.size > 0) {
+          setPanel({ guidance: Array.from(allQuestions).slice(0, 10) });
+        }
+        
         console.log('[Session] 批量更新知识上下文', { count: contexts.length });
       } else {
         setKnowledgeContext(null);
@@ -2957,13 +2857,56 @@ const Session: React.FC = () => {
 
   // Load Session Data
   useEffect(() => {
-    if (!id || id === 'new') return;
-    
     const load = async () => {
-      setLoading(true);
+      const isNew = !id || id === 'new';
+      setLoading(!isNew);
+      setLoadingProgress(isNew ? 100 : 0);
+
+      try {
+        // Phase 1: Load Mappings (0-40%)
+        if (!isNew) setLoadingProgress(10);
+        type MappingPayload = { nameToKey: Record<string, string>; synonyms: Record<string, string> };
+        const mapRes = await api.get('/mapping/symptoms') as ApiResponse<MappingPayload>;
+        const mapPayload = unwrapData<MappingPayload>(mapRes);
+        
+        if (mapPayload) {
+             const inverted: Record<string, string> = {};
+             for (const [name, key] of Object.entries(mapPayload.nameToKey || {})) {
+               if (key && name && !inverted[key]) inverted[key] = name;
+             }
+             setKnowledgeMappings({ 
+               nameToKey: mapPayload.nameToKey || {}, 
+               keyToName: inverted,
+               synonyms: mapPayload.synonyms || {}
+             });
+             console.log('[Session] 症状映射加载成功');
+        } else {
+             setKnowledgeMappings({ nameToKey: {}, keyToName: {}, synonyms: {} });
+        }
+      } catch {
+         setKnowledgeMappings({ nameToKey: {}, keyToName: {} });
+      }
+
+      if (!isNew) setLoadingProgress(40);
+
+      // Phase 2: Load Session (40-100%)
+      if (isNew) {
+        setLoading(false);
+        return;
+      }
+
+      setLoadingProgress(50);
+      
       try {
         const res = await api.get(`/sessions/${id}`) as ApiResponse<SessionRes>;
         const data = unwrapData<SessionRes>(res);
+        
+        setLoadingProgress(90);
+        
+        // Wait a bit to show 100%
+        setLoadingProgress(100);
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
         if (data) {
           const normalizeMaybeGarbledString = (v: unknown): string | undefined => {
             const s = typeof v === 'string' ? v.trim() : String(v ?? '').trim();
@@ -3083,6 +3026,7 @@ const Session: React.FC = () => {
           setLastSavedAt(Date.now());
           window.setTimeout(() => {
             isHydratingRef.current = false;
+            updateAssistantPanelForSection('general', false);
           }, 0);
         } else {
           setIsValidId(false);
@@ -3097,7 +3041,7 @@ const Session: React.FC = () => {
       }
     };
     load();
-  }, [id, form, computeCompletion, message]);
+  }, [id, form, computeCompletion, message, setKnowledgeMappings, updateAssistantPanelForSection]);
 
   const normalizePayload = useCallback((input: unknown): unknown => {
     const seen = new WeakSet<object>();
@@ -3183,16 +3127,30 @@ const Session: React.FC = () => {
         v && typeof v === 'object' ? (v as Record<string, unknown>) : null;
       const rec = asRecord(e);
       const response = rec ? asRecord(rec.response) : null;
-      console.error('[Session] 保存失败', {
-        message: rec?.message,
-        status: response?.status,
-        data: response?.data,
-      });
-      if (!silent) message.error('保存失败');
+      const statusRaw = response && typeof response === 'object' && 'status' in response
+        ? (response as Record<string, unknown>).status
+        : undefined;
+      const status = typeof statusRaw === 'number' ? statusRaw : Number(statusRaw || 0);
+      const respData = response && typeof response === 'object' && 'data' in response
+        ? (response as Record<string, unknown>).data
+        : undefined;
+      console.error('[Session] 保存失败', { message: rec?.message, status, data: respData });
+      if (status === 401) {
+        message.error('登录已过期或无权限，请重新登录');
+        try {
+          const p = window.location.pathname || `/interview/${id}`;
+          // 在拦截器可能跳转的同时，显式导航以增强可靠性
+          navigate(`/login?redirect=${encodeURIComponent(p)}`, { replace: true });
+        } catch {
+          // ignore
+        }
+      } else {
+        if (!silent) message.error('保存失败');
+      }
     } finally {
       if (!isAutoSave) setLoading(false);
     }
-  }, [id, form, normalizePayload, computeCompletion, message]);
+  }, [id, form, normalizePayload, computeCompletion, message, navigate]);
 
   const handleArchive = useCallback(async () => {
     if (!isValidId || !id || id === 'new') return;
@@ -3365,29 +3323,22 @@ const Session: React.FC = () => {
   };
 
   if (loading && !isValidId) {
-    return <Spin size="large" style={{ display: 'block', margin: '100px auto' }} />;
+    return <Loader fullscreen percent={loadingProgress} />;
   }
 
   return (
     <InterviewLayout
-      navigation={
-        <NavigationPanel
-          currentSection={currentSection}
-          onSectionChange={handleSectionChange}
-          sections={sections}
-          progress={progress}
-          onGoHome={() => navigate('/home')}
-          onGoInterviewStart={() => navigate('/sessions')}
-        />
-      }
-      chat={
-        <ChatPanel
-          messages={chatMessages}
-          onSendMessage={handleSendMessage}
-          loading={chatLoading}
-        />
-      }
-      editor={
+        navigation={
+          <NavigationPanel
+            currentSection={currentSection}
+            onSectionChange={handleSectionChange}
+            sections={sections}
+            progress={progress}
+            onGoHome={() => navigate('/home')}
+            onGoInterviewStart={() => navigate('/sessions')}
+          />
+        }
+        editor={
         <>
           <div className="interview-editor-shell">
             <div className="interview-editor-header">
@@ -3418,6 +3369,10 @@ const Session: React.FC = () => {
                     basicCheckDebounceRef.current = window.setTimeout(() => {
                       computeCompletion(form.getFieldsValue(true) as FormValues, { level: 'basic' });
                     }, 200);
+                    if (panelUpdateDebounceRef.current) window.clearTimeout(panelUpdateDebounceRef.current);
+                    panelUpdateDebounceRef.current = window.setTimeout(() => {
+                      updateAssistantPanelForSection(currentSection, false);
+                    }, 250);
                     const changed = changedValues as unknown;
                     const shouldLinkageCheck = (() => {
                       if (!changed || typeof changed !== 'object') return false;

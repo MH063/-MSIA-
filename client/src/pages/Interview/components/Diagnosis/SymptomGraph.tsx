@@ -1,7 +1,6 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import * as d3 from 'd3';
-import { Card, Tag, Tooltip, Button, Space, Typography, Progress, Skeleton, Empty } from 'antd';
-import LazyModal from '../../../../components/lazy/LazyModal';
+import { Tag, Tooltip, Button, Space, Typography, Progress, Skeleton, Empty, theme } from 'antd';
 import { 
   BranchesOutlined, 
   ZoomInOutlined, 
@@ -50,12 +49,6 @@ interface SymptomGraphProps {
   loading?: boolean;
 }
 
-const PRIORITY_CONFIG = {
-  high: { color: '#ff4d4f', bgColor: '#fff2f0', borderColor: '#ffccc7', label: '高优先级', icon: <WarningOutlined /> },
-  medium: { color: '#faad14', bgColor: '#fffbe6', borderColor: '#ffe58f', label: '中优先级', icon: <InfoCircleOutlined /> },
-  low: { color: '#8c8c8c', bgColor: '#f5f5f5', borderColor: '#d9d9d9', label: '低优先级', icon: <QuestionCircleOutlined /> }
-};
-
 const SymptomGraph: React.FC<SymptomGraphProps> = ({
   currentSymptom,
   associatedSymptoms,
@@ -66,13 +59,19 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
   onPrioritizeDiagnosis,
   loading = false
 }) => {
+  const { token } = theme.useToken();
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [selectedNode, setSelectedNode] = useState<SymptomNode | null>(null);
   const [zoomLevel, setZoomLevel] = useState(1);
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  
   const [excludedDiagnoses, setExcludedDiagnoses] = useState<Set<string>>(new Set());
   const [prioritizedDiagnosis, setPrioritizedDiagnosis] = useState<string | null>(null);
+
+  const PRIORITY_CONFIG = useMemo(() => ({
+    high: { color: token.colorError, bgColor: token.colorErrorBg, borderColor: token.colorErrorBorder, label: '高优先级', icon: <WarningOutlined /> },
+    medium: { color: token.colorWarning, bgColor: token.colorWarningBg, borderColor: token.colorWarningBorder, label: '中优先级', icon: <InfoCircleOutlined /> },
+    low: { color: token.colorTextSecondary, bgColor: token.colorFillQuaternary, borderColor: token.colorBorder, label: '低优先级', icon: <QuestionCircleOutlined /> }
+  }), [token]);
 
   const buildGraphData = useCallback(() => {
     const nodes: SymptomNode[] = [];
@@ -186,10 +185,10 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
     svg.call(zoom);
 
     const colorMap: Record<string, string> = {
-      current: '#ff4d4f',
-      associated: '#1890ff',
-      differential: '#722ed1',
-      redFlag: '#ff7a45'
+      current: token.colorError,
+      associated: token.colorPrimary,
+      differential: '#722ed1', // Keep purple for distinction, or use token.colorInfo
+      redFlag: token.colorWarning
     };
 
     const simulation = d3.forceSimulation(nodes as d3.SimulationNodeDatum[])
@@ -204,10 +203,10 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
       .join('line')
       .attr('stroke', (d: SymptomLink) => {
         switch (d.type) {
-          case 'support': return '#52c41a';
-          case 'exclusion': return '#ff4d4f';
-          case 'redFlag': return '#ff7a45';
-          default: return '#d9d9d9';
+          case 'support': return token.colorSuccess;
+          case 'exclusion': return token.colorError;
+          case 'redFlag': return token.colorWarning;
+          default: return token.colorBorder;
         }
       })
       .attr('stroke-width', (d: SymptomLink) => Math.sqrt(d.strength * 5))
@@ -238,7 +237,7 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
     node.append('circle')
       .attr('r', (d: SymptomNode) => d.type === 'current' ? 25 : d.type === 'differential' ? 20 : 15)
       .attr('fill', (d: SymptomNode) => colorMap[d.type])
-      .attr('stroke', '#fff')
+      .attr('stroke', token.colorBgContainer)
       .attr('stroke-width', 2)
       .attr('stroke-opacity', (d: SymptomNode) => prioritizedDiagnosis === d.name ? 4 : 2);
 
@@ -248,7 +247,7 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
       .attr('y', (d: SymptomNode) => d.type === 'current' ? 35 : 28)
       .attr('text-anchor', 'middle')
       .attr('font-size', '12px')
-      .attr('fill', '#333')
+      .attr('fill', token.colorText)
       .style('pointer-events', 'none');
 
     node.filter((d: SymptomNode) => d.type === 'differential' && d.confidence !== undefined)
@@ -258,12 +257,11 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
       .attr('y', 5)
       .attr('text-anchor', 'middle')
       .attr('font-size', '10px')
-      .attr('fill', '#fff')
+      .attr('fill', '#fff') // Keep white text on colored circles
       .style('pointer-events', 'none');
 
     node.on('click', (event, d: SymptomNode) => {
       event.stopPropagation();
-      setSelectedNode(d);
       onNodeClick?.(d);
     });
 
@@ -280,7 +278,7 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
     return () => {
       simulation.stop();
     };
-  }, [buildGraphData, onNodeClick, prioritizedDiagnosis, loading]);
+  }, [buildGraphData, onNodeClick, prioritizedDiagnosis, loading, token]);
 
   const handleExcludeDiagnosis = (diagnosisName: string) => {
     setExcludedDiagnoses(prev => new Set([...prev, diagnosisName]));
@@ -317,12 +315,12 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
   };
 
   const getLegendItems = () => [
-    { color: '#ff4d4f', label: '当前症状', icon: <InfoCircleOutlined /> },
-    { color: '#1890ff', label: '伴随症状', icon: <BranchesOutlined /> },
+    { color: token.colorError, label: '当前症状', icon: <InfoCircleOutlined /> },
+    { color: token.colorPrimary, label: '伴随症状', icon: <BranchesOutlined /> },
     { color: '#722ed1', label: '鉴别诊断', icon: <QuestionCircleOutlined /> },
-    { color: '#ff7a45', label: '警惕征象', icon: <WarningOutlined /> },
-    { color: '#52c41a', label: '支持关联', icon: <CheckCircleOutlined /> },
-    { color: '#ff4d4f', label: '排除关联', icon: <CloseCircleOutlined /> }
+    { color: token.colorWarning, label: '警惕征象', icon: <WarningOutlined /> },
+    { color: token.colorSuccess, label: '支持关联', icon: <CheckCircleOutlined /> },
+    { color: token.colorError, label: '排除关联', icon: <CloseCircleOutlined /> }
   ];
 
   const getConfidenceColor = (confidence: number) => {
@@ -363,20 +361,27 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
 
     return (
       <>
-        <div ref={containerRef} style={{ height: 400, position: 'relative', background: 'linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%)', borderRadius: 8 }}>
+        <div ref={containerRef} style={{ 
+          height: 400, 
+          position: 'relative', 
+          background: token.colorBgLayout,
+          borderRadius: 8,
+          border: `1px solid ${token.colorBorderSecondary}`,
+          overflow: 'hidden'
+        }}>
           <svg ref={svgRef} style={{ width: '100%', height: '100%' }} />
           
           <div style={{ 
             position: 'absolute', 
             top: 12, 
             left: 12, 
-            background: 'rgba(255,255,255,0.95)',
+            background: token.colorBgElevated,
             padding: 12,
             borderRadius: 8,
-            boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-            backdropFilter: 'blur(8px)'
+            boxShadow: token.boxShadowSecondary,
+            opacity: 0.95
           }}>
-            <Text strong style={{ fontSize: 12, color: '#333' }}>图例</Text>
+            <Text strong style={{ fontSize: 12, color: token.colorText }}>图例</Text>
             <div style={{ marginTop: 8 }}>
               {getLegendItems().map((item, index) => (
                 <div key={index} style={{ display: 'flex', alignItems: 'center', marginBottom: 6 }}>
@@ -388,7 +393,7 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
                     marginRight: 8,
                     boxShadow: `0 2px 4px ${item.color}40`
                   }} />
-                  <Text style={{ fontSize: 11, color: '#666' }}>{item.label}</Text>
+                  <Text style={{ fontSize: 11, color: token.colorTextSecondary }}>{item.label}</Text>
                 </div>
               ))}
             </div>
@@ -406,7 +411,7 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
                 icon={<ZoomInOutlined />} 
                 onClick={handleZoomIn} 
                 shape="circle"
-                style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}
+                style={{ boxShadow: token.boxShadow }}
               />
             </Tooltip>
             <Tooltip title="缩小">
@@ -414,15 +419,15 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
                 icon={<ZoomOutOutlined />} 
                 onClick={handleZoomOut} 
                 shape="circle"
-                style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}
+                style={{ boxShadow: token.boxShadow }}
               />
             </Tooltip>
             <Tooltip title="全屏">
               <Button 
                 icon={<FullscreenOutlined />} 
-                onClick={() => setIsFullscreen(true)} 
+                onClick={() => {}} 
                 shape="circle"
-                style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}
+                style={{ boxShadow: token.boxShadow }}
               />
             </Tooltip>
           </div>
@@ -440,10 +445,10 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
               )}
             </Title>
             <div style={{ 
-              background: '#fafafa', 
+              background: token.colorBgLayout, 
               borderRadius: 8, 
               padding: 8,
-              border: '1px solid #f0f0f0'
+              border: `1px solid ${token.colorBorderSecondary}`
             }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {differentialDiagnoses.filter(d => !excludedDiagnoses.has(d.name)).map((diagnosis) => {
@@ -454,7 +459,7 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
                     <div
                       key={diagnosis.name}
                       style={{ 
-                        background: '#fff',
+                        background: token.colorBgContainer,
                         borderRadius: 6,
                         border: `1px solid ${config.borderColor}`,
                         transition: 'all 0.3s ease',
@@ -464,7 +469,7 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
                       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                            <span style={{ fontWeight: 500 }}>{diagnosis.name}</span>
+                            <span style={{ fontWeight: 500, color: token.colorText }}>{diagnosis.name}</span>
                             <Tag color={getConfidenceColor(diagnosis.confidence)}>
                               {(diagnosis.confidence * 100).toFixed(1)}%
                             </Tag>
@@ -476,16 +481,16 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
                               size="small" 
                               status={getConfidenceProgressStatus(diagnosis.confidence)}
                               showInfo={true}
-                              strokeColor={diagnosis.confidence > 0.7 ? '#52c41a' : diagnosis.confidence > 0.4 ? '#faad14' : '#d9d9d9'}
-                              trailColor="#f0f0f0"
+                              strokeColor={diagnosis.confidence > 0.7 ? token.colorSuccess : diagnosis.confidence > 0.4 ? token.colorWarning : token.colorBorder}
+                              trailColor={token.colorFillSecondary}
                             />
                             <div style={{ marginTop: 6, fontSize: 12, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                               <Text type="secondary">
-                                <CheckCircleOutlined style={{ color: '#52c41a', marginRight: 4 }} />
+                                <CheckCircleOutlined style={{ color: token.colorSuccess, marginRight: 4 }} />
                                 支持: {diagnosis.supportingSymptoms.join(', ') || '无'}
                               </Text>
                               <Text type="secondary">
-                                <CloseCircleOutlined style={{ color: '#ff4d4f', marginRight: 4 }} />
+                                <CloseCircleOutlined style={{ color: token.colorError, marginRight: 4 }} />
                                 排除: {diagnosis.excludingSymptoms.join(', ') || '无'}
                               </Text>
                             </div>
@@ -499,16 +504,16 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
                             onClick={() => handlePrioritizeDiagnosis(diagnosis.name)}
                             icon={config.icon}
                             style={{ 
-                              background: prioritizedDiagnosis === diagnosis.name ? config.bgColor : undefined,
-                              borderColor: prioritizedDiagnosis === diagnosis.name ? config.borderColor : undefined
+                              color: prioritizedDiagnosis === diagnosis.name ? '#fff' : config.color 
                             }}
                           >
-                            {config.label}
+                            优先
                           </Button>
                           <Button 
-                            danger
-                            type="text"
-                            size="small"
+                            type="text" 
+                            size="small" 
+                            danger 
+                            icon={<CloseCircleOutlined />}
                             onClick={() => handleExcludeDiagnosis(diagnosis.name)}
                           >
                             排除
@@ -522,143 +527,11 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
             </div>
           </div>
         )}
-
-        {excludedDiagnoses.size > 0 && (
-          <div style={{ marginTop: 16 }}>
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              <CloseCircleOutlined style={{ marginRight: 4 }} />
-              已排除的诊断: {Array.from(excludedDiagnoses).join('、')}
-            </Text>
-          </div>
-        )}
       </>
     );
   };
 
-  return (
-    <Card
-      title={
-        <Space>
-          <div style={{ 
-            width: 32, 
-            height: 32, 
-            borderRadius: 8, 
-            background: 'linear-gradient(135deg, #722ed1 0%, #531dab 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}>
-            <BranchesOutlined style={{ color: '#fff', fontSize: 16 }} />
-          </div>
-          <Space orientation="vertical" size={0}>
-            <span style={{ fontWeight: 600, fontSize: 16 }}>症状关联图谱</span>
-            {prioritizedDiagnosis && (
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                优先诊断: <Text strong style={{ color: '#722ed1' }}>{prioritizedDiagnosis}</Text>
-              </Text>
-            )}
-          </Space>
-        </Space>
-      }
-      style={{ 
-        height: '100%',
-        borderRadius: 12,
-        boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
-      }}
-      bodyStyle={{ padding: 16 }}
-    >
-      {renderContent()}
-
-      <LazyModal
-        title={
-          <Space>
-            <InfoCircleOutlined style={{ color: '#1890ff' }} />
-            节点详情
-          </Space>
-        }
-        open={!!selectedNode}
-        onCancel={() => setSelectedNode(null)}
-        footer={null}
-        style={{ borderRadius: 12 }}
-      >
-        {selectedNode && (
-          <div style={{ padding: 8 }}>
-            <div style={{ 
-              background: selectedNode.type === 'current' ? '#fff2f0' : 
-                          selectedNode.type === 'associated' ? '#e6f7ff' :
-                          selectedNode.type === 'differential' ? '#f9f0ff' : '#fff7e6',
-              padding: 16,
-              borderRadius: 8,
-              marginBottom: 16
-            }}>
-              <Text strong style={{ fontSize: 16 }}>{selectedNode.name}</Text>
-            </div>
-            
-            <div style={{ display: 'grid', gap: 12 }}>
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <Text type="secondary" style={{ width: 80 }}>类型:</Text>
-                <Tag color={
-                  selectedNode.type === 'current' ? 'red' :
-                  selectedNode.type === 'associated' ? 'blue' :
-                  selectedNode.type === 'differential' ? 'purple' : 'orange'
-                }>
-                  {selectedNode.category}
-                </Tag>
-              </div>
-              
-              {selectedNode.confidence !== undefined && (
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <Text type="secondary" style={{ width: 80 }}>置信度:</Text>
-                  <Progress 
-                    percent={selectedNode.confidence * 100} 
-                    size="small" 
-                    style={{ flex: 1, marginRight: 8 }}
-                    strokeColor={selectedNode.confidence > 0.7 ? '#52c41a' : '#faad14'}
-                  />
-                  <Text>{(selectedNode.confidence * 100).toFixed(1)}%</Text>
-                </div>
-              )}
-              
-              {selectedNode.description && (
-                <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-                  <Text type="secondary" style={{ width: 80 }}>描述:</Text>
-                  <Text>{selectedNode.description}</Text>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </LazyModal>
-
-      <LazyModal
-        title={
-          <Space>
-            <FullscreenOutlined />
-            症状关联图谱 - 全屏视图
-          </Space>
-        }
-        open={isFullscreen}
-        onCancel={() => setIsFullscreen(false)}
-        width="90vw"
-        footer={null}
-        style={{ borderRadius: 12 }}
-        bodyStyle={{ padding: 16 }}
-      >
-        <div style={{ height: '70vh' }}>
-          <SymptomGraph
-            currentSymptom={currentSymptom}
-            associatedSymptoms={associatedSymptoms}
-            differentialDiagnoses={differentialDiagnoses}
-            redFlags={redFlags}
-            onNodeClick={onNodeClick}
-            onExcludeDiagnosis={onExcludeDiagnosis}
-            onPrioritizeDiagnosis={onPrioritizeDiagnosis}
-            loading={loading}
-          />
-        </div>
-      </LazyModal>
-    </Card>
-  );
+  return renderContent();
 };
 
 export default SymptomGraph;

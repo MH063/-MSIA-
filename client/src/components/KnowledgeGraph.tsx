@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import ReactECharts from 'echarts-for-react';
+import * as echarts from 'echarts';
+import EChartsWrapper from './EChartsWrapper';
 import { useThemeStore } from '../store/theme.store';
 
 interface KnowledgeGraphProps {
@@ -15,8 +16,9 @@ interface KnowledgeGraphProps {
 const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({ data, height = 500, onNodeClick }) => {
   const { mode } = useThemeStore();
   const isDark = mode === 'dark';
+  type GraphNode = { id: string; name: string; category: number; symbolSize?: number };
 
-  const option = useMemo(() => ({
+  const option: echarts.EChartsOption = useMemo(() => ({
     backgroundColor: 'transparent',
     tooltip: {
       trigger: 'item',
@@ -40,7 +42,7 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({ data, height = 500, onN
             color: isDark ? '#fff' : '#333'
           }
         })),
-        links: data.links,
+        links: data.links as unknown as echarts.GraphSeriesOption['links'],
         categories: data.categories,
         roam: true,
         label: {
@@ -65,21 +67,19 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({ data, height = 500, onN
     ]
   }), [data, isDark]);
 
-  const onEvents = {
+  const onEvents = useMemo(() => ({
     click: (params: unknown) => {
-      const p = params as { dataType?: string; data?: { id: string; name: string; category: number; symbolSize?: number } };
-      if (p.dataType === 'node' && onNodeClick && p.data) {
-        onNodeClick(p.data);
-      }
+      const p = params as { dataType?: string; data?: unknown };
+      if (p.dataType !== 'node' || !onNodeClick || !p.data || typeof p.data !== 'object') return;
+      onNodeClick(p.data as GraphNode);
     }
-  };
+  }), [onNodeClick]);
 
   return (
-    <ReactECharts
+    <EChartsWrapper
       option={option}
-      style={{ height: height, width: '100%' }}
+      style={{ height: typeof height === 'number' ? `${height}px` : height, width: '100%' }}
       onEvents={onEvents}
-      theme={isDark ? 'dark' : undefined}
     />
   );
 };

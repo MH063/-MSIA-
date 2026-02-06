@@ -1,13 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { App as AntdApp, Button, Form, Input, Typography, Tabs } from 'antd';
+import { App as AntdApp, Button, Form, Input, Typography, Tabs, theme } from 'antd';
 import { LockOutlined, UserOutlined, SafetyOutlined, MedicineBoxFilled } from '@ant-design/icons';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import api, { unwrapData, getApiErrorMessage } from '../../utils/api';
 import type { ApiResponse } from '../../utils/api';
 import './login.css';
 import Captcha from '../../components/Captcha';
+import { useThemeStore } from '../../store/theme.store';
 
-const { Title, Text } = Typography;
+const { Title } = Typography;
 
 /**
  * 是否显示令牌登录选项
@@ -17,7 +18,6 @@ const SHOW_TOKEN_LOGIN = import.meta.env.DEV;
 
 /**
  * 获取环境显示标签
- * 仅开发环境显示，生产环境不显示
  */
 const getEnvLabel = () => {
   if (import.meta.env.DEV) return { text: '开发环境', color: '#52c41a' };
@@ -60,6 +60,8 @@ const PasswordLogin: React.FC<{ onSuccess: (data: LoginResult) => void }> = ({ o
   const [captchaRefreshKey, setCaptchaRefreshKey] = useState(0);
   const [serverCaptcha, setServerCaptcha] = useState<{ id: string; svg: string } | null>(null);
   const { message } = AntdApp.useApp();
+  const { token } = theme.useToken();
+
   const [form] = Form.useForm<PasswordLoginValues & { captchaId: string }>();
   const triggerCaptchaRefresh = () => {
     console.log('[Login] 刷新验证码');
@@ -69,9 +71,6 @@ const PasswordLogin: React.FC<{ onSuccess: (data: LoginResult) => void }> = ({ o
     setCaptchaRefreshKey((prev) => prev + 1);
   };
 
-  /**
-   * 提交账号密码登录
-   */
   const onFinish = async (values: PasswordLoginValues) => {
     try {
       const idOk = isValidUuid(values.captchaId);
@@ -135,10 +134,11 @@ const PasswordLogin: React.FC<{ onSuccess: (data: LoginResult) => void }> = ({ o
         className="login-form-item"
       >
         <Input 
-          prefix={<UserOutlined className="login-input-icon" />} 
+          prefix={<UserOutlined className="login-input-icon" style={{ color: token.colorTextPlaceholder }} />} 
           placeholder="请输入用户名" 
           className="login-input"
           autoComplete="username"
+          style={{ background: token.colorBgContainer, color: token.colorText }}
         />
       </Form.Item>
       <Form.Item 
@@ -147,10 +147,11 @@ const PasswordLogin: React.FC<{ onSuccess: (data: LoginResult) => void }> = ({ o
         className="login-form-item"
       >
         <Input.Password 
-          prefix={<LockOutlined className="login-input-icon" />} 
+          prefix={<LockOutlined className="login-input-icon" style={{ color: token.colorTextPlaceholder }} />} 
           placeholder="请输入密码" 
           className="login-input"
           autoComplete="current-password"
+          style={{ background: token.colorBgContainer, color: token.colorText }}
         />
       </Form.Item>
       <Form.Item
@@ -192,6 +193,7 @@ const TokenLogin: React.FC<{ onSuccess: (data: LoginResult) => void }> = ({ onSu
   const [serverCaptcha, setServerCaptcha] = useState<{ id: string; svg: string } | null>(null);
   const { message } = AntdApp.useApp();
   const [form] = Form.useForm<TokenLoginValues & { captchaId: string }>();
+  
   const triggerCaptchaRefresh = () => {
     console.log('[Login] 刷新验证码');
     setCaptchaVerified(false);
@@ -200,9 +202,6 @@ const TokenLogin: React.FC<{ onSuccess: (data: LoginResult) => void }> = ({ onSu
     setCaptchaRefreshKey((prev) => prev + 1);
   };
 
-  /**
-   * 提交令牌登录
-   */
   const onFinish = async (values: TokenLoginValues) => {
     try {
       const idOk = isValidUuid(values.captchaId);
@@ -305,9 +304,13 @@ const TokenLogin: React.FC<{ onSuccess: (data: LoginResult) => void }> = ({ onSu
 
 const Login: React.FC = () => {
   const { message } = AntdApp.useApp();
+  const { token } = theme.useToken();
   const navigate = useNavigate();
   const location = useLocation();
   const [activeTab, setActiveTab] = useState('password');
+  const { mode } = useThemeStore();
+  const isDark = mode === 'dark';
+  const envTag = getEnvLabel();
 
   const redirectTo = useMemo(() => {
     const sp = new URLSearchParams(location.search);
@@ -366,98 +369,83 @@ const Login: React.FC = () => {
 
   return (
     <div className="login-page">
-      {/* 背景装饰 */}
+      <style>{`
+        .login-page {
+          background: ${isDark ? token.colorBgLayout : '#f0f2f5'} !important;
+        }
+        .login-bg-blob {
+          opacity: ${isDark ? 0.15 : 0.6} !important;
+        }
+        .login-card {
+          background: ${token.colorBgContainer} !important;
+          border: 1px solid ${token.colorBorderSecondary} !important;
+        }
+        .login-input {
+          background: ${token.colorBgContainer} !important;
+          border-color: ${token.colorBorder} !important;
+          color: ${token.colorText} !important;
+        }
+        .login-input:hover, .login-input:focus {
+          border-color: ${token.colorPrimary} !important;
+        }
+        .login-input-icon {
+          color: ${token.colorTextDescription} !important;
+        }
+        .login-title {
+          color: ${token.colorText} !important;
+        }
+        .login-subtitle {
+          color: ${token.colorTextSecondary} !important;
+        }
+      `}</style>
+      
+      {/* 动态背景 */}
       <div className="login-bg-decoration">
         <div className="login-bg-blob login-bg-blob-1" />
         <div className="login-bg-blob login-bg-blob-2" />
-        <div className="login-bg-blob login-bg-blob-3" />
       </div>
 
-      {/* 主内容区 */}
-      <div className="login-container">
-        {/* 左侧品牌区 */}
-        <div className="login-brand">
-          <div className="login-brand-logo">
+      {envTag && (
+        <div className="env-tag" style={{ background: '#f6ffed', border: '1px solid #b7eb8f', color: envTag.color }}>
+          {envTag.text}
+        </div>
+      )}
+
+      {/* 登录卡片 */}
+      <div className="login-card">
+        <div className="login-header">
+          <div className="login-logo">
             <MedicineBoxFilled />
           </div>
-          <h1 className="login-brand-title">医学生智能问诊辅助系统</h1>
-          <p className="login-brand-subtitle">Medical Student Intelligent Assistant</p>
-          
-          <div className="login-brand-features">
-            <div className="login-brand-feature">
-              <span className="feature-dot" style={{ background: '#1677ff' }} />
-              <span>智能问诊导航</span>
-            </div>
-            <div className="login-brand-feature">
-              <span className="feature-dot" style={{ background: '#52c41a' }} />
-              <span>病历自动生成</span>
-            </div>
-            <div className="login-brand-feature">
-              <span className="feature-dot" style={{ background: '#722ed1' }} />
-              <span>AI 辅助诊断</span>
-            </div>
-          </div>
+          <Title level={3} className="login-title">医学生智能问诊辅助系统</Title>
+          <div className="login-subtitle" style={{ color: token.colorTextSecondary }}>Medical Student Intelligent Assistant</div>
         </div>
 
-        {/* 右侧登录卡片 */}
-        <div className="login-card-wrapper">
-          <div className="login-card">
-            {/* 头部 */}
-            <div className="login-header">
-              <div className="login-header-icon">
-                <SafetyOutlined />
-              </div>
-              <Title level={3} className="login-title">用户登录</Title>
-              {getEnvLabel() && (
-                <span 
-                  className="login-env-tag"
-                  style={{ color: getEnvLabel()?.color, borderColor: getEnvLabel()?.color }}
-                >
-                  {getEnvLabel()?.text}
-                </span>
-              )}
-            </div>
+        {SHOW_TOKEN_LOGIN ? (
+          <Tabs 
+            activeKey={activeTab} 
+            onChange={setActiveTab}
+            centered
+            items={[
+              {
+                key: 'password',
+                label: <span><UserOutlined /> 账号登录</span>,
+                children: <PasswordLogin onSuccess={handleSuccess} />
+              },
+              {
+                key: 'token',
+                label: <span><SafetyOutlined /> 令牌登录</span>,
+                children: <TokenLogin onSuccess={handleSuccess} />
+              }
+            ]}
+          />
+        ) : (
+          <PasswordLogin onSuccess={handleSuccess} />
+        )}
 
-            {/* 登录方式切换 */}
-            <Tabs
-              activeKey={activeTab}
-              onChange={setActiveTab}
-              centered
-              className="login-tabs"
-              items={[
-                {
-                  key: 'password',
-                  label: '账号密码登录',
-                  children: <PasswordLogin onSuccess={handleSuccess} />,
-                },
-                ...(SHOW_TOKEN_LOGIN
-                  ? [
-                      {
-                        key: 'token',
-                        label: (
-                          <span className="login-tab-label">
-                            令牌登录
-                            <span className="login-dev-tag">开发</span>
-                          </span>
-                        ),
-                        children: <TokenLogin onSuccess={handleSuccess} />,
-                      },
-                    ]
-                  : []),
-              ]}
-            />
-            
-            {/* 底部链接 */}
-            <div className="login-footer">
-              <Text type="secondary" className="login-footer-text">还没有账号？</Text>
-              <Link to="/register" className="login-footer-link">立即注册</Link>
-            </div>
-          </div>
-
-          {/* 版权信息 */}
-          <div className="login-copyright">
-            © 2025 医学生智能问诊辅助系统
-          </div>
+        <div className="login-footer">
+          <span className="login-footer-text">还没有账号？</span>
+          <Link to="/register" className="login-footer-link">立即注册</Link>
         </div>
       </div>
     </div>

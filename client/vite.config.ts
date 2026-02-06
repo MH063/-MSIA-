@@ -4,12 +4,17 @@ import react from '@vitejs/plugin-react'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  esbuild: {
+    drop: ['console', 'debugger'],
+  },
   server: {
     port: 8000,
     host: '0.0.0.0',
   },
   build: {
     chunkSizeWarningLimit: 1500,
+    // 生产环境移除 console 和 debugger
+    minify: 'esbuild',
     rollupOptions: {
       output: {
         manualChunks: {

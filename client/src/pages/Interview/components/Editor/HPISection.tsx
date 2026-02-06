@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { App as AntdApp, Form, Input, Radio, Checkbox, Row, Col, Typography, Card, Select, Collapse, Timeline, Button, Space, InputNumber } from 'antd';
+import { App as AntdApp, Form, Input, Radio, Checkbox, Row, Col, Typography, Card, Select, Collapse, Timeline, Button, Space, InputNumber, theme } from 'antd';
 import LazyModal from '../../../../components/lazy/LazyModal';
 import { ClockCircleOutlined, PlusOutlined, SyncOutlined, ArrowUpOutlined, ArrowDownOutlined, DeleteOutlined } from '@ant-design/icons';
 import api, { unwrapData, type ApiResponse } from '../../../../utils/api';
@@ -52,7 +52,7 @@ const SeverityBlocks: React.FC<{ value?: string; onChange?: (v: string) => void 
  */
 const HPISection: React.FC = () => {
   const { message } = AntdApp.useApp();
-  const { token } = AntdApp.useApp().theme.useToken();
+  const { token } = theme.useToken();
   const form = Form.useFormInstance();
   const mappingQuery = useQuery({
     queryKey: ['mapping', 'symptoms'],

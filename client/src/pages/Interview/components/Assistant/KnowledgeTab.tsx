@@ -1,30 +1,11 @@
 import React from 'react';
-import { App as AntdApp, Typography, Collapse, Tag, Empty, Spin } from 'antd';
+import { App as AntdApp, Typography, Collapse, Tag, Empty, theme } from 'antd';
 import { BulbOutlined, QuestionCircleOutlined, MedicineBoxOutlined, RobotOutlined } from '@ant-design/icons';
 import { useAssistantStore } from '../../../../store/assistant.store';
+import { useThemeStore } from '../../../../store/theme.store';
+import Loading from '../../../../components/common/Loading';
 
 const { Title, Text } = Typography;
-
-const SYMPTOM_ICON_MAP: Record<string, { emoji: string; bg: string; ring: string }> = {
-  fever: { emoji: '🌡️', bg: '#fff2f0', ring: '#ffccc7' },
-  cough_and_expectoration: { emoji: '🤧', bg: '#e6f7ff', ring: '#91d5ff' },
-  diarrhea: { emoji: '💩', bg: '#fff7e6', ring: '#ffd591' },
-  nausea_vomiting: { emoji: '🤮', bg: '#fffbe6', ring: '#ffe58f' },
-  dyspnea: { emoji: '😮‍💨', bg: '#f0f5ff', ring: '#adc6ff' },
-  vertigo: { emoji: '🌀', bg: '#f9f0ff', ring: '#d3adf7' },
-  edema: { emoji: '💧', bg: '#e6fffb', ring: '#87e8de' },
-  depression: { emoji: '🧠', bg: '#f5f5f5', ring: '#d9d9d9' },
-  hematemesis: { emoji: '🩸', bg: '#fff1f0', ring: '#ffa39e' },
-  jaundice: { emoji: '🟡', bg: '#fffbe6', ring: '#ffe58f' },
-  lumbodorsalgia: { emoji: '🦴', bg: '#fff7e6', ring: '#ffd591' },
-  arthralgia: { emoji: '🦵', bg: '#fff7e6', ring: '#ffd591' },
-  dysphagia: { emoji: '🥄', bg: '#f0f5ff', ring: '#adc6ff' },
-  hemoptysis: { emoji: '🩸', bg: '#fff1f0', ring: '#ffa39e' },
-  urinary_frequency_urgency_dysuria: { emoji: '🚽', bg: '#e6f7ff', ring: '#91d5ff' },
-  urinary_incontinence: { emoji: '💧', bg: '#e6fffb', ring: '#87e8de' },
-  emaciation: { emoji: '🥀', bg: '#f5f5f5', ring: '#d9d9d9' },
-  hematochezia: { emoji: '🩸', bg: '#fff1f0', ring: '#ffa39e' },
-};
 
 /**
  * KnowledgeTab
@@ -33,8 +14,42 @@ const SYMPTOM_ICON_MAP: Record<string, { emoji: string; bg: string; ring: string
  */
 const KnowledgeTab: React.FC = () => {
   const { message } = AntdApp.useApp();
+  const { token } = theme.useToken();
+  const { mode } = useThemeStore();
   const knowledge = useAssistantStore(s => s.knowledge);
   const actions = useAssistantStore(s => s.actions);
+  
+  const SYMPTOM_ICON_MAP: Record<string, { emoji: string; bg: string; ring: string }> = React.useMemo(() => {
+    const isDark = mode === 'dark';
+    // Define custom colors for dark/light modes
+    const purpleBg = isDark ? '#22075e' : '#f9f0ff';
+    const purpleBorder = isDark ? '#722ed1' : '#d3adf7';
+    const cyanBg = isDark ? '#002329' : '#e6fffb';
+    const cyanBorder = isDark ? '#13c2c2' : '#87e8de';
+
+    return {
+    fever: { emoji: '🌡️', bg: token.colorErrorBg, ring: token.colorErrorBorder },
+    cough_and_expectoration: { emoji: '🤧', bg: token.colorInfoBg, ring: token.colorInfoBorder },
+    diarrhea: { emoji: '💩', bg: token.colorWarningBg, ring: token.colorWarningBorder },
+    nausea_vomiting: { emoji: '🤮', bg: token.colorWarningBg, ring: token.colorWarningBorder },
+    dyspnea: { emoji: '😮‍💨', bg: token.colorInfoBg, ring: token.colorInfoBorder },
+    vertigo: { emoji: '🌀', bg: purpleBg, ring: purpleBorder },
+    edema: { emoji: '💧', bg: cyanBg, ring: cyanBorder },
+    depression: { emoji: '🧠', bg: token.colorFillTertiary, ring: token.colorBorder },
+    hematemesis: { emoji: '🩸', bg: token.colorErrorBg, ring: token.colorErrorBorder },
+    jaundice: { emoji: '🟡', bg: token.colorWarningBg, ring: token.colorWarningBorder },
+    lumbodorsalgia: { emoji: '🦴', bg: token.colorWarningBg, ring: token.colorWarningBorder },
+    arthralgia: { emoji: '🦵', bg: token.colorWarningBg, ring: token.colorWarningBorder },
+    dysphagia: { emoji: '🥄', bg: token.colorInfoBg, ring: token.colorInfoBorder },
+    hemoptysis: { emoji: '🩸', bg: token.colorErrorBg, ring: token.colorErrorBorder },
+    urinary_frequency_urgency_dysuria: { emoji: '🚽', bg: token.colorInfoBg, ring: token.colorInfoBorder },
+    urinary_incontinence: { emoji: '💧', bg: cyanBg, ring: cyanBorder },
+    emaciation: { emoji: '🥀', bg: token.colorFillTertiary, ring: token.colorBorder },
+    hematochezia: { emoji: '🩸', bg: token.colorErrorBg, ring: token.colorErrorBorder },
+  }}, [token, mode]);
+
+  const isDark = mode === 'dark';
+  const purpleColor = isDark ? '#d3adf7' : '#722ed1';
   
   const { 
     context: symptomContext, 
@@ -77,7 +92,7 @@ const KnowledgeTab: React.FC = () => {
   
   const currentKeys = activeContexts.map(c => nameToKey[c.name] || c.name);
   const currentNames = activeContexts.map(c => mapToName(c.name));
-  const icon = SYMPTOM_ICON_MAP[currentKeys[0]] || { emoji: '🩺', bg: '#f0f5ff', ring: '#adc6ff' };
+  const icon = SYMPTOM_ICON_MAP[currentKeys[0]] || { emoji: '🩺', bg: token.colorFillTertiary, ring: token.colorBorder };
 
   const union = <T extends string>(lists: Array<T[] | undefined>): T[] => {
     const set = new Set<T>();
@@ -99,14 +114,14 @@ const KnowledgeTab: React.FC = () => {
     {
       key: 'diagnosis',
       label: (
-        <span style={{ fontWeight: 'bold', color: '#722ed1' }}>
+        <span style={{ fontWeight: 'bold', color: purpleColor }}>
           <RobotOutlined /> 疑似诊断建议
         </span>
       ),
       children: (
         <div>
           {loading ? (
-            <Spin size="small" />
+            <Loading height={100} />
           ) : diagnosisSuggestions.length > 0 ? (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {diagnosisSuggestions.map((d) => (
@@ -176,37 +191,40 @@ const KnowledgeTab: React.FC = () => {
   
   return (
     <div className="knowledge-tab-content">
-      <div className="msia-filter-panel" style={{ marginBottom: 16, background: '#ffffff' }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-            <div className="msia-icon-pill" style={{ background: icon.bg, borderColor: icon.ring, width: 34, height: 34, borderRadius: 12, fontSize: 18 }}>
-              {icon.emoji}
-            </div>
-            <div style={{ minWidth: 0 }}>
-              <Title level={5} style={{ margin: 0, color: '#10239e' }}>
-                当前症状：{currentNames.join('、')}
-              </Title>
-              <div style={{ marginTop: 4, color: '#8c8c8c' }}>
-                {activeContexts[0]?.updatedAt ? `首症状来源更新时间：${new Date(activeContexts[0].updatedAt!).toLocaleString()}` : ''}
+      {/* 当前症状上下文展示 */}
+      {currentNames.length > 0 && (
+        <div className="msia-filter-panel" style={{ marginBottom: 16, background: token.colorBgContainer, padding: 12, borderRadius: 8, border: `1px solid ${token.colorBorderSecondary}` }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+              <div className="msia-icon-pill" style={{ background: icon.bg, borderColor: icon.ring, width: 34, height: 34, borderRadius: 12, fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid', color: token.colorText }}>
+                {icon.emoji}
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <Title level={5} style={{ margin: 0, color: token.colorText }}>
+                  当前症状：{currentNames.join('、')}
+                </Title>
+                <div style={{ marginTop: 4, color: token.colorTextSecondary, fontSize: 12 }}>
+                  {activeContexts[0]?.updatedAt ? `首症状来源更新时间：${new Date(activeContexts[0].updatedAt!).toLocaleString()}` : ''}
+                </div>
               </div>
             </div>
+            <Tag className="msia-tag" color="processing" style={{ marginInlineEnd: 0 }}>
+              {currentKeys.join('、')}
+            </Tag>
           </div>
-          <Tag className="msia-tag" color="processing" style={{ marginInlineEnd: 0 }}>
-            {currentKeys.join('、')}
-          </Tag>
+          {redFlagsDisplay && redFlagsDisplay.length > 0 && (
+            <div style={{ marginTop: 8 }}>
+              <Text type="danger" strong>警惕征象：</Text>
+              <ul style={{ paddingLeft: 20, margin: '4px 0', color: token.colorError }}>
+                {redFlagsDisplay.map((flag, idx) => (
+                  <li key={idx}>{flag}</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
-        {redFlagsDisplay && redFlagsDisplay.length > 0 && (
-          <div style={{ marginTop: 8 }}>
-            <Text type="danger" strong>警惕征象：</Text>
-            <ul style={{ paddingLeft: 20, margin: '4px 0', color: '#cf1322' }}>
-              {redFlagsDisplay.map((flag, idx) => (
-                <li key={idx}>{flag}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
-      
+      )}
+
       <Collapse 
         defaultActiveKey={['diagnosis', 'required', 'physical_signs', 'related']} 
         ghost 

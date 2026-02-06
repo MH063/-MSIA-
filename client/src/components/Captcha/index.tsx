@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { theme } from 'antd';
 import './captcha.css';
 import api, { unwrapData, getApiErrorMessage, type ApiResponse } from '../../utils/api';
 
@@ -14,6 +15,8 @@ interface CaptchaProps {
  * 显示图形验证码，支持点击刷新与30秒自动刷新
  */
 const Captcha: React.FC<CaptchaProps> = ({ onChange, onVerify, onIdChange, externalCaptcha }) => {
+  const { token } = theme.useToken();
+  // const isDark = token.algorithmId === theme.darkAlgorithm;
   const [imageUrl, setImageUrl] = useState<string>('');
   const [userInput, setUserInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -57,7 +60,7 @@ const Captcha: React.FC<CaptchaProps> = ({ onChange, onVerify, onIdChange, exter
       console.error('[Captcha] 获取验证码失败', err);
       console.error('[Captcha] 错误详情:', getApiErrorMessage(err, '验证码获取失败'));
       onVerifyRef.current(false);
-      const fallback = `<svg xmlns="http://www.w3.org/2000/svg" width="120" height="40"><rect width="120" height="40" fill="#eee"/><text x="10" y="25" fill="#999" font-family="Arial" font-size="14">加载失败，点击重试</text></svg>`;
+      const fallback = `<svg xmlns="http://www.w3.org/2000/svg" width="120" height="40"><rect width="120" height="40" fill="${token.colorFillAlter}"/><text x="10" y="25" fill="${token.colorTextSecondary}" font-family="Arial" font-size="14">加载失败，点击重试</text></svg>`;
       setImageUrl(`data:image/svg+xml;utf8,${encodeURIComponent(fallback)}`);
     } finally {
       setIsLoading(false);
@@ -130,6 +133,39 @@ const Captcha: React.FC<CaptchaProps> = ({ onChange, onVerify, onIdChange, exter
 
   return (
     <div className="captcha-container">
+      <style>{`
+        .captcha-input {
+          background: ${token.colorBgContainer} !important;
+          border-color: ${token.colorBorder} !important;
+          color: ${token.colorText} !important;
+        }
+        .captcha-input:hover {
+          border-color: ${token.colorPrimary} !important;
+          background: ${token.colorBgContainer} !important;
+        }
+        .captcha-input:focus {
+          border-color: ${token.colorPrimary} !important;
+          background: ${token.colorBgContainer} !important;
+          box-shadow: 0 0 0 2px ${token.colorPrimaryBg} !important;
+        }
+        .captcha-input::placeholder {
+          color: ${token.colorTextPlaceholder} !important;
+        }
+        .captcha-image {
+          border-color: ${token.colorBorder} !important;
+        }
+        .captcha-image:hover {
+          border-color: ${token.colorPrimary} !important;
+          box-shadow: ${token.boxShadow} !important;
+        }
+        .captcha-refresh-btn {
+          color: ${token.colorTextSecondary} !important;
+        }
+        .captcha-refresh-btn:hover {
+          background: ${token.colorFillTertiary} !important;
+          color: ${token.colorPrimary} !important;
+        }
+      `}</style>
       <div className="captcha-input-wrapper">
         <input
           type="text"
@@ -160,8 +196,8 @@ const Captcha: React.FC<CaptchaProps> = ({ onChange, onVerify, onIdChange, exter
               display: 'flex', 
               alignItems: 'center', 
               justifyContent: 'center',
-              background: '#f5f5f5',
-              color: '#999',
+              background: token.colorFillAlter,
+              color: token.colorTextPlaceholder,
               fontSize: '12px',
               cursor: 'pointer'
             }}

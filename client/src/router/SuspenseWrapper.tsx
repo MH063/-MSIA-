@@ -9,7 +9,7 @@ export interface SuspenseWrapperProps {
  * 为懒加载页面统一提供加载占位，提升用户体验
  */
 const SuspenseWrapper: React.FC<SuspenseWrapperProps> = ({ children }) => {
-  return <Suspense fallback={<div style={{ padding: 16 }}>加载中...</div>}>{children}</Suspense>;
+  return <Suspense fallback={<></>}>{children}</Suspense>;
 };
 
 export default SuspenseWrapper;

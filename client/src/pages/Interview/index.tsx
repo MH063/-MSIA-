@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { App as AntdApp, Button, Space, Typography, Card, Tag, Tabs, Input, Grid, Pagination, Segmented, Spin, Empty } from 'antd';
+import { App as AntdApp, Button, Space, Typography, Card, Tag, Tabs, Input, Grid, Pagination, Segmented, Spin, Empty, theme } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { TablePaginationConfig, FilterValue, SorterResult, TableCurrentDataSource } from 'antd/es/table/interface';
 import { DeleteOutlined, EyeOutlined, ExclamationCircleOutlined, PlusOutlined } from '@ant-design/icons';
@@ -35,6 +35,7 @@ interface SessionListItem {
 
 const InterviewOverview: React.FC = () => {
   const navigate = useNavigate();
+  const { token } = theme.useToken();
   const { modal, message } = AntdApp.useApp();
   const screens = useBreakpoint();
   const isMobile = !screens.md;
@@ -305,7 +306,7 @@ const InterviewOverview: React.FC = () => {
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
                         <div style={{ minWidth: 0 }}>
                           <Typography.Text strong style={{ fontSize: 16 }}>{patientName}</Typography.Text>
-                          <div style={{ marginTop: 4, color: 'rgba(0,0,0,0.65)', fontSize: 12 }}>
+                          <div style={{ marginTop: 4, color: token.colorTextSecondary, fontSize: 12 }}>
                             <span>患者ID：{patientId}</span>
                             <span style={{ marginInline: 10 }}>性别：{gender}</span>
                             <span>年龄：{age}</span>

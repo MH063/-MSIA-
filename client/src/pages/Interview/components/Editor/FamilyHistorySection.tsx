@@ -1,5 +1,5 @@
 import React from 'react';
-import { Form, Input, Card, Row, Col } from 'antd';
+import { Form, Input, Card, Row, Col, theme } from 'antd';
 
 const { TextArea } = Input;
 
@@ -14,6 +14,7 @@ type FamilyHistoryValues = {
 
 const FamilyHistorySection: React.FC = () => {
   const form = Form.useFormInstance();
+  const { token } = theme.useToken();
   
   // 监听各个字段以实时生成总结
   const father = Form.useWatch(['familyHistory', 'father'], form);
@@ -82,9 +83,17 @@ const FamilyHistorySection: React.FC = () => {
           <Input placeholder="例如: 否认家族中有类似疾病患者" />
         </Form.Item>
 
-        <Form.Item name={['familyHistory', 'summary']} label="家族史综述">
-            <TextArea rows={3} placeholder="自动生成的综述..." onChange={() => userModifiedRef.current = true} />
-        </Form.Item>
+        <div style={{
+          background: token.colorFillAlter,
+          padding: 16,
+          borderRadius: 8,
+          marginBottom: 16,
+          border: `1px solid ${token.colorBorderSecondary}`
+        }}>
+          <Form.Item name={['familyHistory', 'summary']} label="家族史综述" style={{ marginBottom: 0 }}>
+              <TextArea rows={3} placeholder="自动生成的综述..." onChange={() => userModifiedRef.current = true} />
+          </Form.Item>
+        </div>
       </Card>
     </div>
   );

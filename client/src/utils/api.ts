@@ -1,4 +1,4 @@
-import axios, { type AxiosRequestConfig, type AxiosResponse } from 'axios';
+import axios, { type AxiosRequestConfig, type AxiosResponse, type AxiosRequestHeaders } from 'axios';
 
 const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
 const isProduction = import.meta.env.PROD;
@@ -49,7 +49,7 @@ api.interceptors.request.use((config) => {
       config.headers = {
         ...(config.headers || {}),
         Authorization: `Bearer ${token.trim()}`,
-      };
+      } as AxiosRequestHeaders;
     }
   } catch {
     // ignore

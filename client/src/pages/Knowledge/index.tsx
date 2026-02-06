@@ -1,11 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { Layout, Menu, Breadcrumb, Typography, Card, Input, Tag, Tabs, Row, Col, Empty } from 'antd';
+import { Layout, Menu, Breadcrumb, Typography, Card, Input, Tag, Row, Col, Empty } from 'antd';
 import { 
   ReadOutlined, 
   MedicineBoxOutlined, 
-  ExperimentOutlined, 
-  BookOutlined,
-  ShareAltOutlined 
+  ExperimentOutlined
 } from '@ant-design/icons';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -13,7 +11,7 @@ import KnowledgeGraph from '../../components/KnowledgeGraph';
 import './index.css';
 
 const { Content, Sider } = Layout;
-const { Title, Text } = Typography;
+const { Title } = Typography;
 const { Search } = Input;
 
 // Mock Data for 3-Level Navigation
@@ -159,9 +157,9 @@ const knowledgeData: Record<string, KnowledgeEntry> = {
 };
 
 const Knowledge: React.FC = () => {
-  const [selectedKey, setSelectedKey] = useState('cough');
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
-  const currentData = useMemo(() => knowledgeData[selectedKey], [selectedKey]);
+  const currentData = useMemo(() => selectedKey ? knowledgeData[selectedKey] : null, [selectedKey]);
 
   const onMenuSelect = ({ key }: { key: string }) => {
     if (knowledgeData[key]) {
@@ -185,7 +183,6 @@ const Knowledge: React.FC = () => {
         </div>
         <Menu
           mode="inline"
-          defaultSelectedKeys={['cough']}
           defaultOpenKeys={['symptoms', 'respiratory']}
           style={{ borderRight: 0 }}
           items={menuItems}
@@ -197,62 +194,43 @@ const Knowledge: React.FC = () => {
         <Breadcrumb style={{ margin: '16px 0' }} items={[
             { title: <ReadOutlined /> },
             { title: '知识库' },
-            { title: currentData?.title || '详情' }
+            { title: currentData?.title || '未选择' }
         ]} />
-        
         <Content
+          className="site-layout-background"
           style={{
-            background: '#fff',
             padding: 24,
             margin: 0,
             minHeight: 280,
-            overflowY: 'auto',
-            borderRadius: 8
+            background: '#fff',
+            overflowY: 'auto'
           }}
         >
           {currentData ? (
-            <Row gutter={[24, 24]}>
-              <Col xs={24} lg={16}>
-                <div style={{ marginBottom: 24 }}>
-                   <Title level={2}>{currentData.title}</Title>
-                   <Space size={[0, 8]} wrap>
-                     {currentData.tags.map((tag: string) => (
-                       <Tag key={tag} color="blue">{tag}</Tag>
-                     ))}
-                   </Space>
+            <Row gutter={24}>
+              <Col span={16}>
+                <div style={{ marginBottom: 16 }}>
+                  {currentData.tags.map(tag => (
+                    <Tag key={tag} color="blue">{tag}</Tag>
+                  ))}
                 </div>
-                
-                <Tabs defaultActiveKey="content">
-                  <Tabs.TabPane tab={<span><BookOutlined /> 知识详情</span>} key="content">
-                    <div className="markdown-body">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {currentData.content}
-                      </ReactMarkdown>
-                    </div>
-                  </Tabs.TabPane>
-                  <Tabs.TabPane tab={<span><ShareAltOutlined /> 知识图谱</span>} key="graph">
-                    <KnowledgeGraph 
-                      data={currentData.graph} 
-                      height={500} 
-                      onNodeClick={handleNodeClick}
-                    />
-                  </Tabs.TabPane>
-                </Tabs>
+                <Title level={2}>{currentData.title}</Title>
+                <div className="markdown-body">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {currentData.content}
+                  </ReactMarkdown>
+                </div>
               </Col>
-              
-              <Col xs={24} lg={8}>
-                <Card title="相关推荐" size="small" style={{ marginBottom: 16 }}>
-                   <p><a onClick={() => setSelectedKey('fever')}>发热的鉴别诊断</a></p>
-                   <p><a>呼吸困难的急救处理</a></p>
-                   <p><a>胸痛的危急值识别</a></p>
-                </Card>
-                <Card title="最近更新" size="small">
-                   <Text type="secondary" style={{ fontSize: 12 }}>2025-02-06 更新了高血压诊疗指南</Text>
+              <Col span={8}>
+                <Card title="知识图谱" bordered={false} className="knowledge-graph-card">
+                   <KnowledgeGraph data={currentData.graph} onNodeClick={handleNodeClick} />
                 </Card>
               </Col>
             </Row>
           ) : (
-             <Empty description="请选择左侧菜单查看详情" />
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+              <Empty description="请从左侧菜单选择要查看的知识条目" />
+            </div>
           )}
         </Content>
       </Layout>

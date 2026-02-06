@@ -1,16 +1,47 @@
 import prisma from '../prisma';
+import { Prisma } from '@prisma/client';
+
+// 症状知识库数据类型
+export interface SymptomKnowledgeData {
+  symptomKey: string;
+  displayName: string;
+  requiredQuestions?: Prisma.InputJsonValue;
+  associatedSymptoms?: Prisma.InputJsonValue;
+  redFlags?: Prisma.InputJsonValue;
+  physicalSigns?: Prisma.InputJsonValue;
+  category?: string;
+  priority?: number;
+  questions?: Prisma.InputJsonValue;
+  physicalExamination?: Prisma.InputJsonValue;
+  differentialPoints?: Prisma.InputJsonValue;
+  description?: string;
+  commonCauses?: Prisma.InputJsonValue;
+  onsetPatterns?: Prisma.InputJsonValue;
+  severityScale?: Prisma.InputJsonValue;
+  relatedExams?: Prisma.InputJsonValue;
+  imageUrl?: string;
+  bodySystems?: Prisma.InputJsonValue;
+  ageGroups?: Prisma.InputJsonValue;
+  prevalence?: string;
+}
+
+// 删除结果类型
+export interface DeleteResult {
+  deleted: number;
+  key: string;
+}
 
 /**
  * 获取所有症状知识库列表
  */
-export const getAllKnowledge = async () => {
+export const getAllKnowledge = async (): Promise<Prisma.SymptomKnowledgeGetPayload<{}>[]> => {
   return await prisma.symptomKnowledge.findMany();
 };
 
 /**
  * 获取增量知识库（按更新时间）
  */
-export const getKnowledgeSince = async (since: Date) => {
+export const getKnowledgeSince = async (since: Date): Promise<Prisma.SymptomKnowledgeGetPayload<{}>[]> => {
   return await prisma.symptomKnowledge.findMany({
     where: { updatedAt: { gt: since } },
   });
@@ -20,7 +51,7 @@ export const getKnowledgeSince = async (since: Date) => {
  * 根据 Key 或 DisplayName 获取症状知识
  * 支持通过 symptomKey、displayName 或模糊匹配查询
  */
-export const getKnowledgeByKey = async (key: string) => {
+export const getKnowledgeByKey = async (key: string): Promise<Prisma.SymptomKnowledgeGetPayload<{}> | null> => {
   // 首先尝试通过 symptomKey 查询
   let knowledge = await prisma.symptomKnowledge.findUnique({
     where: { symptomKey: key },
@@ -50,7 +81,7 @@ export const getKnowledgeByKey = async (key: string) => {
 /**
  * 创建或更新症状知识
  */
-export const upsertKnowledge = async (data: any) => {
+export const upsertKnowledge = async (data: SymptomKnowledgeData): Promise<Prisma.SymptomKnowledgeGetPayload<{}>> => {
   return await prisma.symptomKnowledge.upsert({
     where: { symptomKey: data.symptomKey },
     update: {
@@ -61,7 +92,7 @@ export const upsertKnowledge = async (data: any) => {
       physicalSigns: data.physicalSigns,
       // 基础扩展字段
       category: data.category,
-      priority: data.priority,
+      priority: data.priority as string | undefined,
       questions: data.questions,
       physicalExamination: data.physicalExamination,
       differentialPoints: data.differentialPoints,
@@ -80,13 +111,13 @@ export const upsertKnowledge = async (data: any) => {
     create: {
       symptomKey: data.symptomKey,
       displayName: data.displayName,
-      requiredQuestions: data.requiredQuestions,
+      requiredQuestions: data.requiredQuestions || [],
       associatedSymptoms: data.associatedSymptoms,
       redFlags: data.redFlags,
       physicalSigns: data.physicalSigns,
       // 基础扩展字段
       category: data.category,
-      priority: data.priority,
+      priority: data.priority as string | undefined,
       questions: data.questions,
       physicalExamination: data.physicalExamination,
       differentialPoints: data.differentialPoints,
@@ -107,14 +138,14 @@ export const upsertKnowledge = async (data: any) => {
 /**
  * 统计知识库条目数量
  */
-export const countKnowledge = async () => {
+export const countKnowledge = async (): Promise<number> => {
   return await prisma.symptomKnowledge.count();
 };
 
 /**
  * 获取最近更新的知识库条目
  */
-export const getRecentKnowledge = async (take: number = 3) => {
+export const getRecentKnowledge = async (take: number = 3): Promise<Pick<Prisma.SymptomKnowledgeGetPayload<{}>, 'id' | 'displayName' | 'symptomKey'>[]> => {
   return await prisma.symptomKnowledge.findMany({
     take,
     orderBy: { updatedAt: 'desc' },
@@ -125,15 +156,16 @@ export const getRecentKnowledge = async (take: number = 3) => {
 /**
  * 删除单个症状知识
  */
-export const deleteKnowledgeByKey = async (key: string) => {
+export const deleteKnowledgeByKey = async (key: string): Promise<DeleteResult> => {
   try {
     const result = await prisma.symptomKnowledge.delete({
       where: { symptomKey: key }
     });
     return { deleted: 1, key: result.symptomKey };
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Prisma P2025: Record not found
-    if (error?.code === 'P2025') {
+    const prismaError = error as { code?: string };
+    if (prismaError?.code === 'P2025') {
       return { deleted: 0, key };
     }
     throw error;
@@ -143,7 +175,7 @@ export const deleteKnowledgeByKey = async (key: string) => {
 /**
  * 批量删除症状知识
  */
-export const deleteKnowledgeBulk = async (keys: string[]) => {
+export const deleteKnowledgeBulk = async (keys: string[]): Promise<number> => {
   const result = await prisma.symptomKnowledge.deleteMany({
     where: { symptomKey: { in: keys } }
   });

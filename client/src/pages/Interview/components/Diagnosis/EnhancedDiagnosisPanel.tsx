@@ -14,7 +14,8 @@ import {
   Empty,
   Skeleton,
   Alert,
-  Tooltip
+  Tooltip,
+  theme
 } from 'antd';
 import { 
   MedicineBoxOutlined, 
@@ -34,7 +35,6 @@ import type { ApiResponse } from '../../../../utils/api';
 import SymptomGraph from './SymptomGraph';
 
 const { Text } = Typography;
-const { TabPane } = Tabs;
 
 interface DiagnosisConfidenceDetail {
   diagnosis: string;
@@ -66,17 +66,17 @@ interface EnhancedDiagnosisPanelProps {
   onAddAssociatedSymptom?: (symptom: string) => void;
 }
 
-const PRIORITY_CONFIG = {
-  high: { color: '#ff4d4f', bgColor: '#fff2f0', borderColor: '#ffccc7', label: '高优先级', icon: <FireOutlined /> },
-  medium: { color: '#faad14', bgColor: '#fffbe6', borderColor: '#ffe58f', label: '中优先级', icon: <StarOutlined /> },
-  low: { color: '#8c8c8c', bgColor: '#f5f5f5', borderColor: '#d9d9d9', label: '低优先级', icon: <InfoCircleOutlined /> }
+const PRIORITY_LABELS = {
+  high: { label: '高优先级', icon: <FireOutlined /> },
+  medium: { label: '中优先级', icon: <StarOutlined /> },
+  low: { label: '低优先级', icon: <InfoCircleOutlined /> }
 };
 
-const CONFIDENCE_CONFIG = {
-  high: { color: '#52c41a', bgColor: '#f6ffed', borderColor: '#b7eb8f', label: '高置信度', threshold: 0.8 },
-  medium: { color: '#faad14', bgColor: '#fffbe6', borderColor: '#ffe58f', label: '中等置信度', threshold: 0.6 },
-  low: { color: '#fa8c16', bgColor: '#fff7e6', borderColor: '#ffd591', label: '低置信度', threshold: 0.4 },
-  veryLow: { color: '#bfbfbf', bgColor: '#f5f5f5', borderColor: '#d9d9d9', label: '需进一步检查', threshold: 0 }
+const CONFIDENCE_LABELS = {
+  high: { label: '高置信度', threshold: 0.8 },
+  medium: { label: '中等置信度', threshold: 0.6 },
+  low: { label: '低置信度', threshold: 0.4 },
+  veryLow: { label: '需进一步检查', threshold: 0 }
 };
 
 const EnhancedDiagnosisPanel: React.FC<EnhancedDiagnosisPanelProps> = ({
@@ -88,6 +88,7 @@ const EnhancedDiagnosisPanel: React.FC<EnhancedDiagnosisPanelProps> = ({
   onDiagnosisSelect,
   onAddAssociatedSymptom
 }) => {
+  const { token } = theme.useToken();
   const { message } = AntdApp.useApp();
   const [activeTab, setActiveTab] = useState('graph');
   const [loading, setLoading] = useState(false);
@@ -186,11 +187,29 @@ const EnhancedDiagnosisPanel: React.FC<EnhancedDiagnosisPanelProps> = ({
     message.success(`已恢复 "${diagnosisName}"`);
   };
 
+  const getPriorityConfig = (level: 'high' | 'medium' | 'low') => {
+    const colors = {
+      high: { color: token.colorError, bgColor: token.colorErrorBg, borderColor: token.colorErrorBorder },
+      medium: { color: token.colorWarning, bgColor: token.colorWarningBg, borderColor: token.colorWarningBorder },
+      low: { color: token.colorTextSecondary, bgColor: token.colorFillQuaternary, borderColor: token.colorBorder }
+    };
+    return { ...PRIORITY_LABELS[level], ...colors[level] };
+  };
+
   const getConfidenceConfig = (confidence: number) => {
-    if (confidence >= CONFIDENCE_CONFIG.high.threshold) return CONFIDENCE_CONFIG.high;
-    if (confidence >= CONFIDENCE_CONFIG.medium.threshold) return CONFIDENCE_CONFIG.medium;
-    if (confidence >= CONFIDENCE_CONFIG.low.threshold) return CONFIDENCE_CONFIG.low;
-    return CONFIDENCE_CONFIG.veryLow;
+    let level: keyof typeof CONFIDENCE_LABELS = 'veryLow';
+    if (confidence >= CONFIDENCE_LABELS.high.threshold) level = 'high';
+    else if (confidence >= CONFIDENCE_LABELS.medium.threshold) level = 'medium';
+    else if (confidence >= CONFIDENCE_LABELS.low.threshold) level = 'low';
+
+    const colors = {
+      high: { color: token.colorSuccess, bgColor: token.colorSuccessBg, borderColor: token.colorSuccessBorder },
+      medium: { color: token.colorWarning, bgColor: token.colorWarningBg, borderColor: token.colorWarningBorder },
+      low: { color: token.colorWarningText, bgColor: token.colorWarningBg, borderColor: token.colorWarningBorder },
+      veryLow: { color: token.colorTextDisabled, bgColor: token.colorFillQuaternary, borderColor: token.colorBorder }
+    };
+
+    return { ...CONFIDENCE_LABELS[level], ...colors[level] };
   };
 
   const getPriorityFromConfidence = (confidence: number): 'high' | 'medium' | 'low' => {
@@ -264,18 +283,18 @@ const EnhancedDiagnosisPanel: React.FC<EnhancedDiagnosisPanelProps> = ({
             const isPrioritized = prioritizedDiagnosis === diagnosis.name;
             const confidenceConfig = getConfidenceConfig(diagnosis.confidence);
             const priority = getPriorityFromConfidence(diagnosis.confidence);
-            const priorityConfig = PRIORITY_CONFIG[priority];
+            const priorityConfig = getPriorityConfig(priority);
             
             return (
               <div
                 key={diagnosis.name}
                 style={{ 
-                  background: isPrioritized ? confidenceConfig.bgColor : '#fff',
-                  border: `1px solid ${isPrioritized ? confidenceConfig.borderColor : '#f0f0f0'}`,
+                  background: isPrioritized ? confidenceConfig.bgColor : token.colorBgContainer,
+                  border: `1px solid ${isPrioritized ? confidenceConfig.borderColor : token.colorBorderSecondary}`,
                   borderRadius: 12,
                   padding: 16,
                   transition: 'all 0.3s ease',
-                  boxShadow: isPrioritized ? `0 4px 12px ${confidenceConfig.color}20` : '0 2px 8px rgba(0,0,0,0.04)'
+                  boxShadow: isPrioritized ? `0 4px 12px ${confidenceConfig.color}20` : token.boxShadowTertiary
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
@@ -327,7 +346,7 @@ const EnhancedDiagnosisPanel: React.FC<EnhancedDiagnosisPanelProps> = ({
                   percent={diagnosis.confidence * 100} 
                   strokeColor={confidenceConfig.color}
                   showInfo={false}
-                  trailColor="#f0f0f0"
+                  trailColor={token.colorFillSecondary}
                   strokeLinecap="round"
                   style={{ marginBottom: 16 }}
                 />
@@ -335,12 +354,12 @@ const EnhancedDiagnosisPanel: React.FC<EnhancedDiagnosisPanelProps> = ({
                 <Row gutter={12}>
                   <Col span={8}>
                     <div style={{ 
-                      background: '#f6ffed', 
+                      background: token.colorSuccessBg, 
                       borderRadius: 8, 
                       padding: 12,
                       height: '100%'
                     }}>
-                      <Text strong style={{ color: '#52c41a', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Text strong style={{ color: token.colorSuccess, fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
                         <CheckCircleOutlined /> 支持证据
                       </Text>
                       <div style={{ marginTop: 8 }}>
@@ -348,7 +367,7 @@ const EnhancedDiagnosisPanel: React.FC<EnhancedDiagnosisPanelProps> = ({
                           <ul style={{ margin: 0, paddingLeft: 16 }}>
                             {diagnosis.supportingSymptoms.slice(0, 3).map((symptom, idx) => (
                               <li key={idx}>
-                                <Text style={{ fontSize: 12, color: '#333' }}>{symptom}</Text>
+                                <Text style={{ fontSize: 12, color: token.colorText }}>{symptom}</Text>
                               </li>
                             ))}
                             {diagnosis.supportingSymptoms.length > 3 && (
@@ -363,12 +382,12 @@ const EnhancedDiagnosisPanel: React.FC<EnhancedDiagnosisPanelProps> = ({
                   </Col>
                   <Col span={8}>
                     <div style={{ 
-                      background: '#fff2f0', 
+                      background: token.colorErrorBg, 
                       borderRadius: 8, 
                       padding: 12,
                       height: '100%'
                     }}>
-                      <Text strong style={{ color: '#ff4d4f', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Text strong style={{ color: token.colorError, fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
                         <CloseCircleOutlined /> 排除证据
                       </Text>
                       <div style={{ marginTop: 8 }}>
@@ -376,7 +395,7 @@ const EnhancedDiagnosisPanel: React.FC<EnhancedDiagnosisPanelProps> = ({
                           <ul style={{ margin: 0, paddingLeft: 16 }}>
                             {diagnosis.excludingSymptoms.slice(0, 3).map((symptom, idx) => (
                               <li key={idx}>
-                                <Text style={{ fontSize: 12, color: '#333' }}>{symptom}</Text>
+                                <Text style={{ fontSize: 12, color: token.colorText }}>{symptom}</Text>
                               </li>
                             ))}
                             {diagnosis.excludingSymptoms.length > 3 && (
@@ -391,12 +410,12 @@ const EnhancedDiagnosisPanel: React.FC<EnhancedDiagnosisPanelProps> = ({
                   </Col>
                   <Col span={8}>
                     <div style={{ 
-                      background: '#fff7e6', 
+                      background: token.colorWarningBg, 
                       borderRadius: 8, 
                       padding: 12,
                       height: '100%'
                     }}>
-                      <Text strong style={{ color: '#ff7a45', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Text strong style={{ color: token.colorWarning, fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
                         <WarningOutlined /> 警惕征象
                       </Text>
                       <div style={{ marginTop: 8 }}>
@@ -420,9 +439,9 @@ const EnhancedDiagnosisPanel: React.FC<EnhancedDiagnosisPanelProps> = ({
                 </Row>
 
                 {detail && (
-                  <div style={{ marginTop: 12, padding: 12, background: '#e6f7ff', borderRadius: 8, border: '1px solid #91d5ff' }}>
+                  <div style={{ marginTop: 12, padding: 12, background: token.colorInfoBg, borderRadius: 8, border: `1px solid ${token.colorInfoBorder}` }}>
                     <Text style={{ fontSize: 12 }}>
-                      <InfoCircleOutlined style={{ color: '#1890ff', marginRight: 4 }} />
+                      <InfoCircleOutlined style={{ color: token.colorInfo, marginRight: 4 }} />
                       <strong>建议:</strong> {detail.recommendation}
                     </Text>
                   </div>
@@ -439,7 +458,8 @@ const EnhancedDiagnosisPanel: React.FC<EnhancedDiagnosisPanelProps> = ({
                         disabled={isPrioritized}
                         style={{ 
                           background: isPrioritized ? priorityConfig.bgColor : undefined,
-                          borderColor: isPrioritized ? priorityConfig.borderColor : undefined
+                          borderColor: isPrioritized ? priorityConfig.borderColor : undefined,
+                          color: isPrioritized ? priorityConfig.color : undefined
                         }}
                       >
                         {isPrioritized ? `${priorityConfig.label}` : `设为${priorityConfig.label}`}
@@ -507,7 +527,7 @@ const EnhancedDiagnosisPanel: React.FC<EnhancedDiagnosisPanelProps> = ({
                       width: 24, 
                       height: 24, 
                       borderRadius: 6, 
-                      background: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
+                      background: `linear-gradient(135deg, ${token.colorPrimary} 0%, ${token.colorPrimaryActive} 100%)`,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center'
@@ -519,7 +539,7 @@ const EnhancedDiagnosisPanel: React.FC<EnhancedDiagnosisPanelProps> = ({
                 }
                 style={{ 
                   borderRadius: 8,
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+                  boxShadow: token.boxShadowTertiary
                 }}
               >
                 <div style={{ marginBottom: 12 }}>
@@ -531,14 +551,14 @@ const EnhancedDiagnosisPanel: React.FC<EnhancedDiagnosisPanelProps> = ({
                     percent={association.strength * 100} 
                     size="small" 
                     showInfo={false}
-                    strokeColor="#1890ff"
-                    trailColor="#f0f0f0"
+                    strokeColor={token.colorPrimary}
+                    trailColor={token.colorFillSecondary}
                   />
                 </div>
 
                 {association.associatedSymptoms.length > 0 && (
                   <div style={{ marginBottom: 12 }}>
-                    <Text strong style={{ fontSize: 12, color: '#333' }}>常见伴随症状:</Text>
+                    <Text strong style={{ fontSize: 12, color: token.colorText }}>常见伴随症状:</Text>
                     <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                       {association.associatedSymptoms.map(symptom => (
                         <Tag 
@@ -551,8 +571,8 @@ const EnhancedDiagnosisPanel: React.FC<EnhancedDiagnosisPanelProps> = ({
                           }}
                           onClick={() => onAddAssociatedSymptom?.(symptom)}
                           onMouseEnter={(e) => {
-                            e.currentTarget.style.background = '#e6f7ff';
-                            e.currentTarget.style.borderColor = '#1890ff';
+                            e.currentTarget.style.background = token.colorPrimaryBg;
+                            e.currentTarget.style.borderColor = token.colorPrimary;
                           }}
                           onMouseLeave={(e) => {
                             e.currentTarget.style.background = '';
@@ -568,7 +588,7 @@ const EnhancedDiagnosisPanel: React.FC<EnhancedDiagnosisPanelProps> = ({
 
                 {association.relatedDiagnoses.length > 0 && (
                   <div>
-                    <Text strong style={{ fontSize: 12, color: '#333' }}>相关诊断:</Text>
+                    <Text strong style={{ fontSize: 12, color: token.colorText }}>相关诊断:</Text>
                     <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                       {association.relatedDiagnoses.map(diagnosis => (
                         <Tag 
@@ -608,7 +628,7 @@ const EnhancedDiagnosisPanel: React.FC<EnhancedDiagnosisPanelProps> = ({
     }
 
     return (
-      <div style={{ background: '#fafafa', borderRadius: 8, padding: 8 }}>
+      <div style={{ background: token.colorFillQuaternary, borderRadius: 8, padding: 8 }}>
         <Alert
           title="已排除的诊断"
           description="被排除的诊断将不会显示在症状关联图谱和置信度分析中，可以随时恢复"
@@ -621,7 +641,7 @@ const EnhancedDiagnosisPanel: React.FC<EnhancedDiagnosisPanelProps> = ({
             <div
               key={diagnosisName}
               style={{ 
-                background: '#fff',
+                background: token.colorBgContainer,
                 borderRadius: 6,
                 padding: '8px 12px',
                 display: 'flex',
@@ -631,7 +651,7 @@ const EnhancedDiagnosisPanel: React.FC<EnhancedDiagnosisPanelProps> = ({
               }}
             >
               <Space>
-                <CloseCircleOutlined style={{ color: '#ff4d4f' }} />
+                <CloseCircleOutlined style={{ color: token.colorError }} />
                 <Text delete type="secondary">{diagnosisName}</Text>
               </Space>
               <Button 
@@ -657,11 +677,11 @@ const EnhancedDiagnosisPanel: React.FC<EnhancedDiagnosisPanelProps> = ({
             width: 36, 
             height: 36, 
             borderRadius: 10, 
-            background: 'linear-gradient(135deg, #52c41a 0%, #389e0d 100%)',
+            background: `linear-gradient(135deg, ${token.colorSuccess} 0%, ${token.colorSuccessActive} 100%)`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 4px 12px rgba(82, 196, 26, 0.3)'
+            boxShadow: `0 4px 12px ${token.colorSuccess}4D`
           }}>
             <MedicineBoxOutlined style={{ color: '#fff', fontSize: 18 }} />
           </div>
@@ -669,7 +689,7 @@ const EnhancedDiagnosisPanel: React.FC<EnhancedDiagnosisPanelProps> = ({
             <span style={{ fontWeight: 600, fontSize: 16 }}>智能诊断引擎</span>
             {prioritizedDiagnosis && (
               <Text type="secondary" style={{ fontSize: 12 }}>
-                优先诊断: <Text strong style={{ color: '#52c41a' }}>{prioritizedDiagnosis}</Text>
+                优先诊断: <Text strong style={{ color: token.colorSuccess }}>{prioritizedDiagnosis}</Text>
               </Text>
             )}
           </Space>
@@ -684,7 +704,7 @@ const EnhancedDiagnosisPanel: React.FC<EnhancedDiagnosisPanelProps> = ({
               onClick={fetchEnhancedDiagnoses}
               loading={loading}
               shape="circle"
-              style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}
+              style={{ boxShadow: token.boxShadowTertiary }}
             />
           </Tooltip>
         </Space>
@@ -692,66 +712,60 @@ const EnhancedDiagnosisPanel: React.FC<EnhancedDiagnosisPanelProps> = ({
       style={{ 
         height: '100%',
         borderRadius: 12,
-        boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+        boxShadow: token.boxShadowTertiary
       }}
-      bodyStyle={{ padding: 16 }}
+      styles={{ body: { padding: 16 } }}
     >
       <Tabs 
         activeKey={activeTab} 
         onChange={setActiveTab}
         type="card"
         style={{ marginTop: -8 }}
-      >
-        <TabPane 
-          tab={
-            <span>
-              <BranchesOutlined /> 症状关联图谱
-            </span>
-          } 
-          key="graph"
-        >
-          {renderSymptomGraph()}
-        </TabPane>
-        
-        <TabPane 
-          tab={
-            <span>
-              <BarChartOutlined /> 置信度分析
-              {diagnoses.length > 0 && (
-                <Badge count={diagnoses.length} style={{ marginLeft: 8, backgroundColor: '#722ed1' }} />
-              )}
-            </span>
-          } 
-          key="confidence"
-        >
-          {renderConfidenceAnalysis()}
-        </TabPane>
-        
-        <TabPane 
-          tab={
-            <span>
-              <FileTextOutlined /> 症状关联
-            </span>
-          } 
-          key="association"
-        >
-          {renderSymptomAssociation()}
-        </TabPane>
-        
-        <TabPane 
-          tab={
-            <span>
-              <CloseCircleOutlined /> 已排除
-              {excludedDiagnoses.size > 0 && (
-                <Badge count={excludedDiagnoses.size} style={{ marginLeft: 8, backgroundColor: '#ff4d4f' }} />
-              )}
-            </span>
-          } 
-          key="excluded"
-        >
-          {renderExcludedList()}
-        </TabPane>
-      </Tabs>
+        items={[
+          {
+            key: 'graph',
+            label: (
+              <span>
+                <BranchesOutlined /> 症状关联图谱
+              </span>
+            ),
+            children: renderSymptomGraph(),
+          },
+          {
+            key: 'confidence',
+            label: (
+              <span>
+                <BarChartOutlined /> 置信度分析
+                {diagnoses.length > 0 && (
+                  <Badge count={diagnoses.length} style={{ marginLeft: 8, backgroundColor: token.colorPrimary }} />
+                )}
+              </span>
+            ),
+            children: renderConfidenceAnalysis(),
+          },
+          {
+            key: 'association',
+            label: (
+              <span>
+                <FileTextOutlined /> 症状关联
+              </span>
+            ),
+            children: renderSymptomAssociation(),
+          },
+          {
+            key: 'excluded',
+            label: (
+              <span>
+                <CloseCircleOutlined /> 已排除
+                {excludedDiagnoses.size > 0 && (
+                  <Badge count={excludedDiagnoses.size} style={{ marginLeft: 8, backgroundColor: token.colorError }} />
+                )}
+              </span>
+            ),
+            children: renderExcludedList(),
+          },
+        ]}
+      />
     </Card>
   );
 };

@@ -3,9 +3,11 @@ import { Form, Input, Radio, Typography, Card, Row, Col, InputNumber, Statistic,
 
 const { Title } = Typography;
 const { TextArea } = Input;
+import { theme } from 'antd';
 
 const PersonalHistorySection: React.FC = () => {
   const form = Form.useFormInstance();
+  const { token } = theme.useToken();
   
   // 监听吸烟相关字段
   const smokingStatus = Form.useWatch(['personalHistory', 'smoking_status'], form);
@@ -246,7 +248,13 @@ const PersonalHistorySection: React.FC = () => {
 
       <Card type="inner" title="2. 习惯与嗜好 (自动计算)" size="small" style={{ marginBottom: 24 }}>
           {/* 吸烟史计算器 */}
-          <div style={{ background: '#fff7e6', padding: 16, borderRadius: 8, marginBottom: 16, border: '1px solid #ffe7ba' }}>
+          <div style={{ 
+            background: token.colorFillAlter, 
+            padding: 16, 
+            borderRadius: 8, 
+            marginBottom: 16, 
+            border: `1px solid ${token.colorBorderSecondary}` 
+          }}>
             <Row gutter={[12, 12]} align="top">
                 <Col xs={24} sm={24} md={6}>
                     <Form.Item
@@ -311,7 +319,7 @@ const PersonalHistorySection: React.FC = () => {
                                  >
                                      <Space.Compact>
                                        <InputNumber style={{ width: '100%' }} min={1} max={80} placeholder="1-80" />
-                                       <span style={{ display: 'inline-flex', alignItems: 'center', padding: '0 8px', background: '#fafafa', border: '1px solid #d9d9d9', borderLeft: 'none', borderRadius: '0 6px 6px 0' }}>年</span>
+                                       <span style={{ display: 'inline-flex', alignItems: 'center', padding: '0 8px', background: token.colorFillAlter, border: `1px solid ${token.colorBorder}`, borderLeft: 'none', borderRadius: '0 6px 6px 0', color: token.colorText }}>年</span>
                                      </Space.Compact>
                                  </Form.Item>
                              </Col>
@@ -322,7 +330,13 @@ const PersonalHistorySection: React.FC = () => {
           </div>
 
           {/* 饮酒史计算器 */}
-          <div style={{ background: '#f0f5ff', padding: 16, borderRadius: 8, marginBottom: 16, border: '1px solid #adc6ff' }}>
+          <div style={{ 
+            background: token.colorInfoBg, 
+            padding: 16, 
+            borderRadius: 8, 
+            marginBottom: 16, 
+            border: `1px solid ${token.colorInfoBorder}` 
+          }}>
             <Row gutter={[12, 12]} align="top">
                 <Col xs={24} sm={24} md={6}>
                     <Form.Item
@@ -393,7 +407,7 @@ const PersonalHistorySection: React.FC = () => {
                                  <Form.Item name={['personalHistory', 'quitDrinkingYears']} label="已戒酒年数">
                                      <Space.Compact>
                                        <InputNumber style={{ width: '100%' }} min={0} />
-                                       <span style={{ display: 'inline-flex', alignItems: 'center', padding: '0 8px', background: '#fafafa', border: '1px solid #d9d9d9', borderLeft: 'none', borderRadius: '0 6px 6px 0' }}>年</span>
+                                       <span style={{ display: 'inline-flex', alignItems: 'center', padding: '0 8px', background: token.colorFillAlter, border: `1px solid ${token.colorBorder}`, borderLeft: 'none', borderRadius: '0 6px 6px 0', color: token.colorText }}>年</span>
                                      </Space.Compact>
                                  </Form.Item>
                              </Col>

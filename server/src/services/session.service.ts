@@ -1,5 +1,6 @@
 import prisma from '../prisma';
 import { OperatorIdentity } from '../middleware/auth';
+import { secureLogger } from '../utils/secureLogger';
 
 type CascadeDeleteSpec = { table: string; fkColumn: string };
 
@@ -24,7 +25,7 @@ function getCascadeDeleteSpecs(): CascadeDeleteSpec[] {
         .filter((it) => isSafeSqlIdentifier(it.table) && isSafeSqlIdentifier(it.fkColumn));
       if (normalized.length > 0) {return normalized;}
     } catch (e) {
-      console.warn('[session.delete] SESSION_CASCADE_TABLES_JSON 解析失败', e);
+      secureLogger.warn('[SessionService] SESSION_CASCADE_TABLES_JSON 解析失败', { error: e instanceof Error ? e.message : String(e) });
     }
   }
 
@@ -64,7 +65,7 @@ async function writeAuditLogIfExists(
   payload: { operator: OperatorIdentity; sessionId: number; deletedAt: Date }
 ): Promise<void> {
   const { operator, sessionId, deletedAt } = payload;
-  console.log('[audit] 问诊记录永久删除', {
+  secureLogger.info('[SessionService] 问诊记录永久删除审计日志', {
     operatorId: operator.operatorId,
     role: operator.role,
     sessionId,
@@ -80,7 +81,7 @@ async function writeAuditLogIfExists(
       'INSERT INTO "audit_logs" ("action","operator_id","operator_role","target_id","created_at") VALUES ($1,$2,$3,$4,$5)';
     await tx.$executeRawUnsafe(sql, 'SESSION_DELETE', operator.operatorId, operator.role, sessionId, deletedAt);
   } catch (e) {
-    console.warn('[audit] 审计表写入失败（将继续返回删除成功）', e);
+    secureLogger.warn('[SessionService] 审计表写入失败（将继续返回删除成功）', { error: e instanceof Error ? e.message : String(e) });
   }
 }
 
@@ -208,7 +209,7 @@ export const deleteSessionPermanentlyWithPrisma = async (
     throw err;
   }
 
-  console.log('[session.delete] 开始永久删除', {
+  secureLogger.info('[SessionService] 开始永久删除问诊记录', {
     operatorId: operator.operatorId,
     role: operator.role,
     sessionId,
@@ -226,7 +227,7 @@ export const deleteSessionPermanentlyWithPrisma = async (
     await writeAuditLogIfExists(tx, { operator, sessionId, deletedAt });
   });
 
-  console.log('[session.delete] 永久删除完成', { sessionId });
+  secureLogger.info('[SessionService] 永久删除问诊记录完成', { sessionId });
 
   return { deletedId: sessionId };
 };

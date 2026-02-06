@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button, Grid, Layout } from 'antd';
+import { Button, Grid, Layout, theme } from 'antd';
 import LazyDrawer from '../../../../components/lazy/LazyDrawer';
 import { MenuOutlined } from '@ant-design/icons';
 
@@ -18,7 +18,7 @@ const InterviewLayout: React.FC<InterviewLayoutProps> = ({
   editor,
   chat,
 }) => {
-  const { token } = Layout.useApp().theme.useToken();
+  const { token } = theme.useToken();
   const screens = useBreakpoint();
   const isDesktop = Boolean(screens.md);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
@@ -53,7 +53,8 @@ const InterviewLayout: React.FC<InterviewLayoutProps> = ({
           open={drawerOpen}
           placement="left"
           onClose={() => setDrawerOpen(false)}
-          styles={{ wrapper: { width: '80vw' }, body: { padding: 0 } }}
+          size="large"
+          styles={{ body: { padding: 0 } }}
           title={null}
         >
           <div onClick={() => setDrawerOpen(false)}>{navigation}</div>

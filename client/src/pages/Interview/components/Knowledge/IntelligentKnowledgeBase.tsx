@@ -37,9 +37,9 @@ import {
 } from '@ant-design/icons';
 import api, { unwrapData } from '../../../../utils/api';
 import type { ApiResponse } from '../../../../utils/api';
+import { useThemeStore } from '../../../../store/theme.store';
 
 const { Text, Paragraph } = Typography;
-const { TabPane } = Tabs;
 const { Search } = Input;
 const { useToken } = theme;
 
@@ -90,15 +90,6 @@ interface IntelligentKnowledgeBaseProps {
 }
 
 /**
- * 优先级配置
- */
-const PRIORITY_CONFIG = {
-  high: { color: '#ff4d4f', bgColor: '#fff2f0', borderColor: '#ffccc7', label: '高优先级', icon: <FireOutlined /> },
-  medium: { color: '#faad14', bgColor: '#fffbe6', borderColor: '#ffe58f', label: '中优先级', icon: <StarOutlined /> },
-  low: { color: '#8c8c8c', bgColor: '#f5f5f5', borderColor: '#d9d9d9', label: '低优先级', icon: <InfoCircleOutlined /> }
-};
-
-/**
  * IntelligentKnowledgeBase
  * 智能知识库组件 - 优化美化版
  * 包含症状问诊要点映射、疾病百科等功能
@@ -110,6 +101,38 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
 }) => {
   const { token } = useToken();
   const { message } = AntdApp.useApp();
+  const { mode } = useThemeStore();
+  
+  const getPriorityConfig = (priority: string) => {
+    switch (priority) {
+      case 'high':
+        return { 
+          color: token.colorError, 
+          bgColor: token.colorErrorBg, 
+          borderColor: token.colorErrorBorder, 
+          label: '高优先级', 
+          icon: <FireOutlined /> 
+        };
+      case 'medium':
+        return { 
+          color: token.colorWarning, 
+          bgColor: token.colorWarningBg, 
+          borderColor: token.colorWarningBorder, 
+          label: '中优先级', 
+          icon: <StarOutlined /> 
+        };
+      case 'low':
+      default:
+        return { 
+          color: token.colorTextSecondary, 
+          bgColor: token.colorFillQuaternary, 
+          borderColor: token.colorBorder, 
+          label: '低优先级', 
+          icon: <InfoCircleOutlined /> 
+        };
+    }
+  };
+
   const [activeTab, setActiveTab] = useState('symptomMap');
   const [loading, setLoading] = useState<Record<string, boolean>>({
     symptomMap: false,
@@ -292,7 +315,7 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
       );
     }
 
-    const priorityConfig = PRIORITY_CONFIG[displayMapping.priority];
+    const priorityConfig = getPriorityConfig(displayMapping.priority);
 
     return (
       <div style={{ animation: 'fadeIn 0.3s ease-in' }}>
@@ -301,14 +324,15 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
           title={
             <Space>
               <MedicineBoxOutlined style={{ color: priorityConfig.color }} />
-              <span style={{ fontSize: 16, fontWeight: 500 }}>{displayMapping.symptomName}</span>
+              <span style={{ fontSize: 16, fontWeight: 500, color: token.colorTextHeading }}>{displayMapping.symptomName}</span>
               <Tag 
                 color={priorityConfig.color}
                 className="msia-tag"
                 style={{ 
                   backgroundColor: priorityConfig.bgColor,
                   borderColor: priorityConfig.borderColor,
-                  fontWeight: 500
+                  fontWeight: 500,
+                  color: priorityConfig.color
                 }}
                 icon={priorityConfig.icon}
               >
@@ -318,9 +342,11 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
           }
           style={{ 
             marginBottom: 16,
+            background: token.colorBgContainer,
+            borderColor: token.colorBorderSecondary
           }}
           headStyle={{ 
-            background: `linear-gradient(135deg, ${priorityConfig.bgColor} 0%, #fff 100%)`,
+            background: `linear-gradient(135deg, ${priorityConfig.bgColor} 0%, ${token.colorBgContainer} 100%)`,
             borderBottom: `2px solid ${priorityConfig.borderColor}`
           }}
         >
@@ -332,9 +358,9 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
                 key: 'questions',
                 label: (
                   <Space>
-                    <ExclamationCircleOutlined style={{ color: '#1890ff' }} />
-                    <Text strong>必问问题</Text>
-                    <Badge count={displayMapping.questions.length} style={{ backgroundColor: '#1890ff' }} />
+                    <ExclamationCircleOutlined style={{ color: token.colorPrimary }} />
+                    <Text strong style={{ color: token.colorTextHeading }}>必问问题</Text>
+                    <Badge count={displayMapping.questions.length} style={{ backgroundColor: token.colorPrimary }} />
                   </Space>
                 ),
                 children: (
@@ -348,21 +374,23 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
                           justifyContent: 'space-between',
                           gap: 12,
                           padding: '12px 16px',
-                          backgroundColor: index % 2 === 0 ? '#fafafa' : '#fff',
+                          backgroundColor: index % 2 === 0 ? token.colorFillAlter : token.colorBgContainer,
                           borderRadius: 4,
-                          marginBottom: 4
+                          marginBottom: 4,
+                          border: `1px solid ${token.colorBorderSecondary}`
                         }}
                       >
                         <Space>
                           <Badge
                             count={index + 1}
                             style={{
-                              backgroundColor: '#f0f0f0',
-                              color: '#595959',
-                              fontSize: 12
+                              backgroundColor: token.colorFillContent,
+                              color: token.colorTextSecondary,
+                              fontSize: 12,
+                              boxShadow: 'none'
                             }}
                           />
-                          <Text>{question}</Text>
+                          <Text style={{ color: token.colorText }}>{question}</Text>
                         </Space>
                         <Tooltip title="使用此问题">
                           <Button
@@ -385,9 +413,9 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
                 key: 'physical',
                 label: (
                   <Space>
-                    <MedicineBoxOutlined style={{ color: '#52c41a' }} />
-                    <Text strong>体格检查要点</Text>
-                    <Badge count={displayMapping.physicalExamination.length} style={{ backgroundColor: '#52c41a' }} />
+                    <MedicineBoxOutlined style={{ color: token.colorSuccess }} />
+                    <Text strong style={{ color: token.colorTextHeading }}>体格检查要点</Text>
+                    <Badge count={displayMapping.physicalExamination.length} style={{ backgroundColor: token.colorSuccess }} />
                   </Space>
                 ),
                 children: (
@@ -397,14 +425,14 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
                         key={`${index}-${item}`}
                         style={{
                           padding: '10px 16px',
-                          backgroundColor: index % 2 === 0 ? '#f6ffed' : '#fff',
+                          backgroundColor: index % 2 === 0 ? token.colorSuccessBg : token.colorBgContainer,
                           borderRadius: 4,
                           marginBottom: 4
                         }}
                       >
                         <Space>
-                          <CheckCircleOutlined style={{ color: '#52c41a' }} />
-                          <Text>{item}</Text>
+                          <CheckCircleOutlined style={{ color: token.colorSuccess }} />
+                          <Text style={{ color: token.colorText }}>{item}</Text>
                         </Space>
                       </div>
                     ))}
@@ -415,9 +443,9 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
                 key: 'differential',
                 label: (
                   <Space>
-                    <CheckCircleOutlined style={{ color: '#722ed1' }} />
-                    <Text strong>鉴别诊断要点</Text>
-                    <Badge count={displayMapping.differentialPoints.length} style={{ backgroundColor: '#722ed1' }} />
+                    <CheckCircleOutlined style={{ color: token.colorPrimary }} />
+                    <Text strong style={{ color: token.colorText }}>鉴别诊断要点</Text>
+                    <Badge count={displayMapping.differentialPoints.length} style={{ backgroundColor: token.colorPrimary }} />
                   </Space>
                 ),
                 children: (
@@ -427,7 +455,7 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
                         key={`${index}-${item}`}
                         style={{
                           padding: '10px 16px',
-                          backgroundColor: index % 2 === 0 ? '#f9f0ff' : '#fff',
+                          backgroundColor: index % 2 === 0 ? token.colorFillTertiary : token.colorBgContainer,
                           borderRadius: 4,
                           marginBottom: 4
                         }}
@@ -436,11 +464,11 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
                           <Badge
                             count={index + 1}
                             style={{
-                              backgroundColor: '#722ed1',
+                              backgroundColor: token.colorPrimary,
                               fontSize: 11
                             }}
                           />
-                          <Text>{item}</Text>
+                          <Text style={{ color: token.colorText }}>{item}</Text>
                         </Space>
                       </div>
                     ))}
@@ -451,13 +479,13 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
                 key: 'redflags',
                 label: (
                   <Space>
-                    <FireOutlined style={{ color: '#ff4d4f' }} />
-                    <Text strong style={{ color: '#ff4d4f' }}>警惕征象</Text>
-                    <Badge count={displayMapping.redFlags.length} style={{ backgroundColor: '#ff4d4f' }} />
+                    <FireOutlined style={{ color: token.colorError }} />
+                    <Text strong style={{ color: token.colorError }}>警惕征象</Text>
+                    <Badge count={displayMapping.redFlags.length} style={{ backgroundColor: token.colorError }} />
                   </Space>
                 ),
                 children: (
-                  <div style={{ border: '1px solid #ffccc7', borderRadius: 6, overflow: 'hidden', padding: 12 }}>
+                  <div style={{ border: `1px solid ${token.colorErrorBorder}`, borderRadius: 6, overflow: 'hidden', padding: 12 }}>
                     <Alert
                       title="以下情况需要特别关注，可能提示严重疾病"
                       type="warning"
@@ -469,14 +497,14 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
                         key={item}
                         style={{
                           padding: '12px 16px',
-                          backgroundColor: '#fff2f0',
+                          backgroundColor: token.colorErrorBg,
                           borderRadius: 4,
                           marginBottom: 4,
-                          borderLeft: '3px solid #ff4d4f'
+                          borderLeft: `3px solid ${token.colorError}`
                         }}
                       >
                         <Space>
-                          <ExclamationCircleOutlined style={{ color: '#ff4d4f', fontSize: 16 }} />
+                          <ExclamationCircleOutlined style={{ color: token.colorError, fontSize: 16 }} />
                           <Text type="danger" strong>{item}</Text>
                         </Space>
                       </div>
@@ -529,6 +557,11 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
    * 渲染疾病百科
    */
   const renderDiseaseEncyclopedia = () => {
+    const isDark = mode === 'dark';
+    const purpleColor = isDark ? '#d3adf7' : '#722ed1';
+    const purpleBg = isDark ? '#22075e' : '#f9f0ff';
+    const purpleBorder = isDark ? '#722ed1' : '#d3adf7';
+
     if (loading.diseases) {
       return (
         <div style={{ padding: 24 }}>
@@ -562,9 +595,9 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
             <Card
               title={
                 <Space>
-                  <BookOutlined style={{ color: '#722ed1', fontSize: 20 }} />
-                  <span style={{ fontSize: 18, fontWeight: 600 }}>{selectedDisease.name}</span>
-                  <Tag color="purple" style={{ fontSize: 13 }}>{selectedDisease.category}</Tag>
+                  <BookOutlined style={{ color: purpleColor, fontSize: 20 }} />
+                  <span style={{ fontSize: 18, fontWeight: 600, color: token.colorTextHeading }}>{selectedDisease.name}</span>
+                  <Tag color={purpleColor} style={{ fontSize: 13, color: isDark ? token.colorText : '#fff' }}>{selectedDisease.category}</Tag>
                 </Space>
               }
               extra={
@@ -578,28 +611,30 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
               }
               style={{ 
                 borderRadius: 8,
-                boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+                boxShadow: token.boxShadow,
+                background: token.colorBgContainer,
+                borderColor: token.colorBorderSecondary
               }}
             >
               {selectedDisease.aliases.length > 0 && (
-                <div style={{ marginBottom: 16, padding: 12, backgroundColor: '#f9f0ff', borderRadius: 6 }}>
+                <div style={{ marginBottom: 16, padding: 12, backgroundColor: purpleBg, borderRadius: 6, border: `1px solid ${purpleBorder}` }}>
                   <Text type="secondary">别名: </Text>
                   {selectedDisease.aliases.map(alias => (
-                    <Tag key={alias} color="purple" style={{ marginBottom: 4 }}>{alias}</Tag>
+                    <Tag key={alias} color={purpleColor} style={{ marginBottom: 4 }}>{alias}</Tag>
                   ))}
                 </div>
               )}
 
               <Collapse 
                 defaultActiveKey={['definition', 'manifestations', 'diagnosis']}
-                style={{ backgroundColor: 'transparent' }}
+                style={{ backgroundColor: 'transparent', border: 'none' }}
                 items={[
                   {
                     key: 'definition',
-                    label: <Text strong style={{ fontSize: 14 }}>疾病定义</Text>,
+                    label: <Text strong style={{ fontSize: 14, color: token.colorTextHeading }}>疾病定义</Text>,
                     children: (
                       <div>
-                        <Paragraph style={{ fontSize: 14, lineHeight: 1.8 }}>
+                        <Paragraph style={{ fontSize: 14, lineHeight: 1.8, color: token.colorText }}>
                           {selectedDisease.definition}
                         </Paragraph>
                         <Alert
@@ -616,8 +651,8 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
                     key: 'manifestations',
                     label: (
                       <Space>
-                        <Text strong style={{ fontSize: 14 }}>临床表现</Text>
-                        <Badge count={selectedDisease.clinicalManifestations.length} style={{ backgroundColor: '#1890ff' }} />
+                        <Text strong style={{ fontSize: 14, color: token.colorTextHeading }}>临床表现</Text>
+                        <Badge count={selectedDisease.clinicalManifestations.length} style={{ backgroundColor: token.colorPrimary }} />
                       </Space>
                     ),
                     children: (
@@ -627,9 +662,9 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
                             <Space>
                               <Badge 
                                 count={index + 1} 
-                                style={{ backgroundColor: '#1890ff' }} 
+                                style={{ backgroundColor: token.colorPrimary }} 
                               />
-                              <Text>{item}</Text>
+                              <Text style={{ color: token.colorText }}>{item}</Text>
                             </Space>
                           </div>
                         ))}
@@ -640,8 +675,8 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
                     key: 'diagnosis',
                     label: (
                       <Space>
-                        <Text strong style={{ fontSize: 14 }}>诊断标准</Text>
-                        <Badge count={selectedDisease.diagnosisCriteria.length} style={{ backgroundColor: '#52c41a' }} />
+                        <Text strong style={{ fontSize: 14, color: token.colorTextHeading }}>诊断标准</Text>
+                        <Badge count={selectedDisease.diagnosisCriteria.length} style={{ backgroundColor: token.colorSuccess }} />
                       </Space>
                     ),
                     children: (
@@ -651,9 +686,9 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
                             <Space>
                               <Badge 
                                 count={index + 1} 
-                                style={{ backgroundColor: '#52c41a' }} 
+                                style={{ backgroundColor: token.colorSuccess }} 
                               />
-                              <Text>{item}</Text>
+                              <Text style={{ color: token.colorText }}>{item}</Text>
                             </Space>
                           </div>
                         ))}
@@ -662,18 +697,18 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
                   },
                   {
                     key: 'treatment',
-                    label: <Text strong style={{ fontSize: 14 }}>治疗方案</Text>,
+                    label: <Text strong style={{ fontSize: 14, color: token.colorTextHeading }}>治疗方案</Text>,
                     children: (
-                      <Paragraph style={{ fontSize: 14, lineHeight: 1.8 }}>
+                      <Paragraph style={{ fontSize: 14, lineHeight: 1.8, color: token.colorText }}>
                         {selectedDisease.treatment}
                       </Paragraph>
                     )
                   },
                   {
                     key: 'prognosis',
-                    label: <Text strong style={{ fontSize: 14 }}>预后</Text>,
+                    label: <Text strong style={{ fontSize: 14, color: token.colorTextHeading }}>预后</Text>,
                     children: (
-                      <Paragraph style={{ fontSize: 14, lineHeight: 1.8 }}>
+                      <Paragraph style={{ fontSize: 14, lineHeight: 1.8, color: token.colorText }}>
                         {selectedDisease.prognosis}
                       </Paragraph>
                     )
@@ -685,11 +720,11 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
                 <div style={{ 
                   marginTop: 16, 
                   padding: 16, 
-                  backgroundColor: '#e6f7ff', 
+                  backgroundColor: token.colorInfoBg, 
                   borderRadius: 6,
-                  border: '1px solid #91d5ff'
+                  border: `1px solid ${token.colorInfoBorder}`
                 }}>
-                  <Text strong style={{ color: '#096dd9' }}>
+                  <Text strong style={{ color: token.colorInfoText }}>
                     <LinkOutlined /> 相关疾病
                   </Text>
                   <div style={{ marginTop: 8 }}>
@@ -707,16 +742,16 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
                 </div>
               )}
 
-              <Divider />
+              <Divider style={{ borderColor: token.colorBorderSecondary }} />
 
-              <div style={{ backgroundColor: '#f6ffed', padding: 12, borderRadius: 6 }}>
-                <Text strong style={{ color: '#52c41a' }}>
+              <div style={{ backgroundColor: token.colorSuccessBg, padding: 12, borderRadius: 6, border: `1px solid ${token.colorSuccessBorder}` }}>
+                <Text strong style={{ color: token.colorSuccessText }}>
                   <BookOutlined /> 参考文献
                 </Text>
                 <ul style={{ margin: '8px 0 0 0', paddingLeft: 20 }}>
                   {selectedDisease.references.map((ref, index) => (
                     <li key={index}>
-                      <Text style={{ fontSize: 12, color: '#595959' }}>{ref}</Text>
+                      <Text style={{ fontSize: 12, color: token.colorTextSecondary }}>{ref}</Text>
                     </li>
                   ))}
                 </ul>
@@ -760,19 +795,21 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
                   style={{ 
                     borderRadius: 8,
                     transition: 'all 0.3s ease',
-                    height: '100%'
+                    height: '100%',
+                    background: token.colorBgContainer,
+                    borderColor: token.colorBorderSecondary
                   }}
                   title={
                     <Space>
-                      <BookOutlined style={{ color: '#722ed1' }} />
-                      <span style={{ fontWeight: 500 }}>{disease.name}</span>
+                      <BookOutlined style={{ color: purpleColor }} />
+                      <span style={{ fontWeight: 500, color: token.colorTextHeading }}>{disease.name}</span>
                     </Space>
                   }
                   extra={<Tag color="purple">{disease.category}</Tag>}
                 >
                   <Paragraph 
                     ellipsis={{ rows: 2 }} 
-                    style={{ fontSize: 13, color: '#595959', marginBottom: 8 }}
+                    style={{ fontSize: 13, color: token.colorTextSecondary, marginBottom: 8 }}
                   >
                     {disease.definition}
                   </Paragraph>
@@ -793,13 +830,19 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
     );
   };
 
+  const isDark = mode === 'dark';
+  const gradientStart = isDark ? token.colorFillAlter : '#f0f5ff';
+  const gradientEnd = isDark ? token.colorBgContainer : '#fff';
+  const borderColor = isDark ? token.colorBorderSecondary : '#d6e4ff';
+  const purpleColor = isDark ? '#d3adf7' : '#722ed1';
+
   return (
     <Card
       className="msia-card"
       title={
         <Space>
           <BookOutlined style={{ color: token.colorPrimary, fontSize: 18 }} />
-          <span style={{ fontSize: 16, fontWeight: 600 }}>智能知识库</span>
+          <span style={{ fontSize: 16, fontWeight: 600, color: token.colorTextHeading }}>智能知识库</span>
           {currentSymptom && (
             <Tag color="processing" className="msia-tag" style={{ fontSize: 12 }}>
               当前: {currentSymptom}
@@ -822,10 +865,12 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
       }
       style={{ 
         height: '100%',
+        background: token.colorBgContainer,
+        borderColor: token.colorBorderSecondary
       }}
       headStyle={{
-        background: 'linear-gradient(135deg, #f0f5ff 0%, #fff 100%)',
-        borderBottom: '2px solid #d6e4ff'
+        background: `linear-gradient(135deg, ${gradientStart} 0%, ${gradientEnd} 100%)`,
+        borderBottom: `2px solid ${borderColor}`
       }}
     >
       <Tabs 
@@ -833,40 +878,39 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
         onChange={setActiveTab}
         type="card"
         style={{ marginTop: -16 }}
-      >
-        <TabPane 
-          tab={
-            <span>
-              <MedicineBoxOutlined />
-              症状问诊要点
-              {currentMapping && <Badge dot style={{ marginLeft: 4 }} />}
-            </span>
-          } 
-          key="symptomMap"
-        >
-          {renderSymptomMapping()}
-        </TabPane>
-        
-        <TabPane 
-          tab={
-            <span>
-              <BookOutlined />
-              疾病百科
-              <Badge 
-                count={diseaseEncyclopedia.length} 
-                style={{ 
-                  marginLeft: 4, 
-                  backgroundColor: '#722ed1',
-                  fontSize: 10
-                }} 
-              />
-            </span>
-          } 
-          key="diseases"
-        >
-          {renderDiseaseEncyclopedia()}
-        </TabPane>
-      </Tabs>
+        items={[
+          {
+            key: 'symptomMap',
+            label: (
+              <span>
+                <MedicineBoxOutlined />
+                症状问诊要点
+                {currentMapping && <Badge dot style={{ marginLeft: 4, backgroundColor: token.colorPrimary }} />}
+              </span>
+            ),
+            children: renderSymptomMapping(),
+          },
+          {
+            key: 'diseases',
+            label: (
+              <span>
+                <BookOutlined />
+                疾病百科
+                <Badge 
+                  count={diseaseEncyclopedia.length} 
+                  style={{ 
+                    marginLeft: 4, 
+                    backgroundColor: purpleColor,
+                    fontSize: 10,
+                    color: isDark ? token.colorBgContainer : '#fff'
+                  }} 
+                />
+              </span>
+            ),
+            children: renderDiseaseEncyclopedia(),
+          },
+        ]}
+      />
     </Card>
   );
 };

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Menu, Progress, Typography, Button, Tooltip, Grid } from 'antd';
+import { Menu, Progress, Typography, Button, Tooltip, Grid, theme } from 'antd';
 import { 
   HomeOutlined,
   ArrowLeftOutlined
@@ -35,6 +35,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
   onGoHome,
   onGoInterviewStart
 }) => {
+  const { token } = theme.useToken();
   const screens = useBreakpoint();
   const isMobile = !screens.md;
   const menuWrapRef = React.useRef<HTMLDivElement | null>(null);
@@ -117,11 +118,11 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
 
   const getStatusMark = (sectionKey: string, section: SectionStatus) => {
     const status = section.status || (section.isCompleted ? 'completed' : 'not_started');
-    if (section.hasError) return { mark: '!', color: '#1677ff' };
-    if (sectionKey === currentSection) return { mark: '•', color: '#1890ff' };
-    if (status === 'completed') return { mark: '✓', color: '#52c41a' };
-    if (status === 'in_progress') return { mark: '•', color: '#faad14' };
-    return { mark: '○', color: '#bfbfbf' };
+    if (section.hasError) return { mark: '!', color: token.colorError };
+    if (sectionKey === currentSection) return { mark: '•', color: token.colorPrimary };
+    if (status === 'completed') return { mark: '✓', color: token.colorSuccess };
+    if (status === 'in_progress') return { mark: '•', color: token.colorWarning };
+    return { mark: '○', color: token.colorTextDisabled };
   };
 
   const menuItems = sections.map((section) => {
@@ -167,7 +168,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
   return (
     <div className="interview-nav-panel" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* Header Area */}
-      <div style={{ padding: isMobile ? '14px 14px' : '24px 20px', borderBottom: '1px solid #f0f0f0' }}>
+      <div style={{ padding: isMobile ? '14px 14px' : '24px 20px', borderBottom: `1px solid ${token.colorBorderSecondary}` }}>
         <Title level={isMobile ? 5 : 4} style={{ margin: isMobile ? '0 0 10px 0' : '0 0 16px 0', fontSize: isMobile ? '16px' : '18px' }}>
           问诊导航
         </Title>
@@ -185,8 +186,8 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
             percent={progress} 
             showInfo={false} 
             size="small" 
-            strokeColor={{ '0%': '#ff4d4f', '50%': '#faad14', '100%': '#52c41a' }}
-            railColor="#f0f0f0"
+            strokeColor={{ '0%': token.colorError, '50%': token.colorWarning, '100%': token.colorSuccess }}
+            railColor={token.colorFillSecondary}
           />
         </div>
       </div>
@@ -234,17 +235,17 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
       </div>
       
       {/* Footer Area */}
-      <div style={{ padding: isMobile ? '12px 14px' : '16px 20px', borderTop: '1px solid #f0f0f0', background: '#fafafa' }}>
+      <div style={{ padding: isMobile ? '12px 14px' : '16px 20px', borderTop: `1px solid ${token.colorBorderSecondary}`, background: token.colorFillAlter }}>
          {isMobile ? null : (
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginBottom: 16, fontSize: '12px', color: '#8c8c8c' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginBottom: 16, fontSize: '12px', color: token.colorTextSecondary }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ color: '#52c41a' }}>✓</span> 已完成
+              <span style={{ color: token.colorSuccess }}>✓</span> 已完成
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ color: '#1890ff' }}>•</span> 进行中
+              <span style={{ color: token.colorWarning }}>•</span> 进行中
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ color: '#bfbfbf' }}>○</span> 未开始
+              <span style={{ color: token.colorTextDisabled }}>○</span> 未开始
             </div>
           </div>
          )}

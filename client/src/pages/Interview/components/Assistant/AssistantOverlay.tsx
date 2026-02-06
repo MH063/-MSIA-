@@ -1,24 +1,27 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { RobotOutlined } from '@ant-design/icons';
+import React, { useEffect, useRef, useState } from 'react';
+import { RobotOutlined, CloseOutlined, ExpandOutlined, ShrinkOutlined, QuestionCircleOutlined, SoundOutlined } from '@ant-design/icons';
+import { theme, Tooltip, Button, Tabs, Badge } from 'antd';
 import { useAssistantStore } from '../../../../store/assistant.store';
 import KnowledgeTab from './KnowledgeTab';
-import './assistant-overlay.css';
+import TeachingTab from './TeachingTab';
+import ValidationTab from './ValidationTab';
 
 type TabKey = 'teaching' | 'validation' | 'techniques' | 'training' | 'knowledge';
 
 const AssistantOverlay: React.FC = () => {
+  const { token } = theme.useToken();
   const hasNewMessage = useAssistantStore(s => s.hasNewMessage);
-  const moduleLabel = useAssistantStore(s => s.moduleLabel);
-  const moduleKey = useAssistantStore(s => s.moduleKey);
-  const progressPercent = useAssistantStore(s => s.progressPercent);
-  const panel = useAssistantStore(s => s.panel);
-  const actions = useAssistantStore(s => s.actions);
+  // const moduleLabel = useAssistantStore(s => s.moduleLabel);
+  // const moduleKey = useAssistantStore(s => s.moduleKey);
+  // const progressPercent = useAssistantStore(s => s.progressPercent);
+  // const panel = useAssistantStore(s => s.panel);
+  // const actions = useAssistantStore(s => s.actions);
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<'mini' | 'drawer'>('mini');
   const [tab, setTab] = useState<TabKey>('teaching');
-  const [width, setWidth] = useState(360);
   const btnRef = useRef<HTMLButtonElement | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+
   /**
    * 从localStorage加载保存的位置
    * 包含错误处理和位置验证
@@ -67,9 +70,6 @@ const AssistantOverlay: React.FC = () => {
   });
   const positionRef = useRef<{ x: number; y: number } | null>(null);
   const dragStartRef = useRef<{ startX: number; startY: number; originX: number; originY: number } | null>(null);
-  const resizingRef = useRef(false);
-  const startXRef = useRef(0);
-  const startWidthRef = useRef(360);
 
   useEffect(() => {
     positionRef.current = position;
@@ -197,339 +197,234 @@ const AssistantOverlay: React.FC = () => {
     setOpen(false);
   };
 
-  const onMouseDownResize = (e: React.MouseEvent<HTMLDivElement>) => {
-    resizingRef.current = true;
-    startXRef.current = e.clientX;
-    startWidthRef.current = width;
-    document.body.style.cursor = 'col-resize';
+  // Dynamic Styles
+  const pulseKeyframes = `
+    @keyframes assistantPulse {
+      0% { box-shadow: 0 0 0 0 ${token.colorPrimary}b3; }
+      70% { box-shadow: 0 0 0 12px ${token.colorPrimary}00; }
+      100% { box-shadow: 0 0 0 0 ${token.colorPrimary}00; }
+    }
+  `;
+
+  const styles = {
+    floatingBtn: {
+      position: 'fixed' as const,
+      bottom: 24,
+      right: 24,
+      width: 60,
+      height: 60,
+      borderRadius: '50%',
+      border: 'none',
+      background: token.colorPrimary,
+      color: '#fff',
+      fontSize: 24,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      lineHeight: 1,
+      cursor: 'pointer',
+      zIndex: 1000,
+      boxShadow: token.boxShadow,
+      ...(position ? { left: position.x, top: position.y, bottom: 'auto', right: 'auto' } : {}),
+      animation: hasNewMessage ? 'assistantPulse 2s infinite' : 'none',
+      touchAction: 'none' as const, // Prevents scrolling while dragging on touch devices
+    },
+    miniPanel: {
+      position: 'fixed' as const,
+      bottom: position ? 'auto' : 96,
+      top: position ? position.y - 12 - 200 : 'auto', // Adjust based on height roughly
+      left: position ? position.x - 300 : 'auto', // Adjust based on width
+      right: position ? 'auto' : 24,
+      width: 360,
+      background: token.colorBgContainer,
+      border: `1px solid ${token.colorBorder}`,
+      borderRadius: token.borderRadiusLG,
+      boxShadow: token.boxShadowSecondary,
+      zIndex: 1000,
+    },
+    miniHeader: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: '8px 12px',
+      borderBottom: `1px solid ${token.colorBorderSecondary}`,
+    },
+    miniBody: {
+      padding: 12,
+      maxHeight: 300,
+      overflowY: 'auto' as const,
+    },
+    miniFooter: {
+      display: 'flex',
+      justifyContent: 'flex-end',
+      gap: 8,
+      padding: '8px 12px',
+      borderTop: `1px solid ${token.colorBorderSecondary}`,
+      background: token.colorFillQuaternary,
+      borderBottomLeftRadius: token.borderRadiusLG,
+      borderBottomRightRadius: token.borderRadiusLG,
+    },
+    drawer: {
+      position: 'fixed' as const,
+      top: 0,
+      right: 0,
+      height: '100vh',
+      width: 360,
+      background: token.colorBgContainer,
+      borderLeft: `1px solid ${token.colorBorder}`,
+      boxShadow: '-2px 0 8px rgba(0,0,0,0.15)',
+      zIndex: 1000,
+      display: 'flex',
+      flexDirection: 'column' as const,
+    },
+    drawerHeader: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: 12,
+      borderBottom: `1px solid ${token.colorBorderSecondary}`,
+    },
+    drawerContent: {
+      flex: 1,
+      overflowY: 'auto' as const,
+      padding: 12,
+      background: token.colorBgLayout,
+    },
+    drawerFooter: {
+      display: 'flex',
+      justifyContent: 'flex-end',
+      gap: 8,
+      padding: '10px 12px',
+      borderTop: `1px solid ${token.colorBorderSecondary}`,
+      background: token.colorBgContainer,
+    },
   };
 
-  useEffect(() => {
-    const onMouseMove = (e: MouseEvent) => {
-      if (!resizingRef.current) return;
-      const dx = startXRef.current - e.clientX;
-      const next = Math.min(560, Math.max(280, startWidthRef.current + dx));
-      setWidth(next);
-    };
-    const onMouseUp = () => {
-      if (resizingRef.current) {
-        resizingRef.current = false;
-        document.body.style.cursor = 'default';
-      }
-    };
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
-    return () => {
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onMouseUp);
-    };
-  }, [width]);
+  // Adjust mini panel position logic slightly to anchor to the button better
+  // If button is at (x, y), panel should be near it.
+  // For simplicity, let's keep it fixed bottom-right relative to button if dragged, or default if not.
+  // Actually, standard behavior is usually above or to the side.
+  // Let's stick to default right-bottom for now, and if position is set, anchor top-right of panel to button's top-left?
+  // Simpler: Just render Mini Panel near the button.
+  // We'll calculate miniPanel style dynamically.
 
-  /**
-   * 教学指导Tab内容
-   * 使用整个panel作为依赖，确保数据及时更新
-   */
-  const teachingContent = useMemo(() => {
-    const tips = panel.tips || [];
-    const guidance = panel.guidance || [];
-    const timeline = panel.timeline || [];
-    const sampleInput = panel.sampleInput;
-    const normative = panel.normative;
-    return (
-      <div className="drawer-section">
-        {sampleInput && (
-          <div className="section-block">
-            <div className="block-title">输入示例</div>
-            <div className="block-text">{sampleInput}</div>
-          </div>
-        )}
-        {normative?.good && (
-          <div className="section-block">
-            <div className="block-title">规范建议</div>
-            <div className="block-text" style={{ color: '#52c41a' }}>{normative.good}</div>
-            {normative.bad && normative.bad !== sampleInput && (
-              <div className="block-text" style={{ color: '#999', textDecoration: 'line-through', fontSize: '12px', marginTop: 4 }}>
-                原输入：{normative.bad}
-              </div>
-            )}
-          </div>
-        )}
-        {tips.length > 0 && <div className="section-block"><div className="block-title">提示</div><ul>{tips.map((t, i) => <li key={i}>{t}</li>)}</ul></div>}
-        {guidance.length > 0 && <div className="section-block"><div className="block-title">引导</div><ul>{guidance.map((g, i) => <li key={i}>{g}</li>)}</ul></div>}
-        {timeline.length > 0 && <div className="section-block"><div className="block-title">时间线</div><ul>{timeline.map((t, i) => <li key={i}>{t.label} {t.done ? '✓' : '—'}</li>)}</ul></div>}
-      </div>
-    );
-  }, [panel]);
+  const getMiniPanelStyle = () => {
+    if (!position) return styles.miniPanel;
+    
+    // Anchor panel above the button
+    // Button is 60x60
+    const panelHeight = 250; // approx
+    const panelWidth = 360;
+    
+    let top = position.y - panelHeight - 12;
+    let left = position.x - panelWidth + 60; // Align right edges roughly
 
-  /**
-   * 智能验证Tab内容
-   */
-  const validationContent = useMemo(() => {
-    const text = panel.validationText || panel.hpiCareValidationTip || panel.maritalValidation || panel.redFlagsTip || panel.conflictTip;
-    const omissions = panel.omissions || [];
-    return (
-      <div className="drawer-section">
-        {text && <div className="section-block"><div className="block-title">校验</div><div className="block-text">{text}</div></div>}
-        {omissions.length > 0 && (
-          <div className="section-block">
-            <div className="block-title">遗漏项</div>
-            <ul>{omissions.map((o, i) => <li key={i} style={{ color: '#faad14' }}>{o}</li>)}</ul>
-          </div>
-        )}
-      </div>
-    );
-  }, [panel]);
-
-  /**
-   * 问诊技巧Tab内容
-   */
-  const techniquesContent = useMemo(() => {
-    const diseases = panel.diseases || [];
-    const recognition = panel.recognition;
-    const actions = panel.actions || [];
-    return (
-      <div className="drawer-section">
-        {recognition && (
-          <div className="section-block">
-            <div className="block-title">症状识别</div>
-            <div className="block-text">
-              {recognition.symptom && <div>症状：{recognition.symptom}</div>}
-              {recognition.duration && <div>持续时间：{recognition.duration}</div>}
-            </div>
-          </div>
-        )}
-        {diseases.length > 0 && <div className="section-block"><div className="block-title">疑似诊断</div><ul>{diseases.map((d, i) => <li key={i}>{d}</li>)}</ul></div>}
-        {actions.length > 0 && <div className="section-block"><div className="block-title">建议操作</div><ul>{actions.map((a, i) => <li key={i}>{a}</li>)}</ul></div>}
-      </div>
-    );
-  }, [panel]);
-
-  /**
-   * 练习模式Tab内容
-   */
-  const trainingContent = useMemo(() => {
-    const summary = panel.familySummary || panel.occupationalExposureTip || panel.pregnancyRedFlagsTip || panel.weeklyAlcoholHint;
-    const geneticRiskTip = panel.geneticRiskTip;
-    const smokingIndexHint = panel.smokingIndexHint;
-    const drinkingHint = panel.drinkingHint;
-    return (
-      <div className="drawer-section">
-        {summary && <div className="section-block"><div className="block-title">训练提示</div><div className="block-text">{summary}</div></div>}
-        {geneticRiskTip && <div className="section-block"><div className="block-title">遗传风险</div><div className="block-text">{geneticRiskTip}</div></div>}
-        {smokingIndexHint && <div className="section-block"><div className="block-title">吸烟指数</div><div className="block-text">{smokingIndexHint}</div></div>}
-        {drinkingHint && <div className="section-block"><div className="block-title">饮酒提示</div><div className="block-text">{drinkingHint}</div></div>}
-      </div>
-    );
-  }, [panel]);
-
-  const knowledgeContent = <KnowledgeTab />;
-
-  const content = tab === 'teaching' ? teachingContent
-    : tab === 'validation' ? validationContent
-    : tab === 'techniques' ? techniquesContent
-    : tab === 'training' ? trainingContent
-    : knowledgeContent;
-
-  const floatingSafePadding = 8;
-  const anchorGap = 12;
-  const isMobile = typeof window !== 'undefined' ? window.innerWidth <= 768 : false;
-  const buttonSize = isMobile ? 50 : 60;
-
-  const buttonStyle: React.CSSProperties | undefined = position
-    ? { position: 'fixed', left: position.x, top: position.y, right: 'auto', bottom: 'auto' }
-    : undefined;
-
-  const miniPanelStyle: React.CSSProperties | undefined = useMemo(() => {
-    if (!position || typeof window === 'undefined') return undefined;
-    const panelWidth = isMobile ? Math.min(window.innerWidth * 0.9, 420) : 360;
-    const estimatedHeight = isMobile ? 260 : 280;
-
-    const preferAbove = position.y > estimatedHeight + anchorGap + floatingSafePadding;
-    const desiredTop = preferAbove
-      ? position.y - estimatedHeight - anchorGap
-      : position.y + buttonSize + anchorGap;
-
-    const maxLeft = Math.max(floatingSafePadding, window.innerWidth - panelWidth - floatingSafePadding);
-    const desiredLeft = position.x + buttonSize - panelWidth;
+    // Boundary checks
+    if (top < 16) top = position.y + 72; // Flip to below if too high
+    if (left < 16) left = 16;
+    if (left + panelWidth > window.innerWidth - 16) left = window.innerWidth - panelWidth - 16;
 
     return {
-      position: 'fixed',
-      left: Math.max(floatingSafePadding, Math.min(maxLeft, desiredLeft)),
-      top: Math.max(floatingSafePadding, Math.min(window.innerHeight - floatingSafePadding - 120, desiredTop)),
-      right: 'auto',
-      bottom: 'auto',
-      width: panelWidth,
-    };
-  }, [buttonSize, isMobile, position]);
-
-  const drawerStyle: React.CSSProperties = useMemo(() => {
-    if (!position || typeof window === 'undefined' || isMobile) return { width };
-    const maxHeight = Math.max(320, window.innerHeight - floatingSafePadding * 2);
-    const height = Math.min(640, maxHeight);
-    const preferRight = position.x < window.innerWidth / 2;
-    const desiredLeft = preferRight
-      ? position.x + buttonSize + anchorGap
-      : position.x - width - anchorGap;
-    const maxLeft = Math.max(floatingSafePadding, window.innerWidth - width - floatingSafePadding);
-    const left = Math.max(floatingSafePadding, Math.min(maxLeft, desiredLeft));
-
-    const desiredTop = position.y - 120;
-    const maxTop = Math.max(floatingSafePadding, window.innerHeight - height - floatingSafePadding);
-    const top = Math.max(floatingSafePadding, Math.min(maxTop, desiredTop));
-    return {
-      position: 'fixed',
-      left,
-      width,
+      ...styles.miniPanel,
       top,
-      height,
-      right: 'auto',
+      left,
       bottom: 'auto',
+      right: 'auto',
     };
-  }, [anchorGap, buttonSize, floatingSafePadding, isMobile, position, width]);
-
-  const renderMiniActions = () => {
-    const items: Array<{ label: string; onClick: () => void }> = [];
-
-    if (moduleKey === 'chief_complaint' && actions.improveChiefComplaint) {
-      items.push({ label: '智能完善', onClick: actions.improveChiefComplaint });
-    }
-    if (moduleKey === 'hpi' && actions.checkHpiCompleteness) {
-      items.push({ label: '完整性检查', onClick: actions.checkHpiCompleteness });
-    }
-    if (moduleKey === 'past_history' && actions.completePastHistory) {
-      items.push({ label: '智能补全', onClick: actions.completePastHistory });
-    }
-    if (moduleKey === 'review_of_systems' && actions.remindRedFlags) {
-      items.push({ label: '红旗征提醒', onClick: actions.remindRedFlags });
-    }
-    if (moduleKey === 'review_of_systems' && actions.guideReviewOfSystems) {
-      items.push({ label: '引导', onClick: actions.guideReviewOfSystems });
-    }
-    if (moduleKey === 'personal_history' && actions.showPersonalHints) {
-      items.push({ label: '智能提示', onClick: actions.showPersonalHints });
-    }
-    if (moduleKey === 'personal_history' && actions.suggestOccupationalExposure) {
-      items.push({ label: '职业暴露提示', onClick: actions.suggestOccupationalExposure });
-    }
-    if (moduleKey === 'marital_history' && actions.validateMaritalHistory) {
-      items.push({ label: '信息校验', onClick: actions.validateMaritalHistory });
-    }
-    if (moduleKey === 'marital_history' && actions.showPregnancyRedFlags) {
-      items.push({ label: '妊娠红旗提示', onClick: actions.showPregnancyRedFlags });
-    }
-    if (moduleKey === 'family_history' && actions.summarizeFamilyHistory) {
-      items.push({ label: '生成摘要', onClick: actions.summarizeFamilyHistory });
-    }
-    if (moduleKey === 'family_history' && actions.detectFamilyConflict) {
-      items.push({ label: '冲突检测', onClick: actions.detectFamilyConflict });
-    }
-    if (moduleKey === 'family_history' && actions.assessGeneticRisk) {
-      items.push({ label: '遗传风险评估', onClick: actions.assessGeneticRisk });
-    }
-    if (actions.openDetailHelp) {
-      items.push({ label: '帮助', onClick: actions.openDetailHelp });
-    }
-
-    return items.slice(0, 3);
   };
 
-  const miniActions = renderMiniActions();
+  const renderMini = () => (
+    <div style={getMiniPanelStyle()}>
+      <div style={styles.miniHeader}>
+        <span style={{ fontWeight: 600, color: token.colorText }}>问诊助手</span>
+        <div style={{ display: 'flex', gap: 4 }}>
+          <Tooltip title="展开详情">
+            <Button type="text" size="small" icon={<ExpandOutlined />} onClick={handleOpenDetail} />
+          </Tooltip>
+          <Tooltip title="关闭">
+            <Button type="text" size="small" icon={<CloseOutlined />} onClick={handleClose} />
+          </Tooltip>
+        </div>
+      </div>
+      <div style={styles.miniBody}>
+        {/* Simplified Mini Content */}
+        <div style={{ marginBottom: 8 }}>
+          <div style={{ fontSize: 12, color: token.colorTextSecondary, marginBottom: 4 }}>当前建议</div>
+          <div style={{ fontSize: 14, color: token.colorText }}>
+            建议询问患者是否有<span style={{ color: token.colorPrimary, fontWeight: 500 }}>发热</span>伴随症状。
+          </div>
+        </div>
+        {hasNewMessage && (
+           <Badge status="processing" text="有新的指导建议" />
+        )}
+      </div>
+      <div style={styles.miniFooter}>
+        <Button size="small" onClick={handleOpenDetail}>查看详情</Button>
+      </div>
+    </div>
+  );
+
+  const renderDrawer = () => (
+    <div style={styles.drawer}>
+      <div style={styles.drawerHeader}>
+        <div style={{ fontWeight: 600, fontSize: 16, color: token.colorText }}>问诊助手</div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Tooltip title="最小化">
+            <Button type="text" icon={<ShrinkOutlined />} onClick={handleMinimize} />
+          </Tooltip>
+          <Tooltip title="关闭">
+            <Button type="text" icon={<CloseOutlined />} onClick={handleClose} />
+          </Tooltip>
+        </div>
+      </div>
+      
+      <div style={{ padding: '0 12px', borderBottom: `1px solid ${token.colorBorderSecondary}` }}>
+        <Tabs
+          activeKey={tab}
+          onChange={(k) => setTab(k as TabKey)}
+          items={[
+            { key: 'teaching', label: '教学指导' },
+            { key: 'validation', label: '完整性校验' },
+            { key: 'knowledge', label: '知识库' },
+          ]}
+        />
+      </div>
+
+      <div style={styles.drawerContent}>
+        {tab === 'knowledge' && <KnowledgeTab />}
+        {tab === 'teaching' && <TeachingTab />}
+        {tab === 'validation' && <ValidationTab />}
+      </div>
+
+      <div style={styles.drawerFooter}>
+        <Tooltip title="语音输入(开发中)">
+          <Button icon={<SoundOutlined />} disabled />
+        </Tooltip>
+        <Tooltip title="帮助">
+          <Button icon={<QuestionCircleOutlined />} />
+        </Tooltip>
+      </div>
+    </div>
+  );
 
   return (
     <>
+      <style>{pulseKeyframes}</style>
+      
+      {/* Floating Entry Button */}
       <button
         ref={btnRef}
-        className={`floating-assistant-btn ${hasNewMessage ? 'has-message' : ''}`}
-        style={buttonStyle}
+        className="floating-assistant-btn" // Keep class for potential external overrides, but styles are inline
+        style={styles.floatingBtn}
         onPointerDown={handlePointerDown}
         onClick={handleToggle}
-        aria-label="打开助手"
       >
         <RobotOutlined />
       </button>
 
-      {open && mode === 'mini' && (
-        <div className="assistant-mini-panel" style={miniPanelStyle}>
-          <div className="mini-header">
-            <div className="mini-title">智能问诊助手</div>
-            <div className="mini-actions">
-              <button className="link-btn" onClick={handleOpenDetail}>详细</button>
-              <button className="link-btn" onClick={handleClose}>关闭</button>
-            </div>
-          </div>
-          <div className="mini-body">
-            <div className="mini-block">
-              <div className="mini-label">当前模块</div>
-              <div className="mini-text">{moduleLabel || '未选择'}</div>
-            </div>
-            <div className="mini-block">
-              <div className="mini-label">进度</div>
-              <div className="mini-text">{Math.round(progressPercent)}%</div>
-            </div>
-            {panel.sampleInput && (
-              <div className="mini-block">
-                <div className="mini-label">输入</div>
-                <div className="mini-text">{panel.sampleInput}</div>
-              </div>
-            )}
-            {panel.normative?.good && (
-              <div className="mini-block">
-                <div className="mini-label">建议</div>
-                <div className="mini-text">{panel.normative.good}</div>
-              </div>
-            )}
-            {Array.isArray(panel.pendingItems) && panel.pendingItems.length > 0 && (
-              <div className="mini-block">
-                <div className="mini-label">待补充</div>
-                <div className="mini-text">{panel.pendingItems.slice(0, 6).join('、')}</div>
-              </div>
-            )}
-            {panel.validationText && (
-              <div className="mini-block">
-                <div className="mini-label">校验</div>
-                <div className="mini-text">{panel.validationText}</div>
-              </div>
-            )}
-          </div>
-          <div className="mini-footer">
-            {miniActions.length > 0 ? (
-              miniActions.map((it) => (
-                <button key={it.label} className="mini-btn" onClick={it.onClick}>{it.label}</button>
-              ))
-            ) : (
-              <button className="mini-btn" onClick={handleOpenDetail}>详细</button>
-            )}
-          </div>
-        </div>
-      )}
-
-      {open && mode === 'drawer' && (
-        <div className="assistant-drawer" style={drawerStyle}>
-          <div className="drawer-header">
-            <h3>智能问诊助手</h3>
-            <div className="drawer-actions">
-              <button className="btn-minimize" onClick={handleMinimize}>－</button>
-              <button className="btn-close" onClick={handleClose}>×</button>
-            </div>
-          </div>
-          <div className="drawer-tabs">
-            <button className={tab === 'teaching' ? 'active' : ''} onClick={() => setTab('teaching')}>教学指导</button>
-            <button className={tab === 'validation' ? 'active' : ''} onClick={() => setTab('validation')}>智能验证</button>
-            <button className={tab === 'techniques' ? 'active' : ''} onClick={() => setTab('techniques')}>问诊技巧</button>
-            <button className={tab === 'training' ? 'active' : ''} onClick={() => setTab('training')}>练习模式</button>
-            <button className={tab === 'knowledge' ? 'active' : ''} onClick={() => setTab('knowledge')}>知识库</button>
-          </div>
-          <div className="drawer-content">
-            {content}
-          </div>
-          <div className="drawer-footer">
-            <button className="voice-btn" onClick={() => actions.startVoiceInput?.()}>🎤 语音</button>
-            <button className="help-btn" onClick={() => actions.openDetailHelp?.()}>❓ 帮助</button>
-            <button className="check-btn" onClick={() => actions.checkHpiCompleteness?.()}>✅ 检查</button>
-          </div>
-          <div className="drawer-resizer" onMouseDown={onMouseDownResize} />
-        </div>
-      )}
+      {/* Panel Content */}
+      {open && mode === 'mini' && renderMini()}
+      {open && mode === 'drawer' && renderDrawer()}
     </>
   );
 };

@@ -21,6 +21,7 @@ const Dashboard: React.FC = () => {
   });
   const [aiDrawerOpen, setAiDrawerOpen] = useState(false);
   const [selectedChartInfo, setSelectedChartInfo] = useState<{ title: string; content: string } | null>(null);
+  const [, setRefreshKey] = useState(0);
 
   // Mock Data Generators
   const generateTrendData = () => {
@@ -41,7 +42,7 @@ const Dashboard: React.FC = () => {
   }, []);
 
   // Chart Options
-  const lineOption = {
+  const lineOption: echarts.EChartsOption = {
     tooltip: { trigger: 'axis' },
     grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
     xAxis: { type: 'category', boundaryGap: false, data: trendData.dates },
@@ -56,7 +57,7 @@ const Dashboard: React.FC = () => {
     }]
   };
 
-  const barOption = {
+  const barOption: echarts.EChartsOption = {
     tooltip: { trigger: 'axis' },
     grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
     xAxis: { type: 'category', data: ['0-18', '19-30', '31-45', '46-60', '60+'] },
@@ -69,7 +70,7 @@ const Dashboard: React.FC = () => {
     }]
   };
 
-  const pieOption = {
+  const pieOption: echarts.EChartsOption = {
     tooltip: { trigger: 'item' },
     legend: { bottom: '0%' },
     series: [{
@@ -88,7 +89,7 @@ const Dashboard: React.FC = () => {
     }]
   };
 
-  const radarOption = {
+  const radarOption: echarts.EChartsOption = {
     radar: {
       indicator: [
         { name: '问诊完整性', max: 100 },
@@ -110,7 +111,7 @@ const Dashboard: React.FC = () => {
     }]
   };
 
-  const funnelOption = {
+  const funnelOption: echarts.EChartsOption = {
     tooltip: { trigger: 'item' },
     series: [{
       name: '诊疗流程转化',
@@ -136,7 +137,7 @@ const Dashboard: React.FC = () => {
     }]
   };
 
-  const heatmapOption = {
+  const heatmapOption: echarts.EChartsOption = {
     tooltip: { position: 'top' },
     grid: { height: '50%', top: '10%' },
     xAxis: { type: 'category', data: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], splitArea: { show: true } },
@@ -272,7 +273,7 @@ const Dashboard: React.FC = () => {
         placement="right"
         onClose={() => setAiDrawerOpen(false)}
         open={aiDrawerOpen}
-        size={400}
+        size="default"
       >
         <Alert
           title="AI 诊断建议"

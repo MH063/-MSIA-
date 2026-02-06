@@ -6,6 +6,7 @@
     "server"
   ],
   "scripts": {
+    "build": "npm run build --prefix client",
     "_postinstall": "npm --prefix server ci || npm --prefix server install && npm --prefix server run build"
   },
   "dependencies": {

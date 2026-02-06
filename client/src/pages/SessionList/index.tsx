@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { App as AntdApp, Button, Space, Typography, Card, Tag, Grid, Pagination, Spin, Empty, Timeline, Switch, Collapse, Row, Col, theme } from 'antd';
+import { App as AntdApp, Button, Space, Typography, Card, Tag, Grid, Pagination, Empty, Timeline, Switch, Collapse, Row, Col, theme } from 'antd';
 import { DeleteOutlined, EyeOutlined, ExclamationCircleOutlined, PlusOutlined, LockOutlined, UnlockOutlined, ClockCircleOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import dayjs from 'dayjs';
 import api, { getApiErrorMessage, unwrapData } from '../../utils/api';
 import type { ApiResponse } from '../../utils/api';
 import MarkdownEditor from '../../components/MarkdownEditor';
+
+import Loading from '../../components/common/Loading';
 
 const { Title, Text } = Typography;
 const { useBreakpoint } = Grid;
@@ -38,18 +40,40 @@ const SessionList: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<SessionListItem[]>([]);
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
-  const [isEncrypted, setIsEncrypted] = useState(false);
+  const [isEncrypted, setIsEncrypted] = useState(() => localStorage.getItem('privacy_mode') === 'true');
   const [activeNotes, setActiveNotes] = useState<Record<number, string>>({});
+  const [viewMode, setViewMode] = useState<'all' | 'archived'>('all');
+  const [searchParams] = useSearchParams();
+  const searchTerm = React.useMemo(() => String(searchParams.get('search') || '').trim(), [searchParams]);
 
-  const fetchData = React.useCallback(async (page: number = 1, pageSize: number = 10) => {
+  // 持久化隐私模式设置
+  useEffect(() => {
+    localStorage.setItem('privacy_mode', String(isEncrypted));
+  }, [isEncrypted]);
+
+  const fetchData = React.useCallback(async (page: number = 1, pageSize: number = 10, status?: string, search?: string) => {
     setLoading(true);
     try {
+      const params: Record<string, string | number> = { limit: pageSize, offset: (page - 1) * pageSize };
+      // 如果是归档模式，尝试传递状态参数
+      if (status && status !== 'all') {
+        params.status = status;
+      }
+      if (search && search.trim()) {
+        const safe = search.replace(/['"<>]/g, '').trim();
+        params.search = safe;
+      }
+      
       const res: ApiResponse<{ items: SessionListItem[]; total: number } | { data: { items: SessionListItem[]; total: number } }> = await api.get('/sessions', {
-        params: { limit: pageSize, offset: (page - 1) * pageSize }
+        params
       });
       if (res?.success) {
         const payload = unwrapData<{ items: SessionListItem[]; total: number }>(res);
-        const items = payload?.items || [];
+        let items = payload?.items || [];
+        // 前端兜底过滤
+        if (status && status !== 'all') {
+             items = items.filter(item => item.status === status);
+        }
         const total = payload?.total || 0;
         setData(items);
         setPagination({ current: page, pageSize, total });
@@ -66,8 +90,8 @@ const SessionList: React.FC = () => {
   const pageSize = React.useMemo(() => pagination.pageSize, [pagination]);
 
   useEffect(() => {
-    fetchData(pageCurrent, pageSize);
-  }, [fetchData, pageCurrent, pageSize]);
+    fetchData(pageCurrent, pageSize, viewMode === 'archived' ? 'archived' : undefined, searchTerm);
+  }, [fetchData, pageCurrent, pageSize, viewMode, searchTerm]);
 
   const handleDelete = (id: number) => {
     modal.confirm({
@@ -81,7 +105,7 @@ const SessionList: React.FC = () => {
           const res: ApiResponse = await api.delete(`/sessions/${id}`);
           if (res.success) {
             message.success('已永久删除');
-            fetchData(pageCurrent, pageSize);
+            fetchData(pageCurrent, pageSize, viewMode === 'archived' ? 'archived' : undefined, searchTerm);
           }
         } catch (error: unknown) {
           message.error(getApiErrorMessage(error, '删除失败'));
@@ -133,7 +157,7 @@ const SessionList: React.FC = () => {
       </div>
 
       {loading && data.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: 40 }}><Spin size="large" /></div>
+        <Loading height="60vh" />
       ) : data.length === 0 ? (
         <Empty description="暂无病历记录" image={Empty.PRESENTED_IMAGE_SIMPLE} />
       ) : (
@@ -208,7 +232,7 @@ const SessionList: React.FC = () => {
                     current={pagination.current}
                     pageSize={pagination.pageSize}
                     total={pagination.total}
-                    onChange={(page, size) => fetchData(page, size)}
+                    onChange={(page, size) => fetchData(page, size, viewMode === 'archived' ? 'archived' : undefined)}
                     size="small"
                   />
                 </div>
@@ -236,9 +260,13 @@ const SessionList: React.FC = () => {
 
             <Card title="快速操作" variant="borderless">
               <Space orientation="vertical" style={{ width: '100%' }}>
-                <Button block onClick={() => navigate('/interview')}>创建新病历</Button>
-                <Button block>导出本月报表</Button>
-                <Button block>管理归档记录</Button>
+                <Button 
+                  block 
+                  type={viewMode === 'archived' ? 'primary' : 'default'}
+                  onClick={() => setViewMode(viewMode === 'all' ? 'archived' : 'all')}
+                >
+                  {viewMode === 'archived' ? '返回全部记录' : '管理归档记录'}
+                </Button>
               </Space>
             </Card>
           </Col>

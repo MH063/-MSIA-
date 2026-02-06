@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
-import { App as AntdApp, Button, Form, Input, Typography, Select, Progress, Row, Col } from 'antd';
-import { UserOutlined, LockOutlined, SafetyOutlined, TeamOutlined, MedicineBoxFilled, CheckCircleFilled, CloseCircleFilled } from '@ant-design/icons';
+import { App as AntdApp, Button, Form, Input, Typography, Select, Progress, Row, Col, theme } from 'antd';
+import { UserOutlined, LockOutlined, TeamOutlined, MedicineBoxFilled, CheckCircleFilled, CloseCircleFilled } from '@ant-design/icons';
 import { useNavigate, Link } from 'react-router-dom';
 import api, { unwrapData, getApiErrorMessage } from '../../utils/api';
 import type { ApiResponse } from '../../utils/api';
 import Captcha from '../../components/Captcha';
+import { useThemeStore } from '../../store/theme.store';
 import './register.css';
 
-const { Title, Text } = Typography;
+const { Title } = Typography;
 
 type RegisterResult = {
   operatorId: number;
@@ -27,8 +28,6 @@ type RegisterValues = {
 
 /**
  * 计算密码强度
- * @param password 密码
- * @returns 0-100的强度值
  */
 const calculatePasswordStrength = (password: string): number => {
   if (!password) return 0;
@@ -87,6 +86,10 @@ const PasswordRequirement: React.FC<{ met: boolean; text: string }> = ({ met, te
 const Register: React.FC = () => {
   const [form] = Form.useForm();
   const { message } = AntdApp.useApp();
+  const { token } = theme.useToken();
+  const { mode } = useThemeStore();
+  const isDark = mode === 'dark';
+
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState(0);
@@ -167,206 +170,211 @@ const Register: React.FC = () => {
 
   return (
     <div className="register-page">
-      {/* 背景装饰 */}
+      <style>{`
+        .register-page {
+          background: ${isDark ? token.colorBgLayout : '#f0f2f5'} !important;
+        }
+        .register-bg-blob {
+          opacity: ${isDark ? 0.15 : 0.6} !important;
+        }
+        .register-card {
+          background: ${token.colorBgContainer} !important;
+          border: 1px solid ${token.colorBorderSecondary} !important;
+        }
+        .register-input {
+          background: ${token.colorBgContainer} !important;
+          border-color: ${token.colorBorder} !important;
+          color: ${token.colorText} !important;
+        }
+        .register-input:hover, .register-input:focus {
+          border-color: ${token.colorPrimary} !important;
+        }
+        .register-input-icon {
+          color: ${token.colorTextDescription} !important;
+        }
+        .register-select .ant-select-selector {
+          background: ${token.colorBgContainer} !important;
+          border-color: ${token.colorBorder} !important;
+          color: ${token.colorText} !important;
+        }
+        .register-select .ant-select-arrow {
+          color: ${token.colorTextDescription};
+        }
+        .password-requirement {
+          color: ${token.colorTextSecondary};
+        }
+        .password-requirement.met {
+          color: ${token.colorText};
+        }
+        .register-title {
+          color: ${token.colorText} !important;
+        }
+        .register-subtitle {
+          color: ${token.colorTextSecondary} !important;
+        }
+      `}</style>
+
+      {/* 动态背景 */}
       <div className="register-bg-decoration">
         <div className="register-bg-blob register-bg-blob-1" />
         <div className="register-bg-blob register-bg-blob-2" />
-        <div className="register-bg-blob register-bg-blob-3" />
       </div>
 
-      {/* 主内容区 */}
-      <div className="register-container">
-        {/* 左侧品牌区 */}
-        <div className="register-brand">
-          <div className="register-brand-logo">
+      {/* 注册卡片 */}
+      <div className="register-card">
+        <div className="register-header">
+          <div className="register-logo">
             <MedicineBoxFilled />
           </div>
-          <h1 className="register-brand-title">医学生智能问诊辅助系统</h1>
-          <p className="register-brand-subtitle">Medical Student Intelligent Assistant</p>
-          
-          <div className="register-brand-features">
-            <div className="register-brand-feature">
-              <span className="feature-dot" style={{ background: '#722ed1' }} />
-              <span>精准诊断训练</span>
-            </div>
-            <div className="register-brand-feature">
-              <span className="feature-dot" style={{ background: '#1677ff' }} />
-              <span>丰富病例库</span>
-            </div>
-            <div className="register-brand-feature">
-              <span className="feature-dot" style={{ background: '#52c41a' }} />
-              <span>实时智能反馈</span>
-            </div>
-          </div>
+          <Title level={3} className="register-title">用户注册</Title>
+          <div className="register-subtitle" style={{ color: token.colorTextSecondary }}>创建您的账户，开启智能问诊之旅</div>
         </div>
 
-        {/* 右侧注册卡片 */}
-        <div className="register-card-wrapper">
-          <div className="register-card">
-            {/* 头部 */}
-            <div className="register-header">
-              <div className="register-header-icon">
-                <SafetyOutlined />
+        <Form 
+          form={form} 
+          layout="vertical" 
+          onFinish={onFinish} 
+          size="large"
+          className="register-form"
+        >
+          <Form.Item
+            name="username"
+            rules={[
+              { required: true, message: '请输入用户名' },
+              { min: 3, message: '用户名至少3个字符' },
+              { max: 20, message: '用户名最多20个字符' },
+              { pattern: /^[a-zA-Z0-9_]+$/, message: '用户名只能包含字母、数字和下划线' }
+            ]}
+            className="register-form-item"
+          >
+            <Input 
+              prefix={<UserOutlined className="register-input-icon" style={{ color: token.colorTextPlaceholder }} />} 
+              placeholder="请输入用户名" 
+              className="register-input"
+              autoComplete="username"
+              style={{ background: token.colorBgContainer, color: token.colorText }}
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="password"
+            rules={[
+              { required: true, message: '请输入密码' },
+              { min: 8, message: '密码至少8个字符' },
+            ]}
+            className="register-form-item"
+          >
+            <Input.Password 
+              prefix={<LockOutlined className="register-input-icon" style={{ color: token.colorTextPlaceholder }} />} 
+              placeholder="请输入密码" 
+              className="register-input"
+              autoComplete="new-password"
+              onChange={handlePasswordChange}
+              style={{ background: token.colorBgContainer, color: token.colorText }}
+            />
+          </Form.Item>
+
+          {/* 密码强度指示器 */}
+          {password && (
+            <div className="password-strength-container">
+              <div className="password-strength-bar">
+                <Progress 
+                  percent={passwordStrength} 
+                  status={strengthInfo.status}
+                  showInfo={false}
+                  strokeColor={strengthInfo.color}
+                  size="small"
+                />
               </div>
-              <Title level={3} className="register-title">用户注册</Title>
-              <p className="register-subtitle">创建您的账户，开启智能问诊之旅</p>
+              <div className="password-requirements">
+                <Row gutter={[8, 8]}>
+                  <Col span={12}>
+                    <PasswordRequirement met={password.length >= 8} text="至少8个字符" />
+                  </Col>
+                  <Col span={12}>
+                    <PasswordRequirement met={/[a-z]/.test(password)} text="包含小写字母" />
+                  </Col>
+                  <Col span={12}>
+                    <PasswordRequirement met={/[A-Z]/.test(password)} text="包含大写字母" />
+                  </Col>
+                  <Col span={12}>
+                    <PasswordRequirement met={/\d/.test(password)} text="包含数字" />
+                  </Col>
+                  <Col span={12}>
+                    <PasswordRequirement met={/[^A-Za-z0-9]/.test(password)} text="包含特殊字符" />
+                  </Col>
+                </Row>
+              </div>
             </div>
+          )}
+          
+          <Form.Item
+            name="name"
+            rules={[
+              { required: true, message: '请输入姓名' },
+              { min: 2, message: '姓名至少2个字符' },
+              { max: 20, message: '姓名最多20个字符' }
+            ]}
+            className="register-form-item"
+          >
+            <Input 
+              prefix={<UserOutlined className="register-input-icon" />} 
+              placeholder="请输入真实姓名" 
+              className="register-input"
+              autoComplete="name"
+            />
+          </Form.Item>
 
-            {/* 注册表单 */}
-            <Form 
-              form={form} 
-              layout="vertical" 
-              onFinish={onFinish} 
-              size="large"
-              className="register-form"
+          <Form.Item
+            name="role"
+            initialValue="doctor"
+            className="register-form-item"
+          >
+            <Select
+              prefix={<TeamOutlined className="register-input-icon" />}
+              options={[
+                { label: '医生', value: 'doctor' },
+                { label: '管理员', value: 'admin' },
+              ]}
+              className="register-select"
+              placeholder="请选择角色"
+            />
+          </Form.Item>
+
+          {/* 验证码 */}
+          <Form.Item
+            name="captcha"
+            rules={[{ required: true, message: '请输入验证码' }]}
+            className="register-form-item"
+          >
+            <Captcha
+              key={`captcha-${captchaRefreshKey}`}
+              onChange={(value) => form.setFieldsValue({ captcha: value })} 
+              onVerify={handleCaptchaVerify}
+              onIdChange={(id) => form.setFieldsValue({ captchaId: id })}
+            />
+          </Form.Item>
+          <Form.Item name="captchaId" initialValue="" hidden>
+            <Input type="hidden" />
+          </Form.Item>
+
+          <Form.Item className="register-form-item">
+            <Button 
+              type="primary" 
+              htmlType="submit" 
+              loading={loading} 
+              block
+              className="register-button"
+              disabled={!captchaVerified}
             >
-              <Form.Item
-                name="username"
-                rules={[
-                  { required: true, message: '请输入用户名' },
-                  { min: 3, message: '用户名至少3个字符' },
-                  { max: 20, message: '用户名最多20个字符' },
-                  { pattern: /^[a-zA-Z0-9_]+$/, message: '用户名只能包含字母、数字和下划线' }
-                ]}
-                className="register-form-item"
-              >
-                <Input 
-                  prefix={<UserOutlined className="register-input-icon" />} 
-                  placeholder="请输入用户名" 
-                  className="register-input"
-                  autoComplete="username"
-                />
-              </Form.Item>
+              注册
+            </Button>
+          </Form.Item>
+        </Form>
 
-              <Form.Item
-                name="password"
-                rules={[
-                  { required: true, message: '请输入密码' },
-                  { min: 8, message: '密码至少8个字符' },
-                ]}
-                className="register-form-item"
-              >
-                <Input.Password 
-                  prefix={<LockOutlined className="register-input-icon" />} 
-                  placeholder="请输入密码" 
-                  className="register-input"
-                  autoComplete="new-password"
-                  onChange={handlePasswordChange}
-                />
-              </Form.Item>
-
-              {/* 密码强度指示器 */}
-              {password && (
-                <div className="password-strength-container">
-                  <div className="password-strength-header">
-                    <Text type="secondary" className="strength-label">密码强度：</Text>
-                    <Text style={{ color: strengthInfo.color }} className="strength-level">
-                      {strengthInfo.level}
-                    </Text>
-                  </div>
-                  <Progress 
-                    percent={passwordStrength} 
-                    status={strengthInfo.status}
-                    showInfo={false}
-                    strokeColor={strengthInfo.color}
-                    className="strength-progress"
-                  />
-                  <div className="password-requirements">
-                    <Row gutter={[8, 8]}>
-                      <Col span={12}>
-                        <PasswordRequirement met={password.length >= 8} text="至少8个字符" />
-                      </Col>
-                      <Col span={12}>
-                        <PasswordRequirement met={/[a-z]/.test(password)} text="包含小写字母" />
-                      </Col>
-                      <Col span={12}>
-                        <PasswordRequirement met={/[A-Z]/.test(password)} text="包含大写字母" />
-                      </Col>
-                      <Col span={12}>
-                        <PasswordRequirement met={/\d/.test(password)} text="包含数字" />
-                      </Col>
-                      <Col span={12}>
-                        <PasswordRequirement met={/[^A-Za-z0-9]/.test(password)} text="包含特殊字符" />
-                      </Col>
-                    </Row>
-                  </div>
-                </div>
-              )}
-              
-              <Form.Item
-                name="name"
-                rules={[
-                  { required: true, message: '请输入姓名' },
-                  { min: 2, message: '姓名至少2个字符' },
-                  { max: 20, message: '姓名最多20个字符' }
-                ]}
-                className="register-form-item"
-              >
-                <Input 
-                  prefix={<UserOutlined className="register-input-icon" />} 
-                  placeholder="请输入真实姓名" 
-                  className="register-input"
-                  autoComplete="name"
-                />
-              </Form.Item>
-
-              <Form.Item
-                name="role"
-                initialValue="doctor"
-                className="register-form-item"
-              >
-                <Select
-                  prefix={<TeamOutlined className="register-input-icon" />}
-                  options={[
-                    { label: '医生', value: 'doctor' },
-                    { label: '管理员', value: 'admin' },
-                  ]}
-                  className="register-select"
-                  placeholder="请选择角色"
-                />
-              </Form.Item>
-
-              {/* 验证码 */}
-              <Form.Item
-                name="captcha"
-                rules={[{ required: true, message: '请输入验证码' }]}
-                className="register-form-item"
-              >
-                <Captcha
-                  key={`captcha-${captchaRefreshKey}`}
-                  onChange={(value) => form.setFieldsValue({ captcha: value })} 
-                  onVerify={handleCaptchaVerify}
-                  onIdChange={(id) => form.setFieldsValue({ captchaId: id })}
-                />
-              </Form.Item>
-              <Form.Item name="captchaId" initialValue="" hidden>
-                <Input type="hidden" />
-              </Form.Item>
-
-              <Form.Item className="register-form-item register-submit-item">
-                <Button 
-                  type="primary" 
-                  htmlType="submit" 
-                  loading={loading} 
-                  block
-                  className="register-button"
-                  disabled={passwordStrength < 60 || !captchaVerified}
-                >
-                  立即注册
-                </Button>
-              </Form.Item>
-              
-              <div className="register-footer">
-                <Text type="secondary" className="register-footer-text">已有账号？</Text>
-                <Link to="/login" className="register-footer-link">去登录</Link>
-              </div>
-            </Form>
-          </div>
-
-          {/* 版权信息 */}
-          <div className="register-copyright">
-            © 2025 医学生智能问诊辅助系统
-          </div>
+        <div className="register-footer">
+          <span className="register-footer-text">已有账号？</span>
+          <Link to="/login" className="register-footer-link">立即登录</Link>
         </div>
       </div>
     </div>

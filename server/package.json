@@ -8,7 +8,7 @@
     "build": "tsc",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix",
-    "test": "node --test --require ts-node/register src/__tests__/session.delete.test.ts src/__tests__/session.update.schema.test.ts"
+    "test": "vitest run"
   },
   "keywords": [],
   "author": "",
@@ -46,6 +46,7 @@
     "nodemon": "^3.1.11",
     "prisma": "^6.19.2",
     "ts-node": "^10.9.2",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
   }
 }

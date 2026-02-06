@@ -142,7 +142,11 @@ const Home: React.FC = () => {
                   placeholder="搜索病历、症状或知识库词条..."
                   enterButton={<Button type="primary" icon={<SearchOutlined />}>智能搜索</Button>}
                   size="large"
-                  onSearch={(val) => console.log('Search:', val)}
+                  onSearch={(val) => {
+                    if (val.trim()) {
+                      navigate(`/knowledge?search=${encodeURIComponent(val.trim())}`);
+                    }
+                  }}
                 />
               </div>
             </div>
@@ -296,36 +300,8 @@ const Home: React.FC = () => {
                </Card>
             </section>
 
-            {/* Knowledge Updates */}
-            <section className="section-block" style={{ marginTop: 32 }}>
-              <div className="section-header-wrapper">
-                <Title level={4} className="section-header">
-                  <BookOutlined /> 知识库更新
-                </Title>
-                <Button type="link" size="small" onClick={() => navigate('/knowledge')}>更多</Button>
-              </div>
-              <Card variant="borderless" className="knowledge-list-card shadow-sm">
-                {loading ? (
-                  <Skeleton active />
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {stats.recentKnowledge.slice(0, 5).map((item) => (
-                      <div
-                        key={item.id}
-                        onClick={() => navigate(`/knowledge?key=${item.symptomKey}`)}
-                        style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', width: '100%', padding: '8px 0' }}
-                      >
-                        <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#1890ff', marginRight: 8 }}></div>
-                        <Text style={{ flex: 1 }} ellipsis>
-                          {item.displayName}
-                        </Text>
-                        <Tag style={{ marginRight: 0 }}>{item.category || '症状'}</Tag>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </Card>
-            </section>
+            {/* Recent Knowledge */}
+            {/* Removed to save space or can be added back */}
           </Col>
         </Row>
       </div>
