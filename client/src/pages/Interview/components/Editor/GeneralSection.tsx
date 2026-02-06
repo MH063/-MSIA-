@@ -4,6 +4,7 @@ import LazyDatePicker from '../../../../components/lazy/LazyDatePicker';
 import dayjs from 'dayjs';
 import AgeDisplayView from './AgeDisplay';
 import { computeAgeDisplay, formatAgeText, normalizeAge, validateAge } from '../../../../utils/age';
+import logger from '../../../../utils/logger';
 
 const { Title } = Typography;
 const { useBreakpoint } = Grid;
@@ -43,7 +44,7 @@ const GeneralSection: React.FC = () => {
 
     if (Object.keys(patch).length > 0) {
       form.setFieldsValue(patch);
-      console.log('[GeneralSection] 年龄已按策略自动换算', {
+      logger.info('[GeneralSection] 年龄已按策略自动换算', {
         mainText: display.mainText,
         backupText: display.backupText,
         yearsFloat: display.yearsFloat,
@@ -54,7 +55,7 @@ const GeneralSection: React.FC = () => {
   }, [birthDate, recordTime, form]);
 
   /**
-   * 兜底：未填写出生日期时允许手动输入岁数
+   * 兜底：未填写出生日期时允许手动输入年龄（年/月）
    */
   useEffect(() => {
     const display = computeAgeDisplay(birthDate, recordTime ?? dayjs());
@@ -78,12 +79,12 @@ const GeneralSection: React.FC = () => {
 
     const issues = validateAge({ years: hasYears ? ageYears! : 0, months: hasMonths ? ageMonthsPart! : 0 });
     if (issues.length > 0) {
-      console.log('[GeneralSection] 年龄输入已校验并归一化', { issues, normalized });
+      logger.info('[GeneralSection] 年龄输入已校验并归一化', { issues, normalized });
     }
 
     if (Object.keys(patch).length > 0) {
       form.setFieldsValue(patch);
-      console.log('[GeneralSection] 未填出生日期，年龄使用手动输入', { normalized, yearsFloat });
+      logger.info('[GeneralSection] 未填出生日期，年龄使用手动输入', { normalized, yearsFloat });
     }
   }, [birthDate, recordTime, ageYears, ageMonthsPart, form]);
 
@@ -104,52 +105,47 @@ const GeneralSection: React.FC = () => {
   }, [historian, form]);
 
   /**
-   * 双向同步：职业
-   * 一般项目 -> 个人史
+   * 双向同步：职业（一般项 -> 个人史）
    */
   useEffect(() => {
     const personalOccupation = form.getFieldValue(['personalHistory', 'occupation']);
     if (generalOccupation && generalOccupation !== personalOccupation) {
       form.setFieldValue(['personalHistory', 'occupation'], generalOccupation);
-      console.log('[GeneralSection] 同步职业到个人史:', generalOccupation);
+      logger.info('[GeneralSection] 同步职业到个人史:', generalOccupation);
     }
   }, [generalOccupation, form]);
 
   /**
-   * 双向同步：工作单位
-   * 一般项目 -> 个人史
+   * 双向同步：工作单位（一般项 -> 个人史）
    */
   useEffect(() => {
     const personalEmployer = form.getFieldValue(['personalHistory', 'employer']);
     if (generalEmployer && generalEmployer !== personalEmployer) {
       form.setFieldValue(['personalHistory', 'employer'], generalEmployer);
-      console.log('[GeneralSection] 同步工作单位到个人史:', generalEmployer);
+      logger.info('[GeneralSection] 同步工作单位到个人史:', generalEmployer);
     }
   }, [generalEmployer, form]);
 
   /**
-   * 双向同步：出生地
-   * 一般项目 -> 个人史
+   * 双向同步：出生地（一般项 -> 个人史）
    */
   useEffect(() => {
     const personalBirthplace = form.getFieldValue(['personalHistory', 'birthplace']);
     if (generalPlaceOfBirth && generalPlaceOfBirth !== personalBirthplace) {
       form.setFieldValue(['personalHistory', 'birthplace'], generalPlaceOfBirth);
-      console.log('[GeneralSection] 同步出生地到个人史:', generalPlaceOfBirth);
+      logger.info('[GeneralSection] 同步出生地到个人史', generalPlaceOfBirth);
     }
   }, [generalPlaceOfBirth, form]);
 
   /**
-   * 双向同步：婚姻状况
-   * 一般项目 -> 婚育史
+   * 双向同步：婚姻状况（一般项 -> 婚育史）
    */
   useEffect(() => {
     const maritalStatus = form.getFieldValue(['maritalHistory', 'status']);
     // 避免循环更新，只在值确实不同时才设置
     if (generalMaritalStatus && generalMaritalStatus !== maritalStatus) {
-      // 注意：这里不需要额外设置，因为字段路径相同，Form会自动同步
-      // 但为了确保一致性，我们记录日志
-      console.log('[GeneralSection] 婚姻状况已同步:', generalMaritalStatus);
+      // 注意：这里不需要额外设置，因为字段路径相同，Form会自动同步；但为了确保一致性，我们记录日志
+      logger.info('[GeneralSection] 婚姻状况已同步', generalMaritalStatus);
     }
   }, [generalMaritalStatus, form]);
 
@@ -194,20 +190,20 @@ const GeneralSection: React.FC = () => {
                      name="ageYears"
                      noStyle
                      rules={[
-                       { required: true, message: '请输入年龄' },
+                       { required: true, message: '请输入年龄（年）' },
                        {
                          validator: (_rule, value) => {
                            if (value === null || value === undefined || value === '') return Promise.resolve();
                            const n = typeof value === 'number' ? value : Number(String(value));
                            if (Number.isFinite(n) && n >= 0 && n <= 150) return Promise.resolve();
-                           return Promise.reject(new Error('请输入有效年龄'));
+                           return Promise.reject(new Error('请输入有效年龄（年）'));
                          }
                        }
                      ]}
                    >
                      <InputNumber<number>
                        style={{ width: '60%', background: token.colorBgContainer }}
-                       placeholder="岁"
+                       placeholder="年"
                        min={0}
                        max={150}
                        suffix="岁"
@@ -222,7 +218,7 @@ const GeneralSection: React.FC = () => {
                            if (value === null || value === undefined || value === '') return Promise.resolve();
                            const n = typeof value === 'number' ? value : Number(String(value));
                            if (Number.isFinite(n) && n >= 0 && n <= 1200) return Promise.resolve();
-                           return Promise.reject(new Error('请输入有效月数'));
+                           return Promise.reject(new Error('请输入有效年龄（月）'));
                          }
                        }
                      ]}
@@ -293,12 +289,12 @@ const GeneralSection: React.FC = () => {
           </Col>
           <Col xs={12} sm={12} md={6}>
               <Form.Item name="nativePlace" label="籍贯">
-                  <Input placeholder="省/市" />
+                  <Input placeholder="如：广东广州" />
               </Form.Item>
           </Col>
           <Col xs={12} sm={12} md={6}>
               <Form.Item name="placeOfBirth" label="出生地">
-                  <Input placeholder="省/市/县" />
+                  <Input placeholder="如：广东广州" />
               </Form.Item>
           </Col>
           <Col xs={12} sm={12} md={6}>
@@ -329,7 +325,7 @@ const GeneralSection: React.FC = () => {
                     showTime
                     format="YYYY-MM-DD HH:mm"
                     style={{ width: '100%' }}
-                    placeholder="年-月-日 时:分"
+                    placeholder="请选择入院时间"
                     placement="bottomLeft"
                     classNames={{ popup: { root: isMobile ? 'msia-mobile-picker' : undefined } }}
                     getPopupContainer={(trigger: HTMLElement) => (isMobile ? document.body : trigger.parentElement ?? document.body)}
@@ -347,7 +343,7 @@ const GeneralSection: React.FC = () => {
                     showTime
                     format="YYYY-MM-DD HH:mm"
                     style={{ width: '100%' }}
-                    placeholder="年-月-日 时:分"
+                    placeholder="请选择记录时间"
                     placement="bottomLeft"
                     classNames={{ popup: { root: isMobile ? 'msia-mobile-picker' : undefined } }}
                     getPopupContainer={(trigger: HTMLElement) => (isMobile ? document.body : trigger.parentElement ?? document.body)}
@@ -385,7 +381,7 @@ const GeneralSection: React.FC = () => {
                       <Select.Option value="可靠">可靠</Select.Option>
                       <Select.Option value="基本可靠">基本可靠</Select.Option>
                       <Select.Option value="供参考">供参考</Select.Option>
-                      <Select.Option value="不可靠">不可靠</Select.Option>
+                      <Select.Option value="不可评估">不可评估</Select.Option>
                   </Select>
               </Form.Item>
           </Col>

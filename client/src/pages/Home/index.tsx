@@ -18,6 +18,7 @@ import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import 'dayjs/locale/zh-cn';
 import api, { unwrapData } from '../../utils/api';
+import logger from '../../utils/logger';
 import type { ApiResponse } from '../../utils/api';
 import medicalPulseAnimation from '../../assets/animations/medical-pulse.json';
 import './index.css';
@@ -29,8 +30,7 @@ const { Title, Text, Paragraph } = Typography;
 
 /**
  * 首页组件
- * 展示常用入口、最近问诊与知识更新，以及当日统计
- */
+ * 展示常用入口、最近问诊与知识更新，以及当日统计 */
 const Home: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -68,7 +68,7 @@ const Home: React.FC = () => {
             }
         }
     } catch (err) {
-        console.error('[Home] 首页统计数据获取失败', err);
+        logger.error('[Home] 首页统计数据获取失败', err);
     } finally {
         setLoading(false);
     }
@@ -131,7 +131,7 @@ const Home: React.FC = () => {
           <Col xs={24} md={14} lg={16}>
             <div className="banner-content">
               <Title level={1} className="banner-title">
-                医学生智能问诊辅助系统 <span style={{ opacity: 0.8, fontWeight: 300 }}>MSIA</span>
+                医学生智能问诊辅助系统<span style={{ opacity: 0.8, fontWeight: 300 }}>MSIA</span>
               </Title>
               <Paragraph className="banner-subtitle">
                 结合 AI 技术的临床思维训练平台，提供标准化的问诊流程引导、实时诊断建议与循证医学知识支持。
@@ -139,7 +139,7 @@ const Home: React.FC = () => {
               
               <div className="banner-search">
                 <Input.Search
-                  placeholder="搜索病历、症状或知识库词条..."
+                  placeholder="搜索病历、症状或知识库词条…"
                   enterButton={<Button type="primary" icon={<SearchOutlined />}>智能搜索</Button>}
                   size="large"
                   onSearch={(val) => {
@@ -263,7 +263,7 @@ const Home: React.FC = () => {
                     <Statistic
                       title="今日问诊"
                       value={stats.todayCount}
-                      suffix="人"
+                      suffix="次"
                       styles={{ content: { color: '#1890ff' } }}
                     />
                   </Card>
@@ -273,7 +273,7 @@ const Home: React.FC = () => {
                     <Statistic
                       title="累计完成"
                       value={stats.completedCount}
-                      suffix="份"
+                      suffix="次"
                       styles={{ content: { color: '#52c41a' } }}
                     />
                   </Card>
@@ -293,7 +293,7 @@ const Home: React.FC = () => {
                    <div>
                      <Text strong style={{ fontSize: 16 }}>每日医学贴士</Text>
                      <Paragraph type="secondary" style={{ marginTop: 8, marginBottom: 0 }}>
-                       问诊时注意观察患者的非语言行为，面部表情和肢体语言往往能提供重要的诊断线索。在询问既往史时，不要忘记询问过敏史和用药史。
+                      问诊时注意观察患者的非语言行为，面部表情和肢体语言往往能提供重要的诊断线索。在询问既往史时，不要忘记询问过敏史和用药史。
                      </Paragraph>
                    </div>
                  </div>

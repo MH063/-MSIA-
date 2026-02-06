@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { App as AntdApp, Form, Button, Space, Tooltip, Popconfirm } from 'antd';
 import Loader from '../../components/common/Loader';
 import LazyModal from '../../components/lazy/LazyModal';
-import { ArrowLeftOutlined, ArrowRightOutlined, EyeOutlined, FilePdfOutlined, FileWordOutlined, UndoOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, ArrowRightOutlined, EyeOutlined, FilePdfOutlined, FileWordOutlined, UndoOutlined, RobotOutlined } from '@ant-design/icons';
 import dayjs, { type Dayjs } from 'dayjs';
 import LazyMarkdown from '../../components/LazyMarkdown';
 import api, { getBlob, type ApiResponse, unwrapData } from '../../utils/api';
@@ -257,6 +257,7 @@ const Session: React.FC = () => {
   const [sessionStatus, setSessionStatus] = useState<string>('draft');
   const [currentSection, setCurrentSection] = useState('general');
   const [showPreview, setShowPreview] = useState(false);
+  const hasNewMessage = useAssistantStore(s => s.hasNewMessage);
   const [previewContent, setPreviewContent] = useState('');
   const [previewPlainText, setPreviewPlainText] = useState('');
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
@@ -271,6 +272,7 @@ const Session: React.FC = () => {
     progress: 0,
   })));
   const [progress, setLocalProgress] = useState(0);
+  const [showAssistant, setShowAssistant] = useState(false);
   const autoSaveDebounceRef = useRef<number | null>(null);
   const linkageCheckDebounceRef = useRef<number | null>(null);
   const basicCheckDebounceRef = useRef<number | null>(null);
@@ -3032,10 +3034,26 @@ const Session: React.FC = () => {
           setIsValidId(false);
           message.error('未找到该会话记录');
         }
-      } catch (err) {
-        console.error(err);
+      } catch (err: unknown) {
+        console.error('[Session] 加载会话失败:', err);
         setIsValidId(false);
-        message.error('加载失败');
+        
+        // 处理不同错误类型
+        if (err && typeof err === 'object' && 'response' in err) {
+          const axiosError = err as { response?: { status?: number; data?: { message?: string } } };
+          const status = axiosError.response?.status;
+          const serverMessage = axiosError.response?.data?.message;
+          
+          if (status === 403) {
+            message.error(serverMessage || '无权访问该会话');
+          } else if (status === 404) {
+            message.error('未找到该会话记录');
+          } else {
+            message.error(serverMessage || '加载失败');
+          }
+        } else {
+          message.error('加载失败，请检查网络连接');
+        }
       } finally {
         setLoading(false);
       }
@@ -3341,7 +3359,7 @@ const Session: React.FC = () => {
         editor={
         <>
           <div className="interview-editor-shell">
-            <div className="interview-editor-header">
+            <div className="interview-editor-header" style={{ position: 'sticky', top: 0, zIndex: 19 }}>
               <div className="interview-editor-header-inner">
                 <div>
                   <div className="interview-editor-header-title">当前编辑：{currentSectionLabel}</div>
@@ -3411,7 +3429,24 @@ const Session: React.FC = () => {
                   />
                 </Form>
 
-                <AssistantOverlay />
+                <div className="assistant-fab">
+                  <Tooltip title={hasNewMessage ? '问诊助手有新提示' : '打开问诊助手'}>
+                    <Button
+                      type="primary"
+                      shape="round"
+                      icon={<RobotOutlined />}
+                      onClick={() => {
+                        setShowAssistant(true);
+                        setNewMessage(false);
+                        console.log('[Session] 打开智能问诊助手');
+                      }}
+                    >
+                      问诊助手
+                    </Button>
+                  </Tooltip>
+                </div>
+
+                <AssistantOverlay open={showAssistant} onClose={() => setShowAssistant(false)} />
 
                 <LazyModal
                   title={

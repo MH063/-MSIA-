@@ -3,13 +3,108 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="description" content="医学生智能问诊辅助系统（MSIA）- 为医学生提供标准化问诊训练和辅助" />
     <meta name="theme-color" content="#1890ff" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="MSIA" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    
+    <!-- Apple Touch Icons -->
+    <!-- 使用已存在的 SVG 作为占位，后续可替换为 PNG -->
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+    
+    <!-- Preconnect to API -->
+    <link rel="preconnect" href="http://localhost:3000" />
+    <link rel="dns-prefetch" href="http://localhost:3000" />
+    
+    <!-- Preload Critical Resources -->
+    <link rel="modulepreload" href="/src/main.tsx" />
+    
     <title>医学生智能问诊辅助系统</title>
+    
+    <!-- Critical CSS for FCP -->
+    <style>
+      /* 首屏关键CSS */
+      html {
+        background-color: #F5F7FA;
+      }
+      
+      html.dark {
+        background-color: #141414;
+      }
+      
+      #root {
+        min-height: 100vh;
+      }
+      
+      /* 加载动画 */
+      .initial-loader {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #F5F7FA;
+        z-index: 9999;
+        transition: opacity 0.3s ease;
+      }
+      
+      .initial-loader.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+      
+      .initial-loader-spinner {
+        width: 48px;
+        height: 48px;
+        border: 3px solid #E6EFFF;
+        border-top-color: #0052D9;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+      
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+      
+      /* 防止FOUC */
+      .ant-layout {
+        opacity: 0;
+        animation: fadeIn 0.3s ease forwards;
+      }
+      
+      @keyframes fadeIn {
+        to { opacity: 1; }
+      }
+    </style>
   </head>
   <body>
+    <!-- 首屏加载动画 -->
+    <div id="initial-loader" class="initial-loader">
+      <div class="initial-loader-spinner"></div>
+    </div>
+    
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    
+    <!-- 隐藏加载动画 -->
+    <script>
+      window.addEventListener('load', () => {
+        const loader = document.getElementById('initial-loader');
+        if (loader) {
+          loader.classList.add('hidden');
+          setTimeout(() => loader.remove(), 300);
+        }
+      });
+    </script>
   </body>
 </html>

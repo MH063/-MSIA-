@@ -6,6 +6,48 @@ import fs from 'fs';
 import PDFDocument from 'pdfkit';
 import { Document, Packer, Paragraph, TextRun } from 'docx';
 import { secureLogger } from '../utils/secureLogger';
+import type { OperatorIdentity } from '../middleware/auth';
+
+/**
+ * 会话数据类型定义
+ */
+interface SessionData {
+  historian?: string;
+  reliability?: string;
+  historianRelationship?: string;
+  generalInfo?: Record<string, unknown>;
+  chiefComplaint?: Record<string, unknown>;
+  presentIllness?: Record<string, unknown>;
+  pastHistory?: Record<string, unknown>;
+  personalHistory?: Record<string, unknown>;
+  maritalHistory?: Record<string, unknown>;
+  menstrualHistory?: Record<string, unknown>;
+  fertilityHistory?: Record<string, unknown>;
+  familyHistory?: Record<string, unknown>;
+  physicalExam?: Record<string, unknown>;
+  specialistExam?: Record<string, unknown>;
+  auxiliaryExams?: Record<string, unknown>;
+  reviewOfSystems?: Record<string, unknown>;
+  status?: string;
+  [key: string]: unknown;
+}
+
+/**
+ * 患者数据类型定义
+ */
+interface PatientData {
+  name?: string;
+  gender?: string;
+  birthDate?: Date;
+  nativePlace?: string;
+  placeOfBirth?: string;
+  ethnicity?: string;
+  address?: string;
+  occupation?: string;
+  employer?: string;
+  contactInfo?: { phone?: string };
+  [key: string]: unknown;
+}
 
 /**
  * 创建会话
@@ -38,10 +80,23 @@ export const getSession = async (req: Request, res: Response) => {
       res.status(404).json({ success: false, message: 'Session not found' });
       return;
     }
+
+    // 权限检查：只有管理员或创建该会话的医生可以访问
+    const operator = req.operator;
+    if (operator && operator.role === 'doctor' && session.doctorId !== operator.operatorId) {
+      secureLogger.warn('[SessionController.getSession] 权限不足', {
+        sessionId: session.id,
+        doctorId: session.doctorId,
+        operatorId: operator.operatorId,
+      });
+      res.status(403).json({ success: false, message: '无权访问该会话' });
+      return;
+    }
+
     secureLogger.info('[SessionController.getSession] 返回session概要', {
       id: session.id,
       hasPresentIllness: Boolean(session.presentIllness),
-      presentIllnessKeys: session.presentIllness ? Object.keys(session.presentIllness as any) : [],
+      presentIllnessKeys: session.presentIllness ? Object.keys(session.presentIllness as Record<string, unknown>) : [],
     });
     res.json({ success: true, data: session });
   } catch (error) {
@@ -78,8 +133,8 @@ export const updateSession = async (req: Request, res: Response) => {
         'reviewOfSystems', 'status'
     ];
 
-    const patientData: any = {};
-    const sessionData: any = {};
+    const patientData: PatientData = {};
+    const sessionData: SessionData = {};
 
     Object.keys(body).forEach(key => {
         if (patientFields.includes(key)) {
@@ -99,12 +154,12 @@ export const updateSession = async (req: Request, res: Response) => {
         }
     });
 
-    console.log('[updateSession] 分离后的sessionData:', JSON.stringify(sessionData, null, 2));
+    secureLogger.debug('[updateSession] 分离后的sessionData', { sessionDataKeys: Object.keys(sessionData) });
 
     // 2. Update Session
-    const session = await sessionService.updateSession(Number(id), sessionData);
+    const session = await sessionService.updateSession(Number(id), sessionData as Record<string, unknown>);
 
-    console.log('[updateSession] 更新后的session:', JSON.stringify(session, null, 2));
+    secureLogger.debug('[updateSession] 更新后的session', { sessionId: session.id });
 
     // 3. Update Patient if there is patient data
     if (Object.keys(patientData).length > 0) {
@@ -119,7 +174,7 @@ export const updateSession = async (req: Request, res: Response) => {
     res.json({ success: true, data: updatedSession });
 
   } catch (error) {
-    console.error('Error updating session:', error);
+    secureLogger.error('[SessionController.updateSession] 更新session失败', error instanceof Error ? error : undefined);
     res.status(500).json({ success: false, message: 'Failed to update session' });
   }
 };
@@ -138,8 +193,8 @@ export const generateReport = async (req: Request, res: Response) => {
     }
 
     const { patient, chiefComplaint, presentIllness } = session;
-    const cp = chiefComplaint as any;
-    const pi = presentIllness as any;
+    const cp = chiefComplaint as Record<string, unknown> | undefined;
+    const pi = presentIllness as Record<string, unknown> | undefined;
 
     const ensureSentenceEnd = (text: unknown): string => {
       const t = String(text ?? '').trim();
@@ -161,7 +216,7 @@ export const generateReport = async (req: Request, res: Response) => {
 
     const formatDate = (v: unknown, fallback: string): string => {
       if (!v) {return fallback;}
-      const d = new Date(v as any);
+      const d = new Date(String(v));
       if (Number.isNaN(d.getTime())) {return fallback;}
       return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
     };
@@ -1238,79 +1293,95 @@ export const generateReport = async (req: Request, res: Response) => {
        return examTypeMap[type] || type;
      };
      
-     // 格式化辅助检查结果，避免显示 [object Object]
-     const formatExamResult = (value: any): string => {
-       if (value === null || value === undefined) return '未记录结果';
-       if (typeof value === 'string') return value;
-       if (typeof value === 'number' || typeof value === 'boolean') return String(value);
-       if (Array.isArray(value)) {
-         return value.map(item => formatExamResult(item)).join('；');
-       }
-       if (typeof value === 'object') {
-         // 提取对象中的关键字段
-         const parts: string[] = [];
-         if (value.result !== undefined) parts.push(formatExamResult(value.result));
-         if (value.value !== undefined) parts.push(formatExamResult(value.value));
-         if (value.content !== undefined) parts.push(formatExamResult(value.content));
-         if (value.description !== undefined) parts.push(formatExamResult(value.description));
-         if (value.finding !== undefined) parts.push(formatExamResult(value.finding));
-         if (value.conclusion !== undefined) parts.push(formatExamResult(value.conclusion));
-         if (value.diagnosis !== undefined) parts.push(formatExamResult(value.diagnosis));
-         if (parts.length > 0) return parts.join('；');
-         // 如果没有标准字段，尝试提取所有非空值
-         const entries = Object.entries(value)
-           .filter(([k, v]) => v !== null && v !== undefined && v !== '' && k !== 'id' && k !== 'createdAt' && k !== 'updatedAt')
-           .map(([k, v]) => `${k}: ${formatExamResult(v)}`);
-         if (entries.length > 0) return entries.join('；');
-         return '已检查';
-       }
-       return String(value);
-     };
+     /**
+     * 辅助检查项目接口
+     */
+    interface ExamItem {
+      type?: string;
+      examType?: string;
+      name?: string;
+      category?: string;
+      result?: unknown;
+      date?: string;
+      examDate?: string;
+      [key: string]: unknown;
+    }
+
+    // 格式化辅助检查结果，避免显示 [object Object]
+    const formatExamResult = (value: unknown): string => {
+      if (value === null || value === undefined) return '未记录结果';
+      if (typeof value === 'string') return value;
+      if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+      if (Array.isArray(value)) {
+        return value.map(item => formatExamResult(item)).join('；');
+      }
+      if (typeof value === 'object') {
+        const obj = value as Record<string, unknown>;
+        // 提取对象中的关键字段
+        const parts: string[] = [];
+        if (obj.result !== undefined) parts.push(formatExamResult(obj.result));
+        if (obj.value !== undefined) parts.push(formatExamResult(obj.value));
+        if (obj.content !== undefined) parts.push(formatExamResult(obj.content));
+        if (obj.description !== undefined) parts.push(formatExamResult(obj.description));
+        if (obj.finding !== undefined) parts.push(formatExamResult(obj.finding));
+        if (obj.conclusion !== undefined) parts.push(formatExamResult(obj.conclusion));
+        if (obj.diagnosis !== undefined) parts.push(formatExamResult(obj.diagnosis));
+        if (parts.length > 0) return parts.join('；');
+        // 如果没有标准字段，尝试提取所有非空值
+        const entries = Object.entries(obj)
+          .filter(([k, v]) => v !== null && v !== undefined && v !== '' && k !== 'id' && k !== 'createdAt' && k !== 'updatedAt')
+          .map(([k, v]) => `${k}: ${formatExamResult(v)}`);
+        if (entries.length > 0) return entries.join('；');
+        return '已检查';
+      }
+      return String(value);
+    };
      
      if (auxiliaryExams && Array.isArray(auxiliaryExams) && auxiliaryExams.length > 0) {
-         auxiliaryExams.forEach((exam: any, index: number) => {
-             if (typeof exam === 'string') {
-               report += `${index + 1}. ${exam}\n`;
-             } else if (exam && typeof exam === 'object') {
-               const examType = exam.type || exam.examType || exam.name || exam.category || `检查${index + 1}`;
-               const examName = translateExamType(examType);
-               const examResult = formatExamResult(exam.result !== undefined ? exam.result : exam);
-               const examDate = exam.date || exam.examDate ? `(${(exam.date || exam.examDate)})` : '';
-               report += `${index + 1}. ${examName}${examDate}：${examResult}\n`;
-             }
-         });
-     } else if (auxiliaryExams && typeof auxiliaryExams === 'object') {
-         // 处理对象格式的辅助检查数据
-         const exams = Object.entries(auxiliaryExams);
-         if (exams.length > 0) {
-             let index = 0;
-             exams.forEach(([key, value]: [string, any]) => {
-                 // 过滤掉无意义的键
-                 if (key === 'none' || key === 'exams' || key === 'id' || key === 'createdAt' || key === 'updatedAt') return;
-                 if (value === null || value === undefined || value === '') return;
-                 if (typeof value === 'boolean' && value === true) {
-                   // 如果值只是 true，显示为"已检查"
-                   index++;
-                   const examName = translateExamType(key);
-                   report += `${index}. ${examName}：已检查\n`;
-                   return;
-                 }
-                 const examName = translateExamType(key);
-                 const examResult = formatExamResult(value);
-                 if (examResult && examResult !== '未记录结果' && examResult !== 'true') {
-                   index++;
-                   report += `${index}. ${examName}：${examResult}\n`;
-                 }
-             });
-             if (index === 0) {
-               report += "未记录\n";
-             }
-         } else {
-             report += "未记录\n";
-         }
-     } else {
-         report += "未记录\n";
-     }
+        auxiliaryExams.forEach((exam: unknown, index: number) => {
+            if (typeof exam === 'string') {
+              report += `${index + 1}. ${exam}\n`;
+            } else if (exam && typeof exam === 'object') {
+              const examItem = exam as ExamItem;
+              const examType = examItem.type || examItem.examType || examItem.name || examItem.category || `检查${index + 1}`;
+              const examName = translateExamType(examType);
+              const examResult = formatExamResult(examItem.result !== undefined ? examItem.result : exam);
+              const examDate = examItem.date || examItem.examDate ? `(${(examItem.date || examItem.examDate)})` : '';
+              report += `${index + 1}. ${examName}${examDate}：${examResult}\n`;
+            }
+        });
+    } else if (auxiliaryExams && typeof auxiliaryExams === 'object') {
+        // 处理对象格式的辅助检查数据
+        const exams = Object.entries(auxiliaryExams as Record<string, unknown>);
+        if (exams.length > 0) {
+            let index = 0;
+            exams.forEach(([key, value]: [string, unknown]) => {
+                // 过滤掉无意义的键
+                if (key === 'none' || key === 'exams' || key === 'id' || key === 'createdAt' || key === 'updatedAt') return;
+                if (value === null || value === undefined || value === '') return;
+                if (typeof value === 'boolean' && value === true) {
+                  // 如果值只是 true，显示为"已检查"
+                  index++;
+                  const examName = translateExamType(key);
+                  report += `${index}. ${examName}：已检查\n`;
+                  return;
+                }
+                const examName = translateExamType(key);
+                const examResult = formatExamResult(value);
+                if (examResult && examResult !== '未记录结果' && examResult !== 'true') {
+                  index++;
+                  report += `${index}. ${examName}：${examResult}\n`;
+                }
+            });
+            if (index === 0) {
+              report += "未记录\n";
+            }
+        } else {
+            report += "未记录\n";
+        }
+    } else {
+        report += "未记录\n";
+    }
 
      report += `\n【初步建议】\n`;
     report += `建议进行进一步体格检查及相关辅助检查。`;
@@ -1318,7 +1389,7 @@ export const generateReport = async (req: Request, res: Response) => {
     res.json({ success: true, data: { report } });
 
   } catch (error) {
-    console.error('Error generating report:', error);
+    secureLogger.error('[SessionController.generateReport] 生成报告失败', error instanceof Error ? error : undefined);
     res.status(500).json({ success: false, message: 'Failed to generate report' });
   }
 };
@@ -1575,18 +1646,18 @@ async function buildDocxBuffer(params: { title: string; text: string }): Promise
  * 复用现有 generateReport 的逻辑，得到报告纯文本（用于导出PDF/Word）
  */
 async function getReportTextForExport(sessionId: number): Promise<{ ok: true; report: string } | { ok: false; status: number; body: any }> {
-  const fakeReq = { params: { id: String(sessionId) } } as any as Request;
-  const captured: { status: number; body: any } = { status: 200, body: null };
+  const fakeReq = { params: { id: String(sessionId) } } as unknown as Request;
+  const captured: { status: number; body: { success?: boolean; data?: { report?: string } } | null } = { status: 200, body: null };
   const fakeRes = {
     status(code: number) {
       captured.status = code;
       return fakeRes;
     },
-    json(payload: any) {
-      captured.body = payload;
+    json(payload: unknown) {
+      captured.body = payload as { success?: boolean; data?: { report?: string } };
       return fakeRes;
     },
-  } as any as Response;
+  } as unknown as Response;
 
   await generateReport(fakeReq, fakeRes);
 
@@ -1625,15 +1696,15 @@ export const exportReportPdf = async (req: Request, res: Response) => {
     const title = `病历-${patientName}-${formatDateForFilename(new Date())}`;
     const filename = sanitizeDownloadFilename(title) + '.pdf';
 
-    console.log('[export.pdf] 开始生成', { sessionId, filename });
+    secureLogger.info('[export.pdf] 开始生成', { sessionId, filename });
     const pdf = await buildPdfBuffer({ title, text: reportRes.report });
-    console.log('[export.pdf] 生成完成', { sessionId, bytes: pdf.byteLength });
+    secureLogger.info('[export.pdf] 生成完成', { sessionId, bytes: pdf.byteLength });
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', buildAttachmentContentDisposition(filename));
     res.status(200).end(pdf);
   } catch (error) {
-    console.error('[export.pdf] 导出失败', error);
+    secureLogger.error('[export.pdf] 导出失败', error instanceof Error ? error : undefined);
     res.status(500).json({ success: false, message: '导出PDF失败' });
   }
 };
@@ -1661,15 +1732,15 @@ export const exportReportDocx = async (req: Request, res: Response) => {
     const title = `病历-${patientName}-${formatDateForFilename(new Date())}`;
     const filename = sanitizeDownloadFilename(title) + '.docx';
 
-    console.log('[export.docx] 开始生成', { sessionId, filename });
+    secureLogger.info('[export.docx] 开始生成', { sessionId, filename });
     const docx = await buildDocxBuffer({ title, text: reportRes.report });
-    console.log('[export.docx] 生成完成', { sessionId, bytes: docx.byteLength });
+    secureLogger.info('[export.docx] 生成完成', { sessionId, bytes: docx.byteLength });
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
     res.setHeader('Content-Disposition', buildAttachmentContentDisposition(filename));
     res.status(200).end(docx);
   } catch (error) {
-    console.error('[export.docx] 导出失败', error);
+    secureLogger.error('[export.docx] 导出失败', error instanceof Error ? error : undefined);
     res.status(500).json({ success: false, message: '导出Word失败' });
   }
 };
@@ -1727,7 +1798,7 @@ export const getAllSessions = async (req: Request, res: Response) => {
         const total = await sessionService.countSessions(where);
         res.json({ success: true, data: { items: sessions, total } });
     } catch (error) {
-        console.error('Error getting sessions:', error);
+        secureLogger.error('[SessionController.getAllSessions] 获取会话列表失败', error instanceof Error ? error : undefined);
         res.status(500).json({ success: false, message: 'Failed to get sessions' });
     }
 };
@@ -1829,7 +1900,7 @@ export const getDashboardStats = async (req: Request, res: Response) => {
             }
         });
     } catch (error) {
-        console.error('Error getting dashboard stats:', error);
+        secureLogger.error('[SessionController.getDashboardStats] 获取仪表盘统计失败', error instanceof Error ? error : undefined);
         res.status(500).json({ success: false, message: 'Failed to get dashboard stats' });
     }
 };
@@ -1841,7 +1912,7 @@ export const deleteSession = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         const sessionId = Number(id);
-        const operator = (req as any).operator as import('../middleware/auth').OperatorIdentity | undefined;
+        const operator = (req as any).operator as OperatorIdentity | undefined;
         if (!operator) {
             res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: '缺少操作人信息' } });
             return;
@@ -1850,7 +1921,7 @@ export const deleteSession = async (req: Request, res: Response) => {
         const result = await sessionService.deleteSessionPermanently({ sessionId, operator });
         res.json({ success: true, data: { deletedId: result.deletedId } });
     } catch (error: any) {
-        console.error('Error deleting session:', error);
+        secureLogger.error('[SessionController.deleteSession] 删除会话失败', error instanceof Error ? error : undefined);
         const statusCode = Number(error?.statusCode) || 500;
         const code = String(error?.errorCode || 'INTERNAL_ERROR');
         const message = String(error?.message || '删除失败');
@@ -1868,7 +1939,7 @@ export const deleteSessionsBulk = async (req: Request, res: Response) => {
             res.status(400).json({ success: false, message: '缺少有效的ID列表' });
             return;
         }
-        const operator = (req as any).operator as import('../middleware/auth').OperatorIdentity | undefined;
+        const operator = (req as any).operator as OperatorIdentity | undefined;
         if (!operator) {
             res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: '缺少操作人信息' } });
             return;
@@ -1878,7 +1949,7 @@ export const deleteSessionsBulk = async (req: Request, res: Response) => {
             return;
         }
         const normalizedIds = ids.map(Number).filter(id => Number.isFinite(id));
-        console.log('[Controller] Bulk delete sessions ids:', normalizedIds);
+        secureLogger.info('[SessionController.deleteSessionsBulk] 批量删除会话', { count: normalizedIds.length });
         let deletedCount = 0;
         for (const sessionId of normalizedIds) {
             await sessionService.deleteSessionPermanently({ sessionId, operator });
@@ -1886,7 +1957,7 @@ export const deleteSessionsBulk = async (req: Request, res: Response) => {
         }
         res.json({ success: true, data: { deletedCount } });
     } catch (error) {
-        console.error('Error bulk deleting sessions:', error);
+        secureLogger.error('[SessionController.deleteSessionsBulk] 批量删除会话失败', error instanceof Error ? error : undefined);
         res.status(500).json({ success: false, message: 'Failed to bulk delete sessions' });
     }
 };

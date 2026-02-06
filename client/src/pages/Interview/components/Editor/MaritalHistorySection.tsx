@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { Form, Input, InputNumber, Card, Row, Col, Select } from 'antd';
 import MenstrualHistorySection from './MenstrualHistorySection';
+import logger from '../../../../utils/logger';
 
 const { Option } = Select;
 
@@ -8,19 +9,19 @@ const MaritalHistorySection: React.FC = () => {
   const form = Form.useFormInstance();
   const gender = Form.useWatch('gender', form);
   const isFemale = gender === '女';
-  
+
   // 监听婚姻状况字段，用于双向同步
   const maritalStatus = Form.useWatch(['maritalHistory', 'status'], form);
 
   /**
    * 双向同步：婚姻状况
    * 婚育史 -> 一般项目
-   * 由于两个模块使用相同的字段路径 ['maritalHistory', 'status']，
+   * 由于两个模块使用相同的字段路径 ['maritalHistory', 'status']
    * Form 会自动处理同步，这里添加日志记录
    */
   useEffect(() => {
     if (maritalStatus) {
-      console.log('[MaritalHistorySection] 婚姻状况变更:', maritalStatus);
+      logger.info('[MaritalHistorySection] 婚姻状况变更:', maritalStatus);
     }
   }, [maritalStatus]);
 
@@ -43,7 +44,7 @@ const MaritalHistorySection: React.FC = () => {
             </Form.Item>
           </Col>
           <Col span={8}>
-            <Form.Item 
+            <Form.Item
               noStyle
               shouldUpdate={(prev, curr) => prev.maritalHistory?.status !== curr.maritalHistory?.status}
             >
@@ -59,7 +60,7 @@ const MaritalHistorySection: React.FC = () => {
           </Col>
         </Row>
 
-        <Form.Item 
+        <Form.Item
           noStyle
           shouldUpdate={(prev, curr) => prev.maritalHistory?.status !== curr.maritalHistory?.status}
         >
@@ -77,8 +78,8 @@ const MaritalHistorySection: React.FC = () => {
       {isFemale && (
         <>
           <MenstrualHistorySection />
-          
-          <Card type="inner" title="生育史 (Obstetric History)" size="small" style={{ marginTop: 24 }}>
+
+          <Card type="inner" title="生育史(Obstetric History)" size="small" style={{ marginTop: 24 }}>
             <Row gutter={24}>
               <Col span={6}>
                 <Form.Item name={['fertilityHistory', 'term']} label="足月产(次)">

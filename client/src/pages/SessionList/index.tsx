@@ -5,6 +5,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import dayjs from 'dayjs';
 import api, { getApiErrorMessage, unwrapData } from '../../utils/api';
 import type { ApiResponse } from '../../utils/api';
+import { logger } from '../../utils/logger';
 import MarkdownEditor from '../../components/MarkdownEditor';
 
 import Loading from '../../components/common/Loading';
@@ -13,7 +14,7 @@ const { Title, Text } = Typography;
 const { useBreakpoint } = Grid;
 
 /**
- * 病历列表页 - 重构版
+ * 病历列表 - 重构版
  * 支持时间轴视图、富文本编辑预览、加密模式
  */
 interface Patient {
@@ -29,7 +30,6 @@ interface SessionListItem {
   createdAt: string;
   summary?: string; // 模拟富文本摘要字段
 }
-
 const SessionList: React.FC = () => {
   const navigate = useNavigate();
   const { modal, message } = AntdApp.useApp();
@@ -79,7 +79,7 @@ const SessionList: React.FC = () => {
         setPagination({ current: page, pageSize, total });
       }
     } catch (error) {
-      console.error(error);
+      logger.error(error);
       message.error('获取列表失败');
     } finally {
       setLoading(false);
@@ -95,7 +95,7 @@ const SessionList: React.FC = () => {
 
   const handleDelete = (id: number) => {
     modal.confirm({
-      title: '确认删除该问诊记录?',
+      title: '确认删除该问诊记录',
       icon: <ExclamationCircleOutlined />,
       okText: '确认删除',
       okType: 'danger',
@@ -204,7 +204,7 @@ const SessionList: React.FC = () => {
                                 label: '医生备注 (富文本)',
                                 children: (
                                   <MarkdownEditor
-                                    value={activeNotes[item.id] || item.summary || `## 病历摘要\n\n患者 ${patientName} 于 ${date.format('YYYY年MM月DD日')} 就诊。`}
+                                    value={activeNotes[item.id] || item.summary || `## 病历摘要\n\n患者：${patientName} 于 ${date.format('YYYY年MM月DD日')} 就诊。`}
                                     onChange={(val) => handleNoteChange(item.id, val)}
                                     height={200}
                                   />

@@ -8,6 +8,7 @@ import {
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import KnowledgeGraph from '../../components/KnowledgeGraph';
+import logger from '../../utils/logger';
 import './index.css';
 
 const { Content, Sider } = Layout;
@@ -52,7 +53,7 @@ const menuItems = [
   {
     key: 'skills',
     icon: <ExperimentOutlined />,
-    label: '问诊技巧',
+    label: '问诊技术',
     children: [
       { key: 'basic', label: '基本原则', children: [{ key: 'communication', label: '沟通技巧' }] },
       { key: 'special', label: '特殊人群', children: [{ key: 'elderly', label: '老年人问诊' }, { key: 'children', label: '儿童问诊' }] }
@@ -81,24 +82,24 @@ const knowledgeData: Record<string, KnowledgeEntry> = {
 咳嗽是机体的一种保护性反射动作，通过咳嗽可清除呼吸道内的分泌物或异物。
 
 ## 问诊要点 (OPQRST)
-- **Onset (起病)**: 急性还是慢性？突发还是渐进？
+- **Onset (起病)**: 急性还是慢性？突发还是渐进性？
 - **Provocative/Palliative (诱因/缓解)**: 冷空气、运动、体位变化？
 - **Quality (性质)**: 干咳？湿咳？金属音？
-- **Radiation (放射)**: 无。
-- **Severity (程度)**: 影响睡眠？
+- **Radiation (放射)**: 无
+- **Severity (程度)**: 影响睡眠吗？
 - **Timing (时间)**: 晨起？夜间？季节性？
 
 ## 伴随症状
-- **发热**: 提示感染（肺炎、支气管炎）。
-- **胸痛**: 胸膜炎、气胸。
-- **咯血**: 肺结核、肺癌、支气管扩张。
-- **呼吸困难**: 哮喘、COPD、心力衰竭。
+- **发热**: 提示感染（肺炎、支气管炎）
+- **胸痛**: 胸膜炎、气胸
+- **咯血**: 肺结核、肺癌、支气管扩张
+- **呼吸困难**: 哮喘、COPD、心力衰竭
 
 ## 鉴别诊断
-1. **急性支气管炎**: 咳痰，低热，肺部干湿啰音。
-2. **肺炎**: 高热，寒战，胸痛，肺实变体征。
-3. **肺结核**: 低热，盗汗，消瘦，咯血。
-4. **支气管哮喘**: 发作性喘息，呼气性呼吸困难。
+1. **急性支气管炎**: 咳痰，低热，肺部干湿啰音
+2. **肺炎**: 高热，寒战，胸痛，肺实变体征
+3. **肺结核**: 低热，盗汗，消瘦，咯血
+4. **支气管哮喘**: 发作性喘息，呼气性呼吸困难
     `,
     graph: {
       nodes: [
@@ -129,13 +130,13 @@ const knowledgeData: Record<string, KnowledgeEntry> = {
 体温调节中枢受致热原作用，或体温调节功能障碍，使体温超出正常范围。
 
 ## 问诊要点
-- **程度**: 低热(37.3-38)、中等(38.1-39)、高热(39.1-41)、超高热(>41)。
-- **热型**: 稽留热、弛张热、间歇热、波状热、回归热。
-- **伴随症状**: 寒战、皮疹、淋巴结肿大、昏迷。
+- **程度**: 低热(37.3-38)、中等(38.1-39)、高热(39.1-41)、超高热(>41)
+- **热型**: 稽留热、弛张热、间歇热、波状热、回归热
+- **伴随症状**: 寒战、皮疹、淋巴结肿大、昏迷
 
 ## 常见病因
-1. **感染性**: 细菌、病毒、支原体等。
-2. **非感染性**: 血液病、风湿病、恶性肿瘤、中暑。
+1. **感染性**: 细菌、病毒、支原体等
+2. **非感染性**: 血液病、风湿病、恶性肿瘤、中暑
     `,
     graph: {
       nodes: [
@@ -168,7 +169,7 @@ const Knowledge: React.FC = () => {
   };
 
   const handleNodeClick = (node: { id: string; name: string; category: number; symbolSize?: number }) => {
-    console.log('Clicked node:', node);
+    logger.info('Clicked node:', node);
     // Future: Navigate to clicked node if it exists in knowledge base
   };
 
@@ -222,7 +223,7 @@ const Knowledge: React.FC = () => {
                 </div>
               </Col>
               <Col span={8}>
-                <Card title="知识图谱" bordered={false} className="knowledge-graph-card">
+                <Card title="知识图谱" variant="borderless" className="knowledge-graph-card">
                    <KnowledgeGraph data={currentData.graph} onNodeClick={handleNodeClick} />
                 </Card>
               </Col>

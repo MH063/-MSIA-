@@ -14,6 +14,10 @@ import { securityHeaders, sqlInjectionProtection, xssProtection } from './utils/
 import { serverConfig, corsConfig, fileConfig } from './config';
 import { validateConfig, preventInformationLeakage, setupSecureConsole, securityConfig } from './config/security';
 import { secureLogger } from './utils/secureLogger';
+import { cache } from './utils/cache';
+import { dbMonitor } from './utils/db-monitor';
+import { rateLimitStrategies } from './middleware/rateLimiter';
+import { alert } from './utils/alert';
 
 dotenv.config();
 
@@ -196,6 +200,16 @@ app.use(sqlInjectionProtection);
 // XSS防护
 app.use(xssProtection);
 
+// API限流 - 全局标准限流
+app.use(rateLimitStrategies.standard);
+
+// 特定路由限流
+app.use('/api/auth/login', rateLimitStrategies.strict);
+app.use('/api/auth/register', rateLimitStrategies.strict);
+app.use('/api/captcha', rateLimitStrategies.strict);
+app.use('/api/knowledge', rateLimitStrategies.knowledge);
+app.use('/api/diagnosis/suggest', rateLimitStrategies.diagnosis);
+
 // 请求日志中间件
 app.use((req: Request, res: Response, next) => {
   const start = Date.now();
@@ -238,15 +252,57 @@ app.get('/', (req: Request, res: Response) => {
  * @returns {object} 系统健康状态
  */
 app.get('/health', async (req: Request, res: Response) => {
+  // 检查数据库健康
+  const dbHealth = await dbMonitor.checkHealth();
+
   const health = {
     success: true,
-    status: 'healthy',
+    status: dbHealth.healthy ? 'healthy' : 'unhealthy',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     environment: serverConfig.nodeEnv,
-    database: process.env.DATABASE_URL ? 'connected' : 'not configured',
+    database: {
+      status: dbHealth.healthy ? 'connected' : 'disconnected',
+      responseTime: dbHealth.responseTime,
+      message: dbHealth.message,
+    },
   };
-  res.json(health);
+
+  res.status(dbHealth.healthy ? 200 : 503).json(health);
+});
+
+/**
+ * 详细健康检查接口（包含缓存和连接池状态）
+ * @route GET /health/detailed
+ * @returns {object} 详细系统健康状态
+ */
+app.get('/health/detailed', async (req: Request, res: Response) => {
+  // 检查数据库健康
+  const dbHealth = await dbMonitor.checkHealth();
+  const dbStats = dbMonitor.getPoolStats();
+  const queryStats = dbMonitor.getQueryStats();
+  const cacheStats = cache.getStats();
+
+  const health = {
+    success: true,
+    status: dbHealth.healthy ? 'healthy' : 'unhealthy',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: serverConfig.nodeEnv,
+    database: {
+      status: dbHealth.healthy ? 'connected' : 'disconnected',
+      responseTime: dbHealth.responseTime,
+      message: dbHealth.message,
+      pool: dbStats,
+      queries: queryStats,
+    },
+    cache: {
+      ...cacheStats,
+      hitRate: `${(cache.getHitRate() * 100).toFixed(2)}%`,
+    },
+  };
+
+  res.status(dbHealth.healthy ? 200 : 503).json(health);
 });
 
 // 404处理 - 必须放在所有路由之后
@@ -275,12 +331,23 @@ app.listen(port, host, () => {
 });
 
 // 未捕获的异常处理 - 安全版本
-process.on('uncaughtException', (error) => {
+process.on('uncaughtException', async (error) => {
   secureLogger.error('未捕获的致命异常', error, {
     type: 'uncaughtException',
     timestamp: new Date().toISOString()
   });
-  
+
+  // 发送告警
+  await alert.critical(
+    '系统未捕获异常',
+    '系统发生未捕获的致命异常，请立即检查！',
+    {
+      error: error.message,
+      stack: error.stack,
+      type: 'uncaughtException',
+    }
+  );
+
   // 生产环境优雅关闭
   if (securityConfig.isProduction) {
     secureLogger.error('生产环境发生未捕获异常，开始优雅关闭...');
@@ -291,12 +358,22 @@ process.on('uncaughtException', (error) => {
   }
 });
 
-process.on('unhandledRejection', (reason, _promise) => {
+process.on('unhandledRejection', async (reason, _promise) => {
   secureLogger.error('未处理的Promise拒绝', reason as Error, {
     type: 'unhandledRejection',
     timestamp: new Date().toISOString()
   });
-  
+
+  // 发送告警
+  await alert.error(
+    '未处理的Promise拒绝',
+    '系统发生未处理的Promise拒绝',
+    {
+      reason: reason instanceof Error ? reason.message : String(reason),
+      type: 'unhandledRejection',
+    }
+  );
+
   // 生产环境记录但不退出
   if (securityConfig.isProduction) {
     secureLogger.error('生产环境发生未处理的Promise拒绝');
@@ -305,3 +382,22 @@ process.on('unhandledRejection', (reason, _promise) => {
     console.error('[Development] Promise拒绝详情:', reason);
   }
 });
+
+// 内存使用监控
+setInterval(async () => {
+  const usage = process.memoryUsage();
+  const usagePercent = usage.heapUsed / usage.heapTotal;
+
+  // 内存使用超过90%时告警
+  if (usagePercent > 0.9) {
+    await alert.warning(
+      '内存使用过高',
+      `系统内存使用超过90%，当前使用率: ${(usagePercent * 100).toFixed(2)}%`,
+      {
+        heapUsed: `${(usage.heapUsed / 1024 / 1024).toFixed(2)} MB`,
+        heapTotal: `${(usage.heapTotal / 1024 / 1024).toFixed(2)} MB`,
+        rss: `${(usage.rss / 1024 / 1024).toFixed(2)} MB`,
+      }
+    );
+  }
+}, 60000); // 每分钟检查一次

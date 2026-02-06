@@ -1,0 +1,67 @@
+{
+  "name": "医学生智能问诊辅助系统",
+  "short_name": "MSIA",
+  "description": "为医学生提供标准化问诊训练和辅助的智能系统",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1890ff",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "zh-CN",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["medical", "education", "productivity"],
+  "screenshots": [
+    {
+      "src": "/screenshots/home.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "首页"
+    },
+    {
+      "src": "/screenshots/interview.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "问诊界面"
+    },
+    {
+      "src": "/screenshots/mobile-home.png",
+      "sizes": "750x1334",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "移动端首页"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "新建问诊",
+      "short_name": "新建",
+      "description": "快速开始新的问诊会话",
+      "url": "/interview/new"
+    },
+    {
+      "name": "问诊记录",
+      "short_name": "记录",
+      "description": "查看历史问诊记录",
+      "url": "/sessions"
+    },
+    {
+      "name": "知识库",
+      "short_name": "知识",
+      "description": "浏览症状知识库",
+      "url": "/knowledge"
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false
+}

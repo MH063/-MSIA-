@@ -4,13 +4,13 @@ import { BulbOutlined, QuestionCircleOutlined, MedicineBoxOutlined, RobotOutline
 import { useAssistantStore } from '../../../../store/assistant.store';
 import { useThemeStore } from '../../../../store/theme.store';
 import Loading from '../../../../components/common/Loading';
+import logger from '../../../../utils/logger';
 
 const { Title, Text } = Typography;
 
 /**
  * KnowledgeTab
- * 知识库Tab内容：集成原KnowledgePanel的核心功能
- * 通过全局状态管理获取数据，统一在Session.tsx中调用API
+ * 知识库Tab内容：集成原 KnowledgePanel 的核心功能；通过全局状态管理获取数据，统一在 Session.tsx 中调用 API
  */
 const KnowledgeTab: React.FC = () => {
   const { message } = AntdApp.useApp();
@@ -70,9 +70,9 @@ const KnowledgeTab: React.FC = () => {
     if (key && typeof key === 'string' && key.trim() && actions.addAssociatedFromKnowledge) {
       actions.addAssociatedFromKnowledge(key);
       message.success(`已添加伴随症状：${mapToName(s)}`);
-      console.log('[KnowledgeTab] 添加伴随症状', { source: s, key });
+      logger.info('[KnowledgeTab] 添加伴随症状', { source: s, key });
     } else {
-      console.warn('[KnowledgeTab] 添加伴随症状失败：无效键', { source: s });
+      logger.warn('[KnowledgeTab] 添加伴随症状失败：无效键', { source: s });
     }
   };
   
@@ -214,7 +214,7 @@ const KnowledgeTab: React.FC = () => {
           </div>
           {redFlagsDisplay && redFlagsDisplay.length > 0 && (
             <div style={{ marginTop: 8 }}>
-              <Text type="danger" strong>警惕征象：</Text>
+              <Text type="danger" strong>警惕征象</Text>
               <ul style={{ paddingLeft: 20, margin: '4px 0', color: token.colorError }}>
                 {redFlagsDisplay.map((flag, idx) => (
                   <li key={idx}>{flag}</li>

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { theme } from 'antd';
 import './captcha.css';
 import api, { unwrapData, getApiErrorMessage, type ApiResponse } from '../../utils/api';
+import logger from '../../utils/logger';
 
 interface CaptchaProps {
   onChange: (value: string) => void;
@@ -12,7 +13,7 @@ interface CaptchaProps {
 
 /**
  * 验证码组件
- * 显示图形验证码，支持点击刷新与30秒自动刷新
+ * 显示图形验证码，支持点击刷新和30秒自动刷新
  */
 const Captcha: React.FC<CaptchaProps> = ({ onChange, onVerify, onIdChange, externalCaptcha }) => {
   const { token } = theme.useToken();
@@ -38,27 +39,27 @@ const Captcha: React.FC<CaptchaProps> = ({ onChange, onVerify, onIdChange, exter
    */
   const refreshCaptcha = useCallback(async () => {
     if (isLoading) return;
-    console.log('[Captcha] 开始拉取服务端验证码');
+    logger.info('[Captcha] 开始拉取服务端验证码');
     setIsLoading(true);
     setUserInput('');
     try {
       const resp = (await api.get('/captcha/new')) as ApiResponse<{ id: string; svg: string }>;
-      console.log('[Captcha] 验证码响应:', resp);
+      logger.info('[Captcha] 验证码响应:', resp);
       const payload = unwrapData<{ id: string; svg: string }>(resp);
-      console.log('[Captcha] 解析后的payload:', payload);
+      logger.info('[Captcha] 解析后的payload:', payload);
       if (!resp?.success || !payload) {
-        throw new Error('验证码获取失败: 响应数据无效');
+        throw new Error('验证码获取失败：响应数据无效');
       }
       if (!payload.svg) {
-        throw new Error('验证码获取失败: 缺少SVG数据');
+        throw new Error('验证码获取失败：缺少SVG数据');
       }
       const url = `data:image/svg+xml;utf8,${encodeURIComponent(payload.svg)}`;
-      console.log('[Captcha] 生成的图片URL长度:', url.length);
+      logger.info('[Captcha] 生成的图片URL长度:', url.length);
       setImageUrl(url);
       onIdChangeRef.current?.(payload.id);
     } catch (err) {
-      console.error('[Captcha] 获取验证码失败', err);
-      console.error('[Captcha] 错误详情:', getApiErrorMessage(err, '验证码获取失败'));
+      logger.error('[Captcha] 获取验证码失败:', err);
+      logger.error('[Captcha] 错误详情:', getApiErrorMessage(err, '验证码获取失败'));
       onVerifyRef.current(false);
       const fallback = `<svg xmlns="http://www.w3.org/2000/svg" width="120" height="40"><rect width="120" height="40" fill="${token.colorFillAlter}"/><text x="10" y="25" fill="${token.colorTextSecondary}" font-family="Arial" font-size="14">加载失败，点击重试</text></svg>`;
       setImageUrl(`data:image/svg+xml;utf8,${encodeURIComponent(fallback)}`);
@@ -75,7 +76,7 @@ const Captcha: React.FC<CaptchaProps> = ({ onChange, onVerify, onIdChange, exter
   useEffect(() => {
     const c = externalCaptcha;
     if (!c || !c.id || !c.svg) return;
-    console.log('[Captcha] 应用服务端返回的验证码');
+    logger.info('[Captcha] 应用服务端返回的验证码');
     setUserInput('');
     const url = `data:image/svg+xml;utf8,${encodeURIComponent(c.svg)}`;
     setImageUrl(url);
@@ -85,7 +86,7 @@ const Captcha: React.FC<CaptchaProps> = ({ onChange, onVerify, onIdChange, exter
 
   // 组件挂载时加载验证码
   useEffect(() => {
-    console.log('[Captcha] 组件挂载，准备加载验证码');
+    logger.info('[Captcha] 组件挂载，准备加载验证码');
     if (!externalCaptcha) {
       refreshRef.current?.();
     }
@@ -104,7 +105,7 @@ const Captcha: React.FC<CaptchaProps> = ({ onChange, onVerify, onIdChange, exter
       timerRef.current = null;
     }
     timerRef.current = window.setInterval(() => {
-      console.log('[Captcha] 自动刷新验证码（30秒）');
+      logger.info('[Captcha] 自动刷新验证码（30秒）');
       refreshCaptcha();
     }, 30000);
     return () => {
@@ -117,7 +118,7 @@ const Captcha: React.FC<CaptchaProps> = ({ onChange, onVerify, onIdChange, exter
 
   // 用户点击刷新时，重置定时器到下一周期
   const handleManualRefresh = useCallback(() => {
-    console.log('[Captcha] 用户手动刷新验证码');
+    logger.info('[Captcha] 用户手动刷新验证码');
     refreshCaptcha();
   }, [refreshCaptcha]);
 

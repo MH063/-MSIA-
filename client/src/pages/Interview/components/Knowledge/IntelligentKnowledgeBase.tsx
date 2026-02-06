@@ -21,6 +21,7 @@ import {
   Col,
   theme
 } from 'antd';
+import logger from '../../../../utils/logger';
 import { 
   BookOutlined, 
   MedicineBoxOutlined, 
@@ -44,7 +45,7 @@ const { Search } = Input;
 const { useToken } = theme;
 
 /**
- * 症状问诊要点映射项
+ * 症状问诊要点映射类型
  */
 interface SymptomQuestionPoint {
   id: string;
@@ -61,7 +62,7 @@ interface SymptomQuestionPoint {
 }
 
 /**
- * 疾病百科项
+ * 疾病百科类型
  */
 interface DiseaseEncyclopedia {
   id: string;
@@ -91,8 +92,7 @@ interface IntelligentKnowledgeBaseProps {
 
 /**
  * IntelligentKnowledgeBase
- * 智能知识库组件 - 优化美化版
- * 包含症状问诊要点映射、疾病百科等功能
+ * 智能知识库组件（优化美化）；包含症状问诊要点映射、疾病百科等功能
  */
 const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
   currentSymptom,
@@ -160,10 +160,10 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
       const data = unwrapData<SymptomQuestionPoint[]>(res);
       if (data) {
         setSymptomMappings(data);
-        console.log('[知识库] 症状映射加载成功', { count: data.length });
+        logger.info('[知识库] 症状映射加载成功', { count: data.length });
       }
     } catch (error) {
-      console.error('[知识库] 获取症状映射失败:', error);
+      logger.error('[知识库] 获取症状映射失败:', error);
       message.error('症状问诊要点加载失败，请稍后重试');
     } finally {
       setLoading(prev => ({ ...prev, symptomMap: false }));
@@ -184,7 +184,7 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
       const data = unwrapData<SymptomQuestionPoint>(res);
       if (data) {
         setCurrentMapping(data);
-        console.log('[知识库] 当前症状映射加载成功', { symptom: currentSymptom });
+        logger.info('[知识库] 当前症状映射加载成功', { symptom: currentSymptom });
       } else {
         // 如果没有精确匹配，尝试模糊匹配
         const fuzzyMatch = symptomMappings.find(m => 
@@ -196,7 +196,7 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
         }
       }
     } catch (error) {
-      console.error('[知识库] 获取当前症状映射失败:', error);
+      logger.error('[知识库] 获取当前症状映射失败:', error);
     }
   }, [currentSymptom, symptomMappings]);
 
@@ -210,10 +210,10 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
       const data = unwrapData<DiseaseEncyclopedia[]>(res);
       if (data) {
         setDiseaseEncyclopedia(data);
-        console.log('[知识库] 疾病百科加载成功', { count: data.length });
+        logger.info('[知识库] 疾病百科加载成功', { count: data.length });
       }
     } catch (error) {
-      console.error('[知识库] 获取疾病百科失败:', error);
+      logger.error('[知识库] 获取疾病百科失败:', error);
       message.error('疾病百科加载失败，请稍后重试');
     } finally {
       setLoading(prev => ({ ...prev, diseases: false }));
@@ -236,10 +236,10 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
           );
           setRelatedDiseases(related);
         }
-        console.log('[知识库] 疾病详情加载成功', { disease: diseaseName });
+        logger.info('[知识库] 疾病详情加载成功', { disease: diseaseName });
       }
     } catch (error) {
-      console.error('[知识库] 获取疾病详情失败:', error);
+      logger.error('[知识库] 获取疾病详情失败:', error);
       message.error('获取疾病详情失败');
     } finally {
       setDiseaseSearchLoading(false);

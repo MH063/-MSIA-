@@ -28,9 +28,14 @@ model Patient {
 
   sessions    InterviewSession[]
 
-  // 索引优化
+  // 索引优化 - 支持按姓名搜索和排序
   @@index([name])
-  @@index([createdAt])
+  // 复合索引：按创建时间倒序查询（常用列表查询）
+  @@index([createdAt(sort: Desc)])
+  // 复合索引：按姓名和创建时间查询
+  @@index([name, createdAt(sort: Desc)])
+  // 复合索引：按性别和创建时间（统计用）
+  @@index([gender, createdAt])
 
   @@map("patients")
 }
@@ -64,14 +69,22 @@ model InterviewSession {
 
   patient         Patient  @relation(fields: [patientId], references: [id])
 
-  // 索引优化
+  // 索引优化 - 基础索引
   @@index([patientId])
   @@index([doctorId])
   @@index([status])
-  @@index([createdAt])
-  @@index([updatedAt])
-  @@index([patientId, status])
-  @@index([doctorId, status])
+  // 复合索引：按创建时间倒序查询（列表页常用）
+  @@index([createdAt(sort: Desc)])
+  // 复合索引：按更新时间倒序查询
+  @@index([updatedAt(sort: Desc)])
+  // 复合索引：患者+状态+创建时间（查询某患者的某种状态会话）
+  @@index([patientId, status, createdAt(sort: Desc)])
+  // 复合索引：医生+状态+创建时间（查询某医生的某种状态会话）
+  @@index([doctorId, status, createdAt(sort: Desc)])
+  // 复合索引：状态+创建时间（按状态筛选排序）
+  @@index([status, createdAt(sort: Desc)])
+  // 复合索引：仅用于统计查询
+  @@index([doctorId, createdAt])
 
   @@map("interview_sessions")
 }
@@ -128,6 +141,10 @@ model Operator {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
+  // 索引优化
+  @@index([role])
+  @@index([createdAt])
+
   @@map("operators")
 }
 
@@ -149,6 +166,12 @@ model KnowledgeSource {
 
   symptoms    SymptomKnowledge[]
 
+  // 索引优化
+  @@index([status])
+  @@index([fileType])
+  @@index([lastProcessedAt])
+  @@index([status, lastProcessedAt])
+
   @@map("knowledge_sources")
 }
 
@@ -169,6 +192,13 @@ model Diagnosis {
   symptoms          DiagnosisSymptom[]
   redFlags          DiagnosisRedFlag[]
 
+  // 索引优化
+  @@index([category])
+  @@index([isActive])
+  @@index([priority])
+  @@index([isActive, priority])
+  @@index([minAge, maxAge])
+
   @@map("diagnoses")
 }
 
@@ -184,6 +214,11 @@ model DiagnosisSymptom {
 
   diagnosis     Diagnosis @relation(fields: [diagnosisId], references: [id], onDelete: Cascade)
 
+  // 索引优化
+  @@index([diagnosisId])
+  @@index([symptomKey])
+  @@index([isRequired])
+
   @@unique([diagnosisId, symptomKey])
   @@map("diagnosis_symptoms")
 }
@@ -198,6 +233,10 @@ model DiagnosisRedFlag {
   createdAt       DateTime  @default(now()) @map("created_at")
 
   diagnosis       Diagnosis @relation(fields: [diagnosisId], references: [id], onDelete: Cascade)
+
+  // 索引优化
+  @@index([diagnosisId])
+  @@index([severityLevel])
 
   @@unique([diagnosisId, redFlagName])
   @@map("diagnosis_red_flags")

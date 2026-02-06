@@ -1,5 +1,6 @@
 import React, { Suspense, useEffect, useState } from 'react';
 import type { PluggableList } from 'unified';
+import logger from '../utils/logger';
 
 const ReactMarkdownLazy = React.lazy(async () => {
   const mod = await import('react-markdown');
@@ -13,7 +14,7 @@ export interface LazyMarkdownProps {
 
 /**
  * LazyMarkdown
- * 懒加载 Markdown 渲染组件，按需加载 react-markdown 与 remark/rehype 插件，减少初始包体积
+ * 懒加载 Markdown 渲染组件，按需加载 react-markdown 和 remark/rehype 插件，减少初始包体积
  * - 仅在实际渲染时加载依赖
  * - 插件以异步方式注入，避免主包膨胀
  */
@@ -28,10 +29,10 @@ const LazyMarkdown: React.FC<LazyMarkdownProps> = ({ content, className }) => {
         const gfm = await import('remark-gfm');
         if (mounted) {
           setRemarkPlugins([gfm.default]);
-          console.log('[LazyMarkdown] 插件已按需加载');
+          logger.info('[LazyMarkdown] 插件已按需加载');
         }
       } catch (e) {
-        console.warn('[LazyMarkdown] 插件加载失败，降级为纯文本渲染', e);
+        logger.warn('[LazyMarkdown] 插件加载失败，降级为纯文本渲染', e);
         if (mounted) {
           setRemarkPlugins([]);
         }
@@ -41,7 +42,7 @@ const LazyMarkdown: React.FC<LazyMarkdownProps> = ({ content, className }) => {
   }, []);
 
   return (
-    <Suspense fallback={<div style={{ padding: 12 }}>正在加载内容…</div>}>
+    <Suspense fallback={<div style={{ padding: 12 }}>正在加载内容...</div>}>
       <div className={className}>
         <ReactMarkdownLazy
           remarkPlugins={remarkPlugins}

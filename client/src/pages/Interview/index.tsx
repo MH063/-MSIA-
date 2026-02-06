@@ -8,6 +8,7 @@ import dayjs from 'dayjs';
 import api, { getApiErrorMessage, unwrapData } from '../../utils/api';
 import type { ApiResponse } from '../../utils/api';
 import LazyTable from '../../components/lazy/LazyTable';
+import { logger } from '../../utils/logger';
 
 const { Title } = Typography;
 const { Search } = Input;
@@ -64,7 +65,7 @@ const InterviewOverview: React.FC = () => {
         setPagination({ current: page, pageSize, total });
       }
     } catch (error) {
-      console.error(error);
+      logger.error(error);
       message.error('获取列表失败');
     } finally {
       setLoading(false);
@@ -110,22 +111,22 @@ const InterviewOverview: React.FC = () => {
 
   const handleDelete = (id: number) => {
     modal.confirm({
-      title: '确认删除该问诊记录?',
+      title: '确认删除该问诊记录',
       icon: <ExclamationCircleOutlined />,
-      content: '删除后无法恢复，请谨慎操作。',
+      content: '删除后无法恢复，请谨慎操作',
       okText: '确认删除',
       okType: 'danger',
       cancelText: '取消',
       onOk: async () => {
         try {
-          console.log('[Interview] 请求永久删除问诊记录', { id });
+          logger.info('[Interview] 请求永久删除问诊记录', { id });
           const res: ApiResponse = await api.delete(`/sessions/${id}`);
           if (res.success) {
             message.success('已永久删除');
             fetchData(pagination.current, pagination.pageSize, activeTab, searchText);
           }
         } catch (error: unknown) {
-          console.error('[Interview] 永久删除失败', error);
+          logger.error('[Interview] 永久删除失败', error);
           message.error(getApiErrorMessage(error, '删除失败'));
         }
       },
@@ -259,8 +260,8 @@ const InterviewOverview: React.FC = () => {
               activeKey={activeTab}
               onChange={handleTabChange}
               items={[
-                { key: 'incomplete', label: '未完成问诊 (进行中)' },
-                { key: 'completed', label: '已完成问诊 (归档/结束)' },
+                { key: 'incomplete', label: '未完成问诊（进行中）' },
+                { key: 'completed', label: '已完成问诊（归档/结束）' },
                 { key: '', label: '全部记录' }
               ]}
               style={{ flex: 1 }}
@@ -351,7 +352,7 @@ const InterviewOverview: React.FC = () => {
 
             <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
               <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                共 {pagination.total} 条
+                共 {pagination.total} 条记录
               </Typography.Text>
               <Pagination
                 current={pagination.current}

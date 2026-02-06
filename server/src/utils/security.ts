@@ -252,21 +252,22 @@ export function safeJsonParse(jsonStr: string, config: SecurityConfig = DEFAULT_
  */
 export function sanitizeError(error: Error, config: SecurityConfig = DEFAULT_CONFIG): Error {
   const sanitized = new Error();
-  
-  // 过滤错误消息
-  sanitized.message = filterString(error.message, config);
-  
+
+  // 过滤错误消息（确保是字符串）
+  const message = error?.message || String(error) || 'Unknown error';
+  sanitized.message = filterString(message, config);
+
   // 过滤错误堆栈（生产环境）
   if (config.enableFiltering && process.env.NODE_ENV === 'production') {
     sanitized.stack = '[STACK_HIDDEN]';
   } else {
     // 非生产环境也进行一定程度的脱敏
-    sanitized.stack = filterString(error.stack || '', {
+    sanitized.stack = filterString(error?.stack || '', {
       ...config,
       maxLogLength: Math.min(config.maxLogLength, 500)
     });
   }
-  
+
   return sanitized;
 }
 

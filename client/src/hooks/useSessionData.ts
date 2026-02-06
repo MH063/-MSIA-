@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import api, { unwrapData } from '../utils/api';
 import type { ApiResponse } from '../utils/api';
+import { logger } from '../utils/logger';
 
 export interface SessionData {
   id?: number;
@@ -54,7 +55,7 @@ export const useSessionData = (id: string | undefined): UseSessionDataReturn => 
       setData(sessionData);
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to fetch session'));
-      console.error('Error fetching session:', err);
+      logger.error('Error fetching session:', err);
     } finally {
       setLoading(false);
     }

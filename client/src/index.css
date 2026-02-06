@@ -949,6 +949,17 @@ html::-webkit-scrollbar-thumb:hover {
   justify-content: flex-start;
 }
 
+.assistant-fab {
+  position: fixed;
+  right: 24px;
+  bottom: 96px;
+  z-index: 40;
+}
+
+.assistant-fab .ant-btn {
+  box-shadow: var(--msia-shadow-float);
+}
+
 .severity-blocks {
   display: flex;
   align-items: center;

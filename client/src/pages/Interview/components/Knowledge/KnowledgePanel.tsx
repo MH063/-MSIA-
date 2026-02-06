@@ -6,13 +6,13 @@ import type { ApiResponse } from '../../../../utils/api';
 import { useQuery } from '@tanstack/react-query';
 import Loading from '../../../../components/common/Loading';
 import { useThemeStore } from '../../../../store/theme.store';
+import logger from '../../../../utils/logger';
 
 const { Title, Text } = Typography;
 
 /**
  * KnowledgePanelProps
- * 知识库助手属性：包含当前激活分节，已识别的症状上下文，以及加载状态
- */
+ * 知识库助手属性：包含当前激活分节，已识别的症状上下文，以及加载状态 */
 interface KnowledgePanelProps {
   activeSection: string;
   loading?: boolean;
@@ -52,9 +52,9 @@ const KnowledgePanel: React.FC<KnowledgePanelProps> = ({
   const [diagnosisLoading, setDiagnosisLoading] = useState(false);
   
   /**
-   * 映射加载
-   * 拉取 /mapping/symptoms，构造 name→key 与 key→name 映射，确保展示中文名称且与后端键值一致
-   */
+ * 映射加载
+ * 拉取 /mapping/symptoms，构建 name→key 与 key→name 映射，确保展示中文名称且与后端键值一致
+ */
   const mappingQuery = useQuery({
     queryKey: ['mapping', 'symptoms'],
     queryFn: async () => {
@@ -93,15 +93,15 @@ const KnowledgePanel: React.FC<KnowledgePanelProps> = ({
 
   /**
    * fetchDiagnosisSuggestions
-   * 根据当前症状上下文与患者基本信息，携带会话ID调用后端诊断建议接口，
-   * 统一使用 unwrapData 解包双层 data 响应结构并更新建议列表
-   */
+ * 根据当前症状上下文与患者基本信息，携带会话ID调用后端诊断建议接口；
+ * 统一使用 unwrapData 解包双层 data 响应结构并更新建议列表
+ */
   const fetchDiagnosisSuggestions = React.useCallback(async () => {
       const validSession = typeof sessionId === 'number' && Number.isFinite(sessionId) && sessionId > 0;
       if (!symptomContext || !symptomContext.name || !validSession) return;
       setDiagnosisLoading(true);
       try {
-          console.log('[Knowledge] 拉取诊断建议', { name: symptomContext.name, sessionId, patientInfo });
+          logger.info('[Knowledge] 拉取诊断建议', { name: symptomContext.name, sessionId, patientInfo });
           const symptoms = symptomContext.name.split('、');
           const normalizedAge = (() => {
             const a = patientInfo?.age;
@@ -117,10 +117,10 @@ const KnowledgePanel: React.FC<KnowledgePanelProps> = ({
           const payload = unwrapData<string[]>(res);
           if (Array.isArray(payload)) {
               setDiagnosisSuggestions(payload);
-              console.log('[Knowledge] 诊断建议更新', { count: payload.length, items: payload });
+              logger.info('[Knowledge] 诊断建议更新', { count: payload.length, items: payload });
           }
       } catch (error) {
-          console.error("[Knowledge] 获取诊断建议失败:", error);
+          logger.error("[Knowledge] 获取诊断建议失败:", error);
           message.error('诊断建议加载失败');
       } finally {
           setDiagnosisLoading(false);
@@ -136,7 +136,6 @@ const KnowledgePanel: React.FC<KnowledgePanelProps> = ({
   }, [symptomContext, fetchDiagnosisSuggestions]);
 
   // 空状态提示改为引导，移除所有静态示例内容
-
   /**
    * renderSymptomHints
    * 当存在有效症状时，渲染红旗（警惕征象）、必问问题、常见鉴别以及通用症状要点
@@ -154,21 +153,19 @@ const KnowledgePanel: React.FC<KnowledgePanelProps> = ({
 
      /**
       * mapToName
-      * 将后端键或名称统一映射为中文名称以展示；若映射缺失则原样返回
-      */
+      * 将后端键或名称统一映射为中文名称以展示；若映射缺失则原样返回?      */
      const mapToName = (s: string) => keyToName[s] || s;
      /**
       * handleAddRelated
-      * 将“常见鉴别”标签点击事件转换为现病史伴随症状的键，并回调给父组件追加
-      */
+      * 将“常见鉴别”标签点击事件转换为现病史伴随症状的键，并回调给父组件追加?      */
      const handleAddRelated = (s: string) => {
        const key = getSymptomKey(s);
        if (typeof key === 'string' && key.trim() && onAddAssociated) {
          onAddAssociated(key);
          message.success(`已添加伴随症状：${mapToName(s)}`);
-         console.log('[Knowledge] 添加伴随症状', { source: s, key });
+         logger.info('[Knowledge] 添加伴随症状', { source: s, key });
        } else {
-         console.warn('[Knowledge] 添加伴随症状失败：无效键', { source: s });
+         logger.warn('[Knowledge] 添加伴随症状失败：无效键', { source: s });
        }
      };
      const currentSymptomKey = getSymptomKey(symptomContext.name);
@@ -285,7 +282,7 @@ const KnowledgePanel: React.FC<KnowledgePanelProps> = ({
            </div>
            {redFlagsDisplay && redFlagsDisplay.length > 0 && (
              <div style={{ marginTop: 8 }}>
-               <Text type="danger" strong>警惕征象：</Text>
+               <Text type="danger" strong>警惕征象</Text>
                <ul style={{ paddingLeft: 20, margin: '4px 0', color: token.colorError }}>
                  {redFlagsDisplay.map((flag, idx) => <li key={idx}>{flag}</li>)}
                </ul>
@@ -299,10 +296,9 @@ const KnowledgePanel: React.FC<KnowledgePanelProps> = ({
 
   /**
    * renderSymptomSummary
-   * 统一渲染“常见症状问诊要点”各系统分组，保持样式一致
-   */
-  // 已移除未使用的渲染函数以通过 linter 检查
- 
+ * 统一渲染“常见症状问诊要点”各系统分组，保持样式一致
+ */
+  // 已移除未使用的渲染函数以通过 linter 检查 
   const renderGeneralHints = () => {
     const items = [
       {
@@ -355,7 +351,7 @@ const KnowledgePanel: React.FC<KnowledgePanelProps> = ({
                             label: '既往史问诊要点',
                             children: (
                             <ul style={{ margin: 0, paddingLeft: 20, color: token.colorText }}>
-                                <li>慢性病史（高血压/糖尿病）对现病的影响</li>
+                                <li>慢性病史（高血压、糖尿病）对现病的影响</li>
                                 <li>手术史的具体时间及愈合情况</li>
                                 <li>过敏史必须详细记录过敏原及反应类型</li>
                             </ul>

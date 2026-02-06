@@ -10,6 +10,7 @@ import type { ApiResponse } from '../../utils/api';
 import KnowledgeGraph from './components/KnowledgeGraph';
 import Loading from '../../components/common/Loading';
 import { useThemeStore } from '../../store/theme.store';
+import logger from '../../utils/logger';
 import './index.css';
 
 const { Sider, Content } = Layout;
@@ -71,10 +72,10 @@ const KnowledgeList: React.FC = () => {
     setLoading(true);
     try {
       const res: ApiResponse<KnowledgeItem[]> = await api.get('/knowledge/symptom-mappings');
-      console.log('[KnowledgeList] API响应:', res);
+      logger.info('[KnowledgeList] API响应:', res);
       if (res?.success) {
         const payload = unwrapData<KnowledgeItem[]>(res);
-        console.log('[KnowledgeList] 解包数据:', payload);
+        logger.info('[KnowledgeList] 解包数据:', payload);
         if (payload && payload.length > 0) {
           setKnowledgeList(payload);
         } else {
@@ -82,7 +83,7 @@ const KnowledgeList: React.FC = () => {
         }
       }
     } catch (err) {
-      console.error('[KnowledgeList] 获取知识库数据失败:', err);
+      logger.error('[KnowledgeList] 获取知识库数据失败', err);
     } finally {
       setLoading(false);
     }
@@ -107,12 +108,12 @@ const KnowledgeList: React.FC = () => {
       try {
         setSessionsLoading(true);
         const safe = term.replace(/['"<>]/g, '');
-        console.log('[KnowledgeList] 病历搜索', { term, safe });
+        logger.info('[KnowledgeList] 病历搜索', { term, safe });
         const resp = (await api.get('/sessions', { params: { search: safe, limit: 5 } })) as ApiResponse<SessionSearchPayload | { data: SessionSearchPayload }>;
         const payload = unwrapData<SessionSearchPayload>(resp);
         if (alive) setSessionResults((payload?.items || []).slice(0, 5));
       } catch (e) {
-        console.error('[KnowledgeList] 病历搜索失败', e);
+        logger.error('[KnowledgeList] 病历搜索失败', e);
       } finally {
         setSessionsLoading(false);
       }
@@ -120,7 +121,7 @@ const KnowledgeList: React.FC = () => {
 
     (async () => {
       try {
-        console.log('[KnowledgeList] 症状映射搜索', { term });
+        logger.info('[KnowledgeList] 症状映射搜索', { term });
         const resp = (await api.get('/mapping/symptoms')) as ApiResponse<{ nameToKey: Record<string, string>; synonyms: Record<string, string> }>;
         const payload = unwrapData<{ nameToKey: Record<string, string>; synonyms: Record<string, string> }>(resp);
         const nameToKey = payload?.nameToKey || {};
@@ -135,7 +136,7 @@ const KnowledgeList: React.FC = () => {
         const results = union.map(name => ({ name, key: nameToKey[name] || name.toLowerCase().replace(/\s+/g, '_') }));
         setSymptomMatches(results.slice(0, 10));
       } catch (e) {
-        console.error('[KnowledgeList] 症状映射搜索失败', e);
+        logger.error('[KnowledgeList] 症状映射搜索失败', e);
       }
     })();
 
@@ -209,20 +210,20 @@ const KnowledgeList: React.FC = () => {
 ## 定义
 ${selectedItem.description || '暂无描述'}
 
-## 红旗征 (Red Flags)
-${selectedItem.redFlags?.map((f: string) => `- 🚩 **${f}**`).join('\n') || '无'}
+## 红旗征(Red Flags)
+${selectedItem.redFlags?.map((f: string) => `- 🚩 **${f}**`).join('\n') || '暂无'}
 
 ## 伴随症状
-${selectedItem.relatedSymptoms?.map((s: string) => `- ${s}`).join('\n') || '无'}
+${selectedItem.relatedSymptoms?.map((s: string) => `- ${s}`).join('\n') || '暂无'}
 
 ## 问诊要点
-${selectedItem.questions?.map((q: string) => `- ${q}`).join('\n') || '无'}
+${selectedItem.questions?.map((q: string) => `- ${q}`).join('\n') || '暂无'}
 
 ## 鉴别诊断
 - **疾病A**: ...
 - **疾病B**: ...
 
-> *注：本内容仅供参考，请结合临床实际情况。*
+> *注：本内容仅供参考，请结合临床实际情况判断*
     `;
   }, [selectedItem]);
 
@@ -238,7 +239,7 @@ ${selectedItem.questions?.map((q: string) => `- ${q}`).join('\n') || '无'}
   const handleQuote = () => {
     if (!selectedItem) return;
     const date = new Date().toLocaleDateString();
-    const text = `[1] ${selectedItem.symptomName}. 医学生智能问诊辅助系统(MSIA). 检索于 ${date}.`;
+    const text = `[1] ${selectedItem.symptomName}. 医学生智能问诊辅助系统（MSIA）. 检索于 ${date}.`;
     navigator.clipboard.writeText(text).then(() => {
       message.success('引用格式已复制到剪贴板');
     }).catch(() => {
@@ -249,7 +250,7 @@ ${selectedItem.questions?.map((q: string) => `- ${q}`).join('\n') || '无'}
   const SidebarContent = (
     <div style={{ padding: 16, height: '100%', display: 'flex', flexDirection: 'column' }}>
       <Search 
-        placeholder="搜索知识点" 
+        placeholder="搜索知识库" 
         style={{ marginBottom: 16 }} 
         value={searchTerm}
         onChange={(e) => {
@@ -433,7 +434,7 @@ ${selectedItem.questions?.map((q: string) => `- ${q}`).join('\n') || '无'}
                       </div>
                     </div>
                   ) : (
-                    <Empty description="请选择左侧知识点" image={Empty.PRESENTED_IMAGE_SIMPLE}>
+                    <Empty description="请选择左侧知识项" image={Empty.PRESENTED_IMAGE_SIMPLE}>
                       {isMobile && <Button type="primary" onClick={() => setMobileDrawerOpen(true)}>打开目录</Button>}
                     </Empty>
                   )}

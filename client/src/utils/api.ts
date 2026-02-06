@@ -1,4 +1,6 @@
 import axios, { type AxiosRequestConfig, type AxiosResponse, type AxiosRequestHeaders } from 'axios';
+import { logger } from './logger';
+import { API_CONFIG, AUTH_CONFIG } from '../config';
 
 const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
 const isProduction = import.meta.env.PROD;
@@ -13,7 +15,7 @@ function getDevHost(): string {
   const localHost = (() => {
     if (typeof window === 'undefined') return undefined;
     try {
-      const byLocal = window.localStorage.getItem('DEV_HOST') || window.localStorage.getItem('VITE_DEV_HOST') || undefined;
+      const byLocal = window.localStorage.getItem(API_CONFIG.DEV_HOST_KEY) || window.localStorage.getItem(API_CONFIG.VITE_DEV_HOST_KEY) || undefined;
       if (byLocal && typeof byLocal === 'string' && byLocal.trim()) return byLocal.trim();
       const fromQuery = new URL(window.location.href).searchParams.get('dev_host') || undefined;
       if (fromQuery && typeof fromQuery === 'string' && fromQuery.trim()) return fromQuery.trim();
@@ -26,16 +28,16 @@ function getDevHost(): string {
   if (isLocal) {
     const candidate = (localHost || envHost || '').trim();
     if (candidate) {
-      console.log('[api] 使用网卡IP作为开发主机:', candidate);
+      logger.info('[api] 使用网卡IP作为开发主机', { host: candidate });
       return candidate;
     }
-    console.warn('[api] 当前使用 localhost 访问开发环境，尚未指定网卡IP，将继续使用 localhost 访问后端；建议使用 http://<网卡IP>:8000 访问前端，并在地址栏添加 ?dev_host=<网卡IP> 或通过 localStorage 设置 DEV_HOST');
+    logger.warn('[api] 当前使用 localhost 访问开发环境，尚未指定网卡IP，将继续使用 localhost 访问后端；建议使用 http://<网卡IP>:8000 访问前端，并在地址栏添加 ?dev_host=<网卡IP> 或通过 localStorage 设置 DEV_HOST');
     return host;
   }
   return host;
 }
 
-export const API_BASE_URL = isProduction ? '/api' : `http://${getDevHost()}:4000/api`;
+export const API_BASE_URL = isProduction ? API_CONFIG.BASE_URL : `http://${getDevHost()}:${API_CONFIG.DEV_PORT}/api`;
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -44,7 +46,7 @@ const api = axios.create({
 
 api.interceptors.request.use((config) => {
   try {
-    const token = typeof window !== 'undefined' ? window.localStorage.getItem('OPERATOR_TOKEN') : null;
+    const token = typeof window !== 'undefined' ? window.localStorage.getItem(AUTH_CONFIG.TOKEN_KEY) : null;
     if (token && typeof token === 'string' && token.trim()) {
       config.headers = {
         ...(config.headers || {}),
@@ -153,7 +155,7 @@ api.interceptors.response.use(
     if (status === 401) {
       try {
         const p = typeof window !== 'undefined' ? String(window.location.pathname || '/') : '/';
-        console.warn('[api] 认证失败(401)，即将跳转到登录页', { path: p });
+        logger.warn('[api] 认证失败(401)，即将跳转到登录页', { path: p });
         window.localStorage.removeItem('OPERATOR_TOKEN');
         window.localStorage.removeItem('OPERATOR_ROLE');
         window.localStorage.removeItem('OPERATOR_ID');
@@ -161,7 +163,7 @@ api.interceptors.response.use(
           window.location.assign(`/login?redirect=${encodeURIComponent(p)}`);
         }
       } catch (e) {
-        console.warn('[api] 401处理失败', e);
+        logger.warn('[api] 401处理失败', e);
       }
     }
     return Promise.reject(error);

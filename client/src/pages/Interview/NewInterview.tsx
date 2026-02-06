@@ -19,6 +19,7 @@ import {
   Grid,
   theme
 } from 'antd';
+import logger from '../../utils/logger';
 import { useNavigate } from 'react-router-dom';
 import { 
   UserOutlined, 
@@ -229,7 +230,7 @@ const NewInterview: React.FC = () => {
     setSyncStatus('syncing');
     
     try {
-      console.log('[NewInterview] 提交表单数据', values);
+      logger.info('[NewInterview] 提交表单数据', values);
       
       // 1. 创建患者
       const patientRes = await api.post('/patients', {
@@ -249,13 +250,13 @@ const NewInterview: React.FC = () => {
       if (!patientData) {
         throw new Error('患者创建失败');
       }
-      
+
       const patientId = patientData.id;
-      
+
       // 2. 创建会话 - 使用与 GeneralSection 一致的数据结构
       try {
         const sessionData = convertToSessionFormat(values);
-        console.log('[NewInterview] 会话数据结构', sessionData);
+        logger.info('[NewInterview] 会话数据结构', sessionData);
         
         const sessionRes = await api.post('/sessions', {
           patientId: patientId,
@@ -266,7 +267,7 @@ const NewInterview: React.FC = () => {
 
         const sessionResult = unwrapData<{ id: string }>(sessionRes);
         if (sessionResult) {
-          console.log('[NewInterview] 创建会话成功', sessionResult);
+          logger.info('[NewInterview] 创建会话成功', sessionResult);
           setSyncStatus('synced');
           message.success('患者档案创建成功，数据已同步到问诊系统');
           navigate(`/interview/${sessionResult.id}`);
@@ -275,19 +276,19 @@ const NewInterview: React.FC = () => {
           throw new Error('会话创建失败');
         }
       } catch (err) {
-        console.error('[NewInterview] 创建会话失败:', err);
+        logger.error('[NewInterview] 创建会话失败:', err);
         // 回滚患者记录
         try {
           await api.delete(`/patients/${patientId}`) as unknown as import('../../utils/api').ApiResponse;
           message.error('会话创建失败，已回滚患者记录');
         } catch (rollbackErr) {
-          console.error('[NewInterview] 患者回滚失败:', rollbackErr);
+          logger.error('[NewInterview] 患者回滚失败', rollbackErr);
           message.error('会话创建失败，患者回滚失败，请手动处理');
         }
         setSyncStatus('error');
       }
     } catch (error) {
-      console.error('[NewInterview] 创建失败:', error);
+      logger.error('[NewInterview] 创建失败:', error);
       message.error('创建失败，请检查网络连接后重试');
       setSyncStatus('error');
     } finally {
@@ -330,7 +331,7 @@ const NewInterview: React.FC = () => {
         message.info('已恢复上次草稿');
       }
     } catch (e) {
-      console.error('[NewInterview] 加载草稿失败', e);
+      logger.error('[NewInterview] 加载草稿失败', e);
     }
   }, [form, message]);
 
@@ -348,15 +349,15 @@ const NewInterview: React.FC = () => {
     const requiredNow = getRequiredFieldsByStep(currentStep);
     if (requiredNow.length > 0) {
       try {
-        console.log('[NewInterview] 验证当前步骤必填项', { currentStep, requiredNow });
+        logger.info('[NewInterview] 验证当前步骤必填项', { currentStep, requiredNow });
         await form.validateFields(requiredNow);
       } catch {
-        console.warn('[NewInterview] 当前步骤未完成，阻止切换', { currentStep, requiredNow });
+        logger.warn('[NewInterview] 当前步骤未完成，阻止切换', { currentStep, requiredNow });
         message.warning('请完成当前步骤的必填项');
         return;
       }
     }
-    console.log('[NewInterview] 步骤切换通过', { from: currentStep, to: nextStep });
+    logger.info('[NewInterview] 步骤切换通过', { from: currentStep, to: nextStep });
     setCurrentStep(nextStep);
   };
 
@@ -525,13 +526,13 @@ const NewInterview: React.FC = () => {
 
             <Row gutter={[16, 16]}>
               <Col xs={24} sm={12} md={8}>
-                <Form.Item 
-                  name="name" 
-                  label={<Space><IdcardOutlined />姓名</Space>} 
+                <Form.Item
+                  name="name"
+                  label={<Space><IdcardOutlined />姓名</Space>}
                   rules={[{ required: true, message: '请输入患者姓名' }]}
                 >
-                  <Input 
-                    placeholder="请输入患者姓名" 
+                  <Input
+                    placeholder="请输入患者姓名"
                     size="large"
                     style={{ borderRadius: 8 }}
                   />
@@ -543,7 +544,7 @@ const NewInterview: React.FC = () => {
                   label={<Space><TeamOutlined />性别</Space>} 
                   rules={[{ required: true, message: '请选择性别' }]}
                 >
-                  <Select 
+                  <Select
                     placeholder="请选择"
                     size="large"
                     style={{ borderRadius: 8 }}
@@ -561,13 +562,13 @@ const NewInterview: React.FC = () => {
                 </Form.Item>
               </Col>
               <Col xs={12} sm={12} md={8}>
-                <Form.Item 
-                  name="ethnicity" 
+                <Form.Item
+                  name="ethnicity"
                   label={<Space><TeamOutlined />民族</Space>}
                   rules={[{ required: true, message: '请输入民族' }]}
                 >
-                  <Input 
-                    placeholder="如：汉族" 
+                  <Input
+                    placeholder="如：汉族"
                     size="large"
                     style={{ borderRadius: 8 }}
                   />
@@ -587,7 +588,7 @@ const NewInterview: React.FC = () => {
               <Col xs={24} sm={12} md={8}>
                 <Form.Item
                   label={<Space><CalendarOutlined />年龄</Space>}
-                  help={ageDisplay?.backupText ? `备用：${ageDisplay.backupText}` : '出生日期填写后自动计算'}
+                  help={ageDisplay?.backupText ? `备用显示：${ageDisplay.backupText}` : '出生日期填写后自动计算'}
                   required
                 >
                   {ageDisplay ? (
@@ -666,7 +667,7 @@ const NewInterview: React.FC = () => {
               </Col>
               <Col xs={24} sm={12} md={8}>
                 <Form.Item name="placeOfBirth" label={<Space><EnvironmentOutlined />出生地</Space>}>
-                  <Input placeholder="省/市/县" size="large" style={{ borderRadius: 8 }} />
+                  <Input placeholder="省/市/区" size="large" style={{ borderRadius: 8 }} />
                 </Form.Item>
               </Col>
               <Col xs={24} sm={12} md={8}>
@@ -688,7 +689,7 @@ const NewInterview: React.FC = () => {
                   padding: '0 48px'
                 }}
               >
-                下一步 <ArrowRightOutlined />
+                下一步<ArrowRightOutlined />
               </Button>
             </div>
           </Card>
@@ -721,8 +722,8 @@ const NewInterview: React.FC = () => {
 
             <Row gutter={[16, 16]}>
               <Col xs={24} sm={12} md={8}>
-                <Form.Item 
-                  name="phone" 
+                <Form.Item
+                  name="phone"
                   label={<Space><PhoneOutlined />联系电话</Space>}
                   rules={[
                     { required: true, message: '请输入联系电话' },
@@ -766,11 +767,11 @@ const NewInterview: React.FC = () => {
             <Row gutter={[16, 16]}>
               <Col xs={24} sm={12}>
                 <Form.Item name="admissionTime" label="入院时间">
-                  <LazyDatePicker 
-                    showTime 
-                    format="YYYY-MM-DD HH:mm" 
-                    style={{ width: '100%', borderRadius: 8 }} 
-                    placeholder="年-月-日 时:分" 
+                  <LazyDatePicker
+                    showTime
+                    format="YYYY-MM-DD HH:mm"
+                    style={{ width: '100%', borderRadius: 8 }}
+                    placeholder="选择入院时间"
                     size="large"
                   />
                 </Form.Item>
@@ -781,11 +782,11 @@ const NewInterview: React.FC = () => {
                   label="记录时间"
                   rules={[{ required: true, message: '请选择记录时间' }]}
                 >
-                  <LazyDatePicker 
-                    showTime 
-                    format="YYYY-MM-DD HH:mm" 
-                    style={{ width: '100%', borderRadius: 8 }} 
-                    placeholder="年-月-日 时:分" 
+                  <LazyDatePicker
+                    showTime
+                    format="YYYY-MM-DD HH:mm"
+                    style={{ width: '100%', borderRadius: 8 }}
+                    placeholder="选择记录时间"
                     size="large"
                   />
                 </Form.Item>
@@ -793,25 +794,25 @@ const NewInterview: React.FC = () => {
             </Row>
 
             <div style={{ textAlign: 'center', marginTop: 24, display: 'flex', justifyContent: 'center', gap: 16 }}>
-              <Button 
+              <Button
                 size="large"
                 onClick={() => setCurrentStep(0)}
                 style={{ borderRadius: 8 }}
               >
                 上一步
               </Button>
-              <Button 
-                type="primary" 
+              <Button
+                type="primary"
                 size="large"
                 onClick={() => handleStepChange(2)}
-                style={{ 
+                style={{
                   borderRadius: 8,
                   background: 'linear-gradient(135deg, #1890ff 0%, #36cfc9 100%)',
                   border: 'none',
                   padding: '0 48px'
                 }}
               >
-                下一步 <ArrowRightOutlined />
+                下一步<ArrowRightOutlined />
               </Button>
             </div>
           </Card>
@@ -844,8 +845,8 @@ const NewInterview: React.FC = () => {
 
             <Row gutter={[16, 16]}>
               <Col xs={24} sm={12} md={8}>
-                <Form.Item 
-                  name="historian" 
+                <Form.Item
+                  name="historian"
                   label={<Space><TeamOutlined />病史陈述者</Space>}
                 >
                   <Select size="large" style={{ borderRadius: 8 }}>
@@ -879,8 +880,8 @@ const NewInterview: React.FC = () => {
 
               {historian !== '本人' && (
                 <Col xs={24} sm={12} md={8}>
-                  <Form.Item 
-                    name="historianRelationship" 
+                  <Form.Item
+                    name="historianRelationship"
                     label={<Space><TeamOutlined />与患者关系</Space>}
                     rules={[{ required: true, message: '请填写与患者关系' }]}
                   >
@@ -929,7 +930,7 @@ const NewInterview: React.FC = () => {
             </div>
 
             <div style={{ textAlign: 'center', marginTop: 32, display: 'flex', justifyContent: 'center', gap: 16 }}>
-              <Button 
+              <Button
                 size="large"
                 onClick={() => setCurrentStep(1)}
                 style={{ borderRadius: 8 }}

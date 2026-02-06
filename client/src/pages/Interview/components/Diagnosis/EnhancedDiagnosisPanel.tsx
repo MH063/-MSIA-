@@ -17,6 +17,7 @@ import {
   Tooltip,
   theme
 } from 'antd';
+import logger from '../../../../utils/logger';
 import { 
   MedicineBoxOutlined, 
   BranchesOutlined, 
@@ -146,13 +147,13 @@ const EnhancedDiagnosisPanel: React.FC<EnhancedDiagnosisPanelProps> = ({
         setDiagnoses(data.diagnoses);
         setConfidenceDetails(data.confidenceDetails);
         setSymptomAssociations(data.symptomAssociations);
-        console.log('[增强诊断] 诊断建议加载成功', { 
+        logger.info('[增强诊断] 诊断建议加载成功', { 
           count: data.diagnoses.length,
           topConfidence: data.diagnoses[0]?.confidence 
         });
       }
     } catch (error) {
-      console.error('[增强诊断] 获取诊断建议失败:', error);
+      logger.error('[增强诊断] 获取诊断建议失败:', error);
       message.error('诊断建议加载失败');
     } finally {
       setLoading(false);
@@ -234,7 +235,7 @@ const EnhancedDiagnosisPanel: React.FC<EnhancedDiagnosisPanelProps> = ({
         differentialDiagnoses={filteredDiagnoses}
         redFlags={redFlags}
         onNodeClick={(node) => {
-          console.log('[图谱] 节点点击', node);
+          logger.info('[图谱] 节点点击', node);
         }}
         onExcludeDiagnosis={handleExcludeDiagnosis}
         onPrioritizeDiagnosis={handlePrioritizeDiagnosis}
@@ -371,7 +372,7 @@ const EnhancedDiagnosisPanel: React.FC<EnhancedDiagnosisPanelProps> = ({
                               </li>
                             ))}
                             {diagnosis.supportingSymptoms.length > 3 && (
-                              <Text type="secondary" style={{ fontSize: 11 }}>...等{diagnosis.supportingSymptoms.length}项</Text>
+                              <Text type="secondary" style={{ fontSize: 11 }}>…等{diagnosis.supportingSymptoms.length}项</Text>
                             )}
                           </ul>
                         ) : (
@@ -399,7 +400,7 @@ const EnhancedDiagnosisPanel: React.FC<EnhancedDiagnosisPanelProps> = ({
                               </li>
                             ))}
                             {diagnosis.excludingSymptoms.length > 3 && (
-                              <Text type="secondary" style={{ fontSize: 11 }}>...等{diagnosis.excludingSymptoms.length}项</Text>
+                              <Text type="secondary" style={{ fontSize: 11 }}>…等{diagnosis.excludingSymptoms.length}项</Text>
                             )}
                           </ul>
                         ) : (
@@ -427,7 +428,7 @@ const EnhancedDiagnosisPanel: React.FC<EnhancedDiagnosisPanelProps> = ({
                               </li>
                             ))}
                             {diagnosis.redFlags.length > 3 && (
-                              <Text type="secondary" style={{ fontSize: 11 }}>...等{diagnosis.redFlags.length}项</Text>
+                              <Text type="secondary" style={{ fontSize: 11 }}>…等{diagnosis.redFlags.length}项</Text>
                             )}
                           </ul>
                         ) : (

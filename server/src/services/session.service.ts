@@ -1,8 +1,48 @@
 import prisma from '../prisma';
 import { OperatorIdentity } from '../middleware/auth';
 import { secureLogger } from '../utils/secureLogger';
+import { PrismaClient, Prisma } from '@prisma/client';
 
-type CascadeDeleteSpec = { table: string; fkColumn: string };
+/**
+ * 级联删除配置接口
+ */
+interface CascadeDeleteSpec {
+  table: string;
+  fkColumn: string;
+}
+
+/**
+ * 会话创建数据接口
+ */
+interface SessionCreateData {
+  historian?: string;
+  reliability?: string;
+  historianRelationship?: string;
+  [key: string]: unknown;
+}
+
+/**
+ * 会话查询参数接口
+ */
+interface SessionQueryParams {
+  take?: number;
+  skip?: number;
+  where?: Prisma.InterviewSessionWhereInput;
+  orderBy?: Prisma.InterviewSessionOrderByWithRelationInput;
+}
+
+/**
+ * 自定义错误接口
+ */
+interface CustomError extends Error {
+  statusCode?: number;
+  errorCode?: string;
+}
+
+/**
+ * 事务客户端类型
+ */
+type TransactionClient = Prisma.TransactionClient;
 
 function isSafeSqlIdentifier(name: string): boolean {
   return /^[A-Za-z_][A-Za-z0-9_]*$/u.test(name);
@@ -36,7 +76,7 @@ function getCascadeDeleteSpecs(): CascadeDeleteSpec[] {
   ];
 }
 
-async function tableExists(tx: any, tableName: string): Promise<boolean> {
+async function tableExists(tx: TransactionClient, tableName: string): Promise<boolean> {
   const rows = (await tx.$queryRaw`
     SELECT EXISTS (
       SELECT 1
@@ -48,7 +88,7 @@ async function tableExists(tx: any, tableName: string): Promise<boolean> {
 }
 
 async function deleteByFkIfExists(
-  tx: any,
+  tx: TransactionClient,
   spec: CascadeDeleteSpec,
   fkValue: number
 ): Promise<void> {
@@ -61,7 +101,7 @@ async function deleteByFkIfExists(
 }
 
 async function writeAuditLogIfExists(
-  tx: any,
+  tx: TransactionClient,
   payload: { operator: OperatorIdentity; sessionId: number; deletedAt: Date }
 ): Promise<void> {
   const { operator, sessionId, deletedAt } = payload;
@@ -87,8 +127,11 @@ async function writeAuditLogIfExists(
 
 /**
  * 创建问诊会话
+ * @param patientId 患者ID
+ * @param additionalData 附加数据
+ * @returns 创建的会话
  */
-export const createSession = async (patientId: number, additionalData: any = {}) => {
+export const createSession = async (patientId: number, additionalData: SessionCreateData = {}) => {
   return await prisma.interviewSession.create({
     data: {
       patientId,
@@ -113,8 +156,11 @@ export const getSessionById = async (id: number) => {
 
 /**
  * 更新会话数据 (通用)
+ * @param id 会话ID
+ * @param data 更新数据
+ * @returns 更新后的会话
  */
-export const updateSession = async (id: number, data: any) => {
+export const updateSession = async (id: number, data: Prisma.InterviewSessionUpdateInput) => {
   return await prisma.interviewSession.update({
     where: { id },
     data,
@@ -123,13 +169,10 @@ export const updateSession = async (id: number, data: any) => {
 
 /**
  * 获取会话列表
+ * @param params 查询参数
+ * @returns 会话列表
  */
-export const getSessions = async (params: {
-  take?: number;
-  skip?: number;
-  where?: any;
-  orderBy?: any;
-}) => {
+export const getSessions = async (params: SessionQueryParams) => {
   return await prisma.interviewSession.findMany({
     take: params.take,
     skip: params.skip,
@@ -141,8 +184,10 @@ export const getSessions = async (params: {
 
 /**
  * 统计会话数量
+ * @param where 查询条件
+ * @returns 会话数量
  */
-export const countSessions = async (where?: any) => {
+export const countSessions = async (where?: Prisma.InterviewSessionWhereInput) => {
   return await prisma.interviewSession.count({ where });
 };
 
@@ -177,12 +222,17 @@ export function canOperatorDeleteSession(params: {
   return false;
 }
 
-export const deleteSessionPermanentlyWithPrisma = async (
-  prismaClient: any,
-  params: {
+/**
+ * 永久删除会话参数接口
+ */
+interface DeleteSessionParams {
   sessionId: number;
   operator: OperatorIdentity;
 }
+
+export const deleteSessionPermanentlyWithPrisma = async (
+  prismaClient: PrismaClient,
+  params: DeleteSessionParams
 ) => {
   const { sessionId, operator } = params;
 
@@ -192,7 +242,7 @@ export const deleteSessionPermanentlyWithPrisma = async (
   });
 
   if (!session) {
-    const err: any = new Error('会话不存在');
+    const err = new Error('会话不存在') as CustomError;
     err.statusCode = 404;
     err.errorCode = 'NOT_FOUND';
     throw err;
@@ -203,7 +253,7 @@ export const deleteSessionPermanentlyWithPrisma = async (
     sessionDoctorId: session.doctorId ?? null,
   });
   if (!allowed) {
-    const err: any = new Error('无权限删除该问诊记录');
+    const err = new Error('无权限删除该问诊记录') as CustomError;
     err.statusCode = 403;
     err.errorCode = 'FORBIDDEN';
     throw err;
@@ -216,7 +266,7 @@ export const deleteSessionPermanentlyWithPrisma = async (
   });
 
   const deletedAt = new Date();
-  await prismaClient.$transaction(async (tx: any) => {
+  await prismaClient.$transaction(async (tx) => {
     const specs = getCascadeDeleteSpecs();
     for (const spec of specs) {
       await deleteByFkIfExists(tx, spec, sessionId);

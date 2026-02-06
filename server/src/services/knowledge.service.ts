@@ -1,5 +1,7 @@
 import prisma from '../prisma';
 import { Prisma } from '@prisma/client';
+import { cache } from '../utils/cache';
+import { secureLogger } from '../utils/secureLogger';
 
 // 症状知识库数据类型
 export interface SymptomKnowledgeData {
@@ -32,10 +34,23 @@ export interface DeleteResult {
 }
 
 /**
- * 获取所有症状知识库列表
+ * 获取所有症状知识库列表（带缓存）
  */
 export const getAllKnowledge = async (): Promise<Prisma.SymptomKnowledgeGetPayload<{}>[]> => {
-  return await prisma.symptomKnowledge.findMany();
+  // 尝试从缓存获取
+  const cached = await cache.get<Prisma.SymptomKnowledgeGetPayload<{}>[]>('knowledge:all');
+  if (cached) {
+    secureLogger.debug('[KnowledgeService] 从缓存获取所有知识库');
+    return cached;
+  }
+
+  // 从数据库获取
+  const knowledge = await prisma.symptomKnowledge.findMany();
+
+  // 存入缓存（10分钟）
+  await cache.set('knowledge:all', knowledge, { ttl: 600, tags: ['knowledge'] });
+
+  return knowledge;
 };
 
 /**
@@ -48,10 +63,19 @@ export const getKnowledgeSince = async (since: Date): Promise<Prisma.SymptomKnow
 };
 
 /**
- * 根据 Key 或 DisplayName 获取症状知识
+ * 根据 Key 或 DisplayName 获取症状知识（带缓存）
  * 支持通过 symptomKey、displayName 或模糊匹配查询
  */
 export const getKnowledgeByKey = async (key: string): Promise<Prisma.SymptomKnowledgeGetPayload<{}> | null> => {
+  const cacheKey = `knowledge:key:${key}`;
+
+  // 尝试从缓存获取
+  const cached = await cache.get<Prisma.SymptomKnowledgeGetPayload<{}>>(cacheKey);
+  if (cached) {
+    secureLogger.debug('[KnowledgeService] 从缓存获取知识库', { key });
+    return cached;
+  }
+
   // 首先尝试通过 symptomKey 查询
   let knowledge = await prisma.symptomKnowledge.findUnique({
     where: { symptomKey: key },
@@ -75,14 +99,19 @@ export const getKnowledgeByKey = async (key: string): Promise<Prisma.SymptomKnow
     });
   }
 
+  // 存入缓存（30分钟）
+  if (knowledge) {
+    await cache.set(cacheKey, knowledge, { ttl: 1800, tags: ['knowledge'] });
+  }
+
   return knowledge;
 };
 
 /**
- * 创建或更新症状知识
+ * 创建或更新症状知识（清除相关缓存）
  */
 export const upsertKnowledge = async (data: SymptomKnowledgeData): Promise<Prisma.SymptomKnowledgeGetPayload<{}>> => {
-  return await prisma.symptomKnowledge.upsert({
+  const result = await prisma.symptomKnowledge.upsert({
     where: { symptomKey: data.symptomKey },
     update: {
       displayName: data.displayName,
@@ -133,6 +162,15 @@ export const upsertKnowledge = async (data: SymptomKnowledgeData): Promise<Prism
       prevalence: data.prevalence,
     },
   });
+
+  // 清除相关缓存（测试环境跳过）
+  if (process.env.NODE_ENV !== 'test') {
+    await cache.delete(`knowledge:key:${data.symptomKey}`);
+    await cache.deleteByTag('knowledge');
+    secureLogger.debug('[KnowledgeService] 清除知识库缓存', { key: data.symptomKey });
+  }
+
+  return result;
 };
 
 /**
@@ -180,4 +218,58 @@ export const deleteKnowledgeBulk = async (keys: string[]): Promise<number> => {
     where: { symptomKey: { in: keys } }
   });
   return result.count;
+};
+
+/**
+ * 获取症状映射列表（带缓存）
+ */
+export const getSymptomMappings = async () => {
+  const cacheKey = 'knowledge:mappings';
+
+  // 尝试从缓存获取
+  const cached = await cache.get<Prisma.SymptomKnowledgeGetPayload<{ select: { symptomKey: true; displayName: true; category: true; description: true; redFlags: true; associatedSymptoms: true; questions: true } }>[]>(cacheKey);
+  if (cached) {
+    secureLogger.debug('[KnowledgeService] 从缓存获取症状映射');
+    return cached;
+  }
+
+  const mappings = await prisma.symptomKnowledge.findMany({
+    select: {
+      symptomKey: true,
+      displayName: true,
+      category: true,
+      description: true,
+      redFlags: true,
+      associatedSymptoms: true,
+      questions: true,
+    }
+  });
+
+  // 存入缓存（30分钟）
+  await cache.set(cacheKey, mappings, { ttl: 1800, tags: ['knowledge'] });
+
+  return mappings;
+};
+
+/**
+ * 根据症状名称获取映射
+ */
+export const getSymptomMappingByName = async (name: string): Promise<Prisma.SymptomKnowledgeGetPayload<{}> | null> => {
+  return await getKnowledgeByKey(name);
+};
+
+/**
+ * 获取疾病列表
+ */
+export const getDiseases = async (): Promise<Prisma.SymptomKnowledgeGetPayload<{}>[]> => {
+  return await prisma.symptomKnowledge.findMany({
+    where: { category: 'disease' }
+  });
+};
+
+/**
+ * 根据疾病名称获取详情
+ */
+export const getDiseaseByName = async (name: string): Promise<Prisma.SymptomKnowledgeGetPayload<{}> | null> => {
+  return await getKnowledgeByKey(name);
 };
