@@ -206,7 +206,7 @@ app.use(rateLimitStrategies.standard);
 // 特定路由限流
 app.use('/api/auth/login', rateLimitStrategies.strict);
 app.use('/api/auth/register', rateLimitStrategies.strict);
-app.use('/api/captcha', rateLimitStrategies.strict);
+app.use('/api/captcha', rateLimitStrategies.relaxed);
 app.use('/api/knowledge', rateLimitStrategies.knowledge);
 app.use('/api/diagnosis/suggest', rateLimitStrategies.diagnosis);
 

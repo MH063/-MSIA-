@@ -7,6 +7,23 @@ const FALLBACK_TTL_MS = 2 * 60 * 1000;
 const FALLBACK_STORE = new Map<string, StoreItem>();
 
 /**
+ * 快速获取可用的 Redis 客户端（最大等待时间可控）
+ * 超时或连接不可用时立即返回 null，避免请求阻塞
+ */
+async function getRedisQuick(timeoutMs: number = Number(process.env.CAPTCHA_REDIS_WAIT_MS || '300')) {
+  try {
+    const p = getRedisClient();
+    const result = await Promise.race([
+      p,
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), Math.max(50, timeoutMs))),
+    ]);
+    return result;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * 生成指定位数的验证码字符串（字母数字混合，排除易混淆字符）
  */
 export function generateCode(length = 4): string {
@@ -73,7 +90,7 @@ export async function createCaptcha(): Promise<{ id: string; svg: string; ttlMs:
   const hash = crypto.createHash('sha256').update(code).digest('hex');
   const ttlMs = FALLBACK_TTL_MS;
 
-  const redis = await getRedisClient();
+  const redis = await getRedisQuick();
   if (redis) {
     const key = `captcha:${id}`;
     await redis.set(key, hash, { EX: Math.ceil(ttlMs / 1000) });
@@ -97,7 +114,7 @@ export async function verifyCaptcha(id: string, input: string): Promise<boolean>
   if (!id || !normalized) {return false;}
   const hash = crypto.createHash('sha256').update(normalized).digest('hex');
 
-  const redis = await getRedisClient();
+  const redis = await getRedisQuick();
   if (redis) {
     const key = `captcha:${id}`;
     const stored = await redis.get(key);

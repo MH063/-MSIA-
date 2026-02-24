@@ -158,19 +158,30 @@ const KnowledgeList: React.FC = () => {
 
   // Construct Tree Data (Mock 3 levels)
   const treeData = useMemo(() => {
+    if (!filteredList || filteredList.length === 0) {
+      return [{
+        title: '临床医学',
+        key: 'root',
+        children: [{
+          title: '未分类',
+          key: 'cat-Uncategorized',
+          children: []
+        }]
+      }];
+    }
     const categories = Array.from(new Set(filteredList.map(k => k.category || 'Uncategorized')));
     return [
       {
         title: '临床医学',
         key: 'root',
-        children: categories.map(cat => ({
+        children: categories.filter(Boolean).map(cat => ({
           title: cat === 'respiratory' ? '呼吸系统' : (cat === 'digestive' ? '消化系统' : cat),
           key: `cat-${cat}`,
           children: filteredList
             .filter(k => (k.category || 'Uncategorized') === cat)
-            .map(k => ({
+            .map((k, idx) => ({
               title: k.symptomName,
-              key: k.id,
+              key: k.id || k.symptomKey || `item-${idx}`,
               icon: <FileTextOutlined />
             }))
         }))

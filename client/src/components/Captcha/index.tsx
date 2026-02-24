@@ -43,7 +43,7 @@ const Captcha: React.FC<CaptchaProps> = ({ onChange, onVerify, onIdChange, exter
     setIsLoading(true);
     setUserInput('');
     try {
-      const resp = (await api.get('/captcha/new')) as ApiResponse<{ id: string; svg: string }>;
+      const resp = (await api.get('/captcha/new', { timeout: 8000 })) as ApiResponse<{ id: string; svg: string }>;
       logger.info('[Captcha] 验证码响应:', resp);
       const payload = unwrapData<{ id: string; svg: string }>(resp);
       logger.info('[Captcha] 解析后的payload:', payload);

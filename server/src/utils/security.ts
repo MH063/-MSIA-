@@ -18,8 +18,8 @@ export const securityHeaders = (req: Request, res: Response, next: NextFunction)
   res.setHeader('X-Frame-Options', 'DENY');
   
   // 内容安全策略
-  res.setHeader('Content-Security-Policy', 
-    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';");
+  res.setHeader('Content-Security-Policy',
+    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: https:;");
   
   // 引用者策略
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');

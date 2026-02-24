@@ -82,7 +82,7 @@ export const getSession = async (req: Request, res: Response) => {
     }
 
     // 权限检查：只有管理员或创建该会话的医生可以访问
-    const operator = req.operator;
+    const operator = (req as any).operator;
     if (operator && operator.role === 'doctor' && session.doctorId !== operator.operatorId) {
       secureLogger.warn('[SessionController.getSession] 权限不足', {
         sessionId: session.id,

@@ -31,8 +31,7 @@ function getDevHost(): string {
       logger.info('[api] 使用网卡IP作为开发主机', { host: candidate });
       return candidate;
     }
-    logger.warn('[api] 当前使用 localhost 访问开发环境，尚未指定网卡IP，将继续使用 localhost 访问后端；建议使用 http://<网卡IP>:8000 访问前端，并在地址栏添加 ?dev_host=<网卡IP> 或通过 localStorage 设置 DEV_HOST');
-    return host;
+    return '127.0.0.1';
   }
   return host;
 }
@@ -42,6 +41,7 @@ export const API_BASE_URL = isProduction ? API_CONFIG.BASE_URL : `http://${getDe
 const api = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: true,
+  timeout: API_CONFIG.TIMEOUT,
 });
 
 api.interceptors.request.use((config) => {
@@ -62,6 +62,7 @@ api.interceptors.request.use((config) => {
 const refreshApi = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: true,
+  timeout: API_CONFIG.TIMEOUT,
 });
 
 export interface ApiResponse<T = unknown> {
