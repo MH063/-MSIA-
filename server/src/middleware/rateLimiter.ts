@@ -92,7 +92,7 @@ class RedisRateLimitStore implements RateLimitStore {
 
   async decrement(key: string): Promise<void> {
     const client = await getRedisClient();
-    if (!client) return;
+    if (!client) {return;}
 
     // 移除最新的一个记录
     const members = await client.zRange(key, -1, -1);
@@ -103,7 +103,7 @@ class RedisRateLimitStore implements RateLimitStore {
 
   async resetKey(key: string): Promise<void> {
     const client = await getRedisClient();
-    if (!client) return;
+    if (!client) {return;}
 
     await client.del(key);
   }
@@ -201,11 +201,11 @@ export function createRateLimiter(config: RateLimitConfig) {
         const statusCode = res.statusCode;
 
         if (config.skipSuccessfulRequests && statusCode < 400) {
-          store.decrement(key);
+          void store.decrement(key);
         }
 
         if (config.skipFailedRequests && statusCode >= 400) {
-          store.decrement(key);
+          void store.decrement(key);
         }
       });
 

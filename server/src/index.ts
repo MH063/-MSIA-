@@ -1,6 +1,8 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+// 导入类型声明文件，确保 Express Request 类型扩展生效
+import './types/express';
 import patientRoutes from './routes/patient.routes';
 import sessionRoutes from './routes/session.routes';
 import knowledgeRoutes from './routes/knowledge.routes';
@@ -31,7 +33,7 @@ try {
     enableDebugLogs: securityConfig.enableDebugLogs 
   });
 } catch (error) {
-  console.error('安全配置验证失败:', error);
+  secureLogger.error('安全配置验证失败', error instanceof Error ? error : undefined);
   process.exit(1);
 }
 
@@ -133,13 +135,14 @@ app.use((req: Request, res: Response, next) => {
   const splitPaths = (source: 'body' | 'query', value: unknown, paths: string[]) => {
     for (const p of paths) {
       const parts = p.split('.').filter(Boolean);
-      let cur: any = value as any;
+      let cur: unknown = value;
       for (const part of parts) {
         const m = /^(.+)\[(\d+)\]$/u.exec(part);
-        if (m) {
-          cur = cur?.[m[1]]?.[Number(m[2])];
-        } else {
-          cur = cur?.[part];
+        if (m && cur && typeof cur === 'object') {
+          const arr = (cur as Record<string, unknown>)[m[1]];
+          cur = Array.isArray(arr) ? arr[Number(m[2])] : undefined;
+        } else if (cur && typeof cur === 'object') {
+          cur = (cur as Record<string, unknown>)[part];
         }
       }
       if (typeof cur !== 'string') {continue;}
@@ -162,7 +165,7 @@ app.use((req: Request, res: Response, next) => {
   splitPaths('query', req.query, queryPaths);
 
   if (strictBodyPaths.length === 0 && strictQueryPaths.length === 0) {
-    console.warn('[Encoding] 检测到疑似中文丢失为问号的文本，已放行', {
+    secureLogger.warn('[Encoding] 检测到疑似中文丢失为问号的文本，已放行', {
       method: req.method,
       path: req.path,
       suspiciousBodyPaths,
@@ -172,7 +175,7 @@ app.use((req: Request, res: Response, next) => {
     return next();
   }
 
-  console.warn('[Encoding] 检测到疑似非UTF-8解码字符', {
+  secureLogger.warn('[Encoding] 检测到疑似非UTF-8解码字符', {
     method: req.method,
     path: req.path,
     strictBodyPaths,
@@ -215,9 +218,12 @@ app.use((req: Request, res: Response, next) => {
   const start = Date.now();
   res.on('finish', () => {
     const duration = Date.now() - start;
-    console.log(
-      `[${new Date().toISOString()}] ${req.method} ${req.path} ${res.statusCode} - ${duration}ms`
-    );
+    secureLogger.info('[Request]', {
+      method: req.method,
+      path: req.path,
+      statusCode: res.statusCode,
+      duration: `${duration}ms`,
+    });
   });
   next();
 });
@@ -331,14 +337,14 @@ app.listen(port, host, () => {
 });
 
 // 未捕获的异常处理 - 安全版本
-process.on('uncaughtException', async (error) => {
+process.on('uncaughtException', (error) => {
   secureLogger.error('未捕获的致命异常', error, {
     type: 'uncaughtException',
     timestamp: new Date().toISOString()
   });
 
   // 发送告警
-  await alert.critical(
+  void alert.critical(
     '系统未捕获异常',
     '系统发生未捕获的致命异常，请立即检查！',
     {
@@ -358,14 +364,14 @@ process.on('uncaughtException', async (error) => {
   }
 });
 
-process.on('unhandledRejection', async (reason, _promise) => {
+process.on('unhandledRejection', (reason, _promise) => {
   secureLogger.error('未处理的Promise拒绝', reason as Error, {
     type: 'unhandledRejection',
     timestamp: new Date().toISOString()
   });
 
   // 发送告警
-  await alert.error(
+  void alert.error(
     '未处理的Promise拒绝',
     '系统发生未处理的Promise拒绝',
     {
@@ -384,13 +390,13 @@ process.on('unhandledRejection', async (reason, _promise) => {
 });
 
 // 内存使用监控
-setInterval(async () => {
+setInterval(() => {
   const usage = process.memoryUsage();
   const usagePercent = usage.heapUsed / usage.heapTotal;
 
   // 内存使用超过90%时告警
   if (usagePercent > 0.9) {
-    await alert.warning(
+    void alert.warning(
       '内存使用过高',
       `系统内存使用超过90%，当前使用率: ${(usagePercent * 100).toFixed(2)}%`,
       {

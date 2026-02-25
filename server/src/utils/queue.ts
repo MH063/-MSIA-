@@ -87,7 +87,7 @@ class QueueManager {
     });
 
     // 设置处理器
-    queue.process(finalConfig.concurrency || 3, async (job: Job<T>) => {
+    void queue.process(finalConfig.concurrency || 3, async (job: Job<T>) => {
       secureLogger.info(`[Queue] 开始处理任务`, {
         queue: name,
         jobId: job.id,
@@ -232,11 +232,11 @@ class QueueManager {
    */
   async getJobStatus(queueName: string, jobId: string): Promise<JobStatus | null> {
     const queue = this.queues.get(queueName);
-    if (!queue) return null;
+    if (!queue) {return null;}
 
     try {
       const job = await queue.getJob(jobId);
-      if (!job) return null;
+      if (!job) {return null;}
 
       const state = await job.getState();
 
@@ -271,7 +271,7 @@ class QueueManager {
     paused: number;
   } | null> {
     const queue = this.queues.get(queueName);
-    if (!queue) return null;
+    if (!queue) {return null;}
 
     try {
       const [waiting, active, completed, failed, delayed, paused] = await Promise.all([
@@ -304,7 +304,7 @@ class QueueManager {
    */
   async pauseQueue(queueName: string): Promise<boolean> {
     const queue = this.queues.get(queueName);
-    if (!queue) return false;
+    if (!queue) {return false;}
 
     try {
       await queue.pause();
@@ -322,7 +322,7 @@ class QueueManager {
    */
   async resumeQueue(queueName: string): Promise<boolean> {
     const queue = this.queues.get(queueName);
-    if (!queue) return false;
+    if (!queue) {return false;}
 
     try {
       await queue.resume();
@@ -340,7 +340,7 @@ class QueueManager {
    */
   async cleanQueue(queueName: string, status: 'completed' | 'wait' | 'active' | 'delayed' | 'failed', limit?: number): Promise<boolean> {
     const queue = this.queues.get(queueName);
-    if (!queue) return false;
+    if (!queue) {return false;}
 
     try {
       await queue.clean(0, status, limit);
