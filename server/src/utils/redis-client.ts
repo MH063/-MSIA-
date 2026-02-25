@@ -35,7 +35,7 @@ export async function getRedisClient(): Promise<RedisClient | null> {
     } catch (err) {
       secureLogger.warn('[redis] 连接失败，将临时禁用', { url: sanitizeRedisUrl(url) });
       if (err instanceof Error) {
-        secureLogger.warn('[redis] 错误详情', err);
+        secureLogger.error('[redis] 错误详情', err);
       }
       disabledUntil = Date.now() + 30_000;
       client = null;

@@ -182,7 +182,7 @@ export const mask = {
    * 138****8888
    */
   phone(value: string): string {
-    if (!value || value.length < 7) return value;
+    if (!value || value.length < 7) {return value;}
     return value.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2');
   },
 
@@ -191,7 +191,7 @@ export const mask = {
    * 110101********1234
    */
   idCard(value: string): string {
-    if (!value || value.length < 8) return value;
+    if (!value || value.length < 8) {return value;}
     return value.replace(/(\d{6})\d{8}(\d{4})/, '$1********$2');
   },
 
@@ -200,9 +200,9 @@ export const mask = {
    * t***@example.com
    */
   email(value: string): string {
-    if (!value || !value.includes('@')) return value;
+    if (!value || !value.includes('@')) {return value;}
     const [local, domain] = value.split('@');
-    if (local.length <= 1) return value;
+    if (local.length <= 1) {return value;}
     return `${local[0]}***@${domain}`;
   },
 
@@ -211,8 +211,8 @@ export const mask = {
    * 张**
    */
   name(value: string): string {
-    if (!value || value.length < 2) return value;
-    if (value.length === 2) return `${value[0]}*`;
+    if (!value || value.length < 2) {return value;}
+    if (value.length === 2) {return `${value[0]}*`;}
     return `${value[0]}${'*'.repeat(value.length - 2)}${value[value.length - 1]}`;
   },
 
@@ -221,7 +221,7 @@ export const mask = {
    * 北京市********
    */
   address(value: string): string {
-    if (!value || value.length < 10) return value;
+    if (!value || value.length < 10) {return value;}
     return `${value.slice(0, 6)}${'*'.repeat(value.length - 6)}`;
   },
 
@@ -230,7 +230,7 @@ export const mask = {
    * 保留前3后4，中间用****代替
    */
   general(value: string): string {
-    if (!value || value.length < 8) return value;
+    if (!value || value.length < 8) {return value;}
     return `${value.slice(0, 3)}${'*'.repeat(value.length - 7)}${value.slice(-4)}`;
   },
 };

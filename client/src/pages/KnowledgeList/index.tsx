@@ -18,6 +18,16 @@ const { Title } = Typography;
 const { Search } = Input;
 const { useBreakpoint } = Grid;
 
+type ServerSymptomMapping = {
+  symptomKey: string;
+  displayName: string;
+  category?: string | null;
+  description?: string | null;
+  redFlags?: unknown;
+  associatedSymptoms?: unknown;
+  questions?: unknown;
+};
+
 interface KnowledgeItem {
   id: string;
   symptomKey: string;
@@ -71,17 +81,25 @@ const KnowledgeList: React.FC = () => {
   const fetchData = React.useCallback(async () => {
     setLoading(true);
     try {
-      const res: ApiResponse<KnowledgeItem[]> = await api.get('/knowledge/symptom-mappings');
-      logger.info('[KnowledgeList] API响应:', res);
-      if (res?.success) {
-        const payload = unwrapData<KnowledgeItem[]>(res);
-        logger.info('[KnowledgeList] 解包数据:', payload);
-        if (payload && payload.length > 0) {
-          setKnowledgeList(payload);
-        } else {
-          setKnowledgeList([]);
-        }
-      }
+      const res: ApiResponse<ServerSymptomMapping[]> = await api.get('/knowledge/symptom-mappings');
+      const payload = unwrapData<ServerSymptomMapping[]>(res) || [];
+      const mapped: KnowledgeItem[] = (payload || []).map((it) => {
+        const redFlags = Array.isArray(it.redFlags) ? (it.redFlags as unknown[]).map(String) : [];
+        const related = Array.isArray(it.associatedSymptoms) ? (it.associatedSymptoms as unknown[]).map(String) : [];
+        const questions = Array.isArray(it.questions) ? (it.questions as unknown[]).map(String) : [];
+        return {
+          id: it.symptomKey,
+          symptomKey: it.symptomKey,
+          symptomName: it.displayName || it.symptomKey,
+          category: it.category || '常见症状',
+          description: typeof it.description === 'string' ? it.description : undefined,
+          redFlags,
+          relatedSymptoms: related,
+          questions,
+        };
+      });
+      setKnowledgeList(mapped);
+      logger.info('[KnowledgeList] 已加载知识库映射', { count: mapped.length });
     } catch (err) {
       logger.error('[KnowledgeList] 获取知识库数据失败', err);
     } finally {
@@ -108,7 +126,6 @@ const KnowledgeList: React.FC = () => {
       try {
         setSessionsLoading(true);
         const safe = term.replace(/['"<>]/g, '');
-        logger.info('[KnowledgeList] 病历搜索', { term, safe });
         const resp = (await api.get('/sessions', { params: { search: safe, limit: 5 } })) as ApiResponse<SessionSearchPayload | { data: SessionSearchPayload }>;
         const payload = unwrapData<SessionSearchPayload>(resp);
         if (alive) setSessionResults((payload?.items || []).slice(0, 5));
@@ -121,7 +138,6 @@ const KnowledgeList: React.FC = () => {
 
     (async () => {
       try {
-        logger.info('[KnowledgeList] 症状映射搜索', { term });
         const resp = (await api.get('/mapping/symptoms')) as ApiResponse<{ nameToKey: Record<string, string>; synonyms: Record<string, string> }>;
         const payload = unwrapData<{ nameToKey: Record<string, string>; synonyms: Record<string, string> }>(resp);
         const nameToKey = payload?.nameToKey || {};
@@ -163,13 +179,13 @@ const KnowledgeList: React.FC = () => {
         title: '临床医学',
         key: 'root',
         children: [{
-          title: '未分类',
-          key: 'cat-Uncategorized',
+          title: '常见症状',
+          key: 'cat-常见症状',
           children: []
         }]
       }];
     }
-    const categories = Array.from(new Set(filteredList.map(k => k.category || 'Uncategorized')));
+    const categories = Array.from(new Set(filteredList.map(k => k.category || '常见症状')));
     return [
       {
         title: '临床医学',
@@ -178,7 +194,7 @@ const KnowledgeList: React.FC = () => {
           title: cat === 'respiratory' ? '呼吸系统' : (cat === 'digestive' ? '消化系统' : cat),
           key: `cat-${cat}`,
           children: filteredList
-            .filter(k => (k.category || 'Uncategorized') === cat)
+            .filter(k => (k.category || '常见症状') === cat)
             .map((k, idx) => ({
               title: k.symptomName,
               key: k.id || k.symptomKey || `item-${idx}`,
@@ -231,8 +247,7 @@ ${selectedItem.relatedSymptoms?.map((s: string) => `- ${s}`).join('\n') || '暂�
 ${selectedItem.questions?.map((q: string) => `- ${q}`).join('\n') || '暂无'}
 
 ## 鉴别诊断
-- **疾病A**: ...
-- **疾病B**: ...
+暂无
 
 > *注：本内容仅供参考，请结合临床实际情况判断*
     `;
@@ -331,7 +346,7 @@ ${selectedItem.questions?.map((q: string) => `- ${q}`).join('\n') || '暂无'}
                 items={[
                   { title: <a onClick={() => { setSelectedKey(''); setSearchTerm(''); setSearchParams({}); }}>知识库</a> },
                   { title: <a onClick={() => { setSelectedKey(''); }}>临床医学</a> },
-                  { title: selectedItem.category || '未分类' },
+                  { title: selectedItem.category || '常见症状' },
                   { title: selectedItem.symptomName }
                 ]}
                 style={{ marginBottom: 16 }}

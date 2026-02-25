@@ -7,6 +7,7 @@ import { ArrowLeftOutlined, ArrowRightOutlined, EyeOutlined, FilePdfOutlined, Fi
 import dayjs, { type Dayjs } from 'dayjs';
 import LazyMarkdown from '../../components/LazyMarkdown';
 import api, { getBlob, type ApiResponse, unwrapData } from '../../utils/api';
+import logger from '../../utils/logger';
 
 import InterviewLayout from './components/Layout/InterviewLayout';
 import NavigationPanel from './components/Navigation/NavigationPanel';
@@ -285,7 +286,6 @@ const Session: React.FC = () => {
   );
 
   const closePreview = useCallback(() => {
-    console.log('[Session] 关闭病历预览（按钮）');
     const handler = previewPopStateHandlerRef.current;
     if (handler) {
       window.removeEventListener('popstate', handler);
@@ -308,7 +308,6 @@ const Session: React.FC = () => {
     }
 
     const handler = () => {
-      console.log('[Session] 已阻止通过浏览器回退关闭病历预览');
       const currentState = (window.history.state ?? {}) as Record<string, unknown>;
       window.history.pushState({ ...currentState, __msia_preview: true }, document.title);
     };
@@ -423,19 +422,16 @@ const Session: React.FC = () => {
     try {
       const snapshot = form.getFieldsValue(true) as FormValues;
       computeCompletion(snapshot, { level: 'deep', focusedSectionKey: currentSection });
-      console.log('[Session] 板块切换前深度检测完成', { section: currentSection });
       computeCompletion(snapshot, { level: 'linkage', focusedSectionKey: currentSection });
-      console.log('[Session] 板块切换前关联检测完成', { section: currentSection });
     } catch (e) {
-      console.error('[Session] 板块切换前深度检测失败', e);
+      logger.error('[Session] 板块切换前深度检测失败', e);
     }
     // 先保存当前板块数据
     if (isValidId && id && id !== 'new') {
       try {
-        console.log('[Session] 板块切换前自动保存');
         await handleSave(true, true);
       } catch (e) {
-        console.error('[Session] 板块切换自动保存失败', e);
+        logger.error('[Session] 板块切换自动保存失败', e);
       }
     }
     
@@ -601,7 +597,7 @@ const Session: React.FC = () => {
       tips,
     });
     if (notify) setNewMessage(true);
-    console.log('[Session] 助手面板刷新', { sectionKey, pendingCount: pendingItems.length });
+
   }, [getPendingItemsForSection, setNewMessage, setPanel]);
 
   // 单症状知识加载函数已由多症状汇总逻辑替代
@@ -707,7 +703,7 @@ const Session: React.FC = () => {
               updatedAt: k.updatedAt,
             } as const;
           } catch (e) {
-            console.warn('[Session] 加载症状知识失败', { key, e });
+            logger.warn('[Session] 加载症状知识失败', { key, e });
             return null;
           }
         })
@@ -740,13 +736,12 @@ const Session: React.FC = () => {
           setPanel({ guidance: Array.from(allQuestions).slice(0, 10) });
         }
         
-        console.log('[Session] 批量更新知识上下文', { count: contexts.length });
       } else {
         setKnowledgeContext(null);
         setKnowledgeError('暂无对应的知识库条目');
       }
     } catch (e) {
-      console.warn('[Session] 批量加载知识失败', e);
+      logger.warn('[Session] 批量加载知识失败', e);
       setKnowledgeContext(null);
       setKnowledgeError('知识加载失败，请稍后重试');
     } finally {
@@ -776,13 +771,13 @@ const Session: React.FC = () => {
       if (Array.isArray(suggestions) && suggestions.length > 0) {
         setDiagnosisSuggestions(suggestions);
         setPanel({ diseases: suggestions });
-        console.log('[Session] 多症状更新诊断建议', { count: suggestions.length, symptomCount: names.length });
+    
       } else {
         setDiagnosisSuggestions([]);
         setPanel({ diseases: [] });
       }
     } catch (e) {
-      console.warn('[Session] 获取诊断建议失败', e);
+      logger.warn('[Session] 获取诊断建议失败', e);
       setDiagnosisSuggestions([]);
       setPanel({ diseases: [] });
     }
@@ -815,7 +810,6 @@ const Session: React.FC = () => {
     setKnowledgeLoading(true);
     setKnowledgeError(null);
     try {
-      console.log('[Session] 解析主诉', { text });
       const res = await api.post('/nlp/analyze', { text }) as ApiResponse<NlpPayload>;
       const payload = unwrapData<NlpPayload>(res);
       if (!payload) return;
@@ -838,7 +832,7 @@ const Session: React.FC = () => {
           form.setFieldValue(['chiefComplaint', 'durationNum'], payload.duration.value);
           form.setFieldValue(['chiefComplaint', 'durationUnit'], payload.duration.unit);
         }
-        console.log('[Session] 主诉字段回填', { symptom: first.name, duration: payload.duration });
+    
       }
 
       const best = payload.matchedSymptoms?.find(s => s.knowledge) || payload.matchedSymptoms?.[0];
@@ -849,7 +843,7 @@ const Session: React.FC = () => {
             const kRes = await api.get(`/knowledge/${best.key}`) as ApiResponse<SymptomKnowledgeLite>;
             k = unwrapData<SymptomKnowledgeLite>(kRes) || null;
           } catch (e) {
-            console.warn('[Session] 获取知识库失败', e);
+            logger.warn('[Session] 获取知识库失败', e);
           }
         }
 
@@ -863,7 +857,7 @@ const Session: React.FC = () => {
             physicalSigns: toArr(k.physicalSigns),
             updatedAt: k.updatedAt,
           });
-          console.log('[Session] 知识库上下文更新', { symptomKey: best.key, name: k.displayName });
+      
         } else {
           setKnowledgeContext(null);
           setKnowledgeError('暂无对应的知识库条目');
@@ -889,14 +883,14 @@ const Session: React.FC = () => {
           if (Array.isArray(suggestions) && suggestions.length > 0) {
             setDiagnosisSuggestions(suggestions);
             setPanel({ diseases: suggestions });
-            console.log('[Session] 诊断建议更新', { count: suggestions.length });
+        
           } else {
             setDiagnosisSuggestions([]);
             setPanel({ diseases: [] });
-            console.log('[Session] 诊断建议为空', { symptomCount: names.length });
+        
           }
         } catch (e) {
-          console.warn('[Session] 获取诊断建议失败', e);
+          logger.warn('[Session] 获取诊断建议失败', e);
           setDiagnosisSuggestions([]);
           setPanel({ diseases: [] });
           message.warning('诊断建议获取失败');
@@ -907,7 +901,7 @@ const Session: React.FC = () => {
 
       if (options.notify) setNewMessage(true);
     } catch (e) {
-      console.error('[Session] 解析主诉失败', e);
+      logger.error('[Session] 解析主诉失败', e);
       if (options.notify) message.error('主诉解析失败');
       setKnowledgeError('主诉解析失败');
     } finally {
@@ -958,7 +952,7 @@ const Session: React.FC = () => {
       okText: '知道了',
       centered: true
     });
-    console.log('[Session] 打开助手帮助', { currentSection, pendingCount: pending.length });
+
   }, [currentSection, getPendingItemsForSection, labelBySectionKey, modal]);
 
   const knowledgeContexts = useAssistantStore(s => s.knowledge.contexts);
@@ -974,7 +968,7 @@ const Session: React.FC = () => {
     if (unionFlags.length > 0) {
       setPanel({ redFlagsTip: `红旗征：${unionFlags.slice(0, 6).map(String).join('、')}` });
       setNewMessage(true);
-      console.log('[Session] 红旗征提醒', { count: unionFlags.length });
+  
     } else {
       message.info('暂无红旗征提示');
     }
@@ -992,7 +986,7 @@ const Session: React.FC = () => {
     if (unionQs.length > 0) {
       setPanel({ tips: unionQs.slice(0, 6) });
       setNewMessage(true);
-      console.log('[Session] 系统回顾引导', { count: unionQs.length });
+  
     } else {
       message.info('暂无引导要点');
     }
@@ -1027,7 +1021,7 @@ const Session: React.FC = () => {
     });
     setNewMessage(true);
     message.success('既往史字段已创建');
-    console.log('[Session] 既往史智能补全', { diseases: diseases.length });
+
   }, [form, message, setNewMessage, setPanel]);
 
   /**
@@ -1070,7 +1064,7 @@ const Session: React.FC = () => {
       setNewMessage(true);
       message.success('婚育史校验通过');
     }
-    console.log('[Session] 婚育史校验', { validations: validations.length });
+
   }, [form, message, setNewMessage, setPanel]);
 
   /**
@@ -1106,7 +1100,7 @@ const Session: React.FC = () => {
     });
     setNewMessage(true);
     message.success('家族史摘要生成完成');
-    console.log('[Session] 家族史摘要生成', { parts: parts.length });
+
   }, [form, message, setNewMessage, setPanel]);
 
   /**
@@ -1141,7 +1135,7 @@ const Session: React.FC = () => {
       setNewMessage(true);
       message.success('家族史冲突检测通过');
     }
-    console.log('[Session] 家族史冲突检测', { conflicts: conflicts.length });
+
   }, [form, message, setNewMessage, setPanel]);
 
   /**
@@ -1184,7 +1178,7 @@ const Session: React.FC = () => {
     });
     setNewMessage(true);
     message.success('遗传风险评估完成');
-    console.log('[Session] 遗传风险评估', { riskLevel, factors: riskFactors.length });
+
   }, [form, message, setNewMessage, setPanel]);
 
   /**
@@ -1222,7 +1216,7 @@ const Session: React.FC = () => {
     });
     setNewMessage(true);
     message.success('职业暴露提示已生成');
-    console.log('[Session] 职业暴露提示', { occupation, exposures: exposures.length });
+
   }, [form, message, setNewMessage, setPanel]);
 
   /**
@@ -1263,7 +1257,7 @@ const Session: React.FC = () => {
     });
     setNewMessage(true);
     message.success('妊娠红旗征提示已生成');
-    console.log('[Session] 妊娠红旗征提示', { flags: redFlags.length });
+
   }, [form, message, setNewMessage, setPanel]);
 
   /**
@@ -1293,7 +1287,7 @@ const Session: React.FC = () => {
       guidance: ['个人史智能提示已更新']
     });
     setNewMessage(true);
-    console.log('[Session] 个人史智能提示', { hints: hints.length });
+
   }, [form, setNewMessage, setPanel]);
 
   useEffect(() => {
@@ -1320,7 +1314,7 @@ const Session: React.FC = () => {
         if (!arr.includes(k)) {
           form.setFieldValue(['presentIllness', 'associatedSymptoms'], [...arr, k]);
           setNewMessage(true);
-          console.log('[Session] 追加伴随症状', { key: k });
+      
         }
       }
     });
@@ -2029,11 +2023,7 @@ const Session: React.FC = () => {
     setLocalProgress(nextProgress);
     setProgress(nextProgress);
     
-    console.log('[Session] 进度计算完成', {
-      level,
-      progress: Math.round(nextProgress), 
-      completedSections: nextSections.filter(s => s.isCompleted).length 
-    });
+
   }, [setProgress]);
 
   const generateReportMarkdown = useCallback((val: FormValues): string => {
@@ -2881,7 +2871,7 @@ const Session: React.FC = () => {
                keyToName: inverted,
                synonyms: mapPayload.synonyms || {}
              });
-             console.log('[Session] 症状映射加载成功');
+         
         } else {
              setKnowledgeMappings({ nameToKey: {}, keyToName: {}, synonyms: {} });
         }
@@ -3022,7 +3012,6 @@ const Session: React.FC = () => {
 
           isHydratingRef.current = true;
           form.setFieldsValue(formData);
-          console.log('[Session] 数据加载完成', formData);
           // 使用 formData 直接计算完成度，避免 setFieldsValue 异步导致的获取不到最新值
           computeCompletion(formData as FormValues, { level: 'deep' });
           setLastSavedAt(Date.now());
@@ -3035,7 +3024,7 @@ const Session: React.FC = () => {
           message.error('未找到该会话记录');
         }
       } catch (err: unknown) {
-        console.error('[Session] 加载会话失败:', err);
+        logger.error('[Session] 加载会话失败:', err);
         setIsValidId(false);
         
         // 处理不同错误类型
@@ -3123,21 +3112,11 @@ const Session: React.FC = () => {
       };
 
       const normalized = normalizePayload(payload);
-      const n =
-        normalized && typeof normalized === 'object'
-          ? (normalized as Record<string, unknown>)
-          : null;
-      console.log('[Session] 保存请求摘要', {
-        id,
-        gender: n?.['gender'],
-        reliability: n?.['reliability'],
-        chiefComplaint: n?.['chiefComplaint'],
-        hasGeneralInfo: Boolean(n?.['generalInfo']),
-      });
+  
       await api.patch(`/sessions/${id}`, normalized);
       
       if (!silent) message.success('保存成功');
-      console.log('[Session] 保存成功', isAutoSave ? '(Auto)' : '(Manual)');
+
       setLastSavedAt(Date.now());
     } catch (err) {
       const e = err as unknown;
@@ -3152,7 +3131,7 @@ const Session: React.FC = () => {
       const respData = response && typeof response === 'object' && 'data' in response
         ? (response as Record<string, unknown>).data
         : undefined;
-      console.error('[Session] 保存失败', { message: rec?.message, status, data: respData });
+      logger.error('[Session] 保存失败', { message: rec?.message, status, data: respData });
       if (status === 401) {
         message.error('登录已过期或无权限，请重新登录');
         try {
@@ -3179,14 +3158,14 @@ const Session: React.FC = () => {
       await api.patch(`/sessions/${id}`, { status: 'archived' });
       setSessionStatus('archived');
       message.success('已归档');
-      console.log('[Session] 归档成功', { id });
+  
     } catch (err) {
       const e = err as unknown;
       const asRecord = (v: unknown): Record<string, unknown> | null =>
         v && typeof v === 'object' ? (v as Record<string, unknown>) : null;
       const rec = asRecord(e);
       const response = rec ? asRecord(rec.response) : null;
-      console.error('[Session] 归档失败', {
+      logger.error('[Session] 归档失败', {
         message: rec?.message,
         status: response?.status,
         data: response?.data,
@@ -3264,7 +3243,7 @@ const Session: React.FC = () => {
       return;
     }
 
-    console.log('[Session] 导出PDF（后端生成）', { sessionId });
+
     try {
       const resp = await getBlob(`/sessions/${sessionId}/export/pdf`);
       const blob: Blob = resp.data instanceof Blob ? resp.data : new Blob([resp.data || ''], { type: 'application/pdf' });
@@ -3273,7 +3252,7 @@ const Session: React.FC = () => {
       downloadBlobAsFile(blob, filename);
       message.success('导出PDF成功');
     } catch (e) {
-      console.error('[Session] 导出PDF失败', e);
+      logger.error('[Session] 导出PDF失败', e);
       message.error('导出PDF失败');
     }
   };
@@ -3289,7 +3268,7 @@ const Session: React.FC = () => {
       return;
     }
 
-    console.log('[Session] 导出Word（后端生成）', { sessionId });
+
     try {
       const resp = await getBlob(`/sessions/${sessionId}/export/word`);
       const blob: Blob = resp.data instanceof Blob
@@ -3300,7 +3279,7 @@ const Session: React.FC = () => {
       downloadBlobAsFile(blob, filename);
       message.success('导出Word成功');
     } catch (e) {
-      console.error('[Session] 导出Word失败', e);
+      logger.error('[Session] 导出Word失败', e);
       message.error('导出Word失败');
     }
   };
@@ -3337,7 +3316,7 @@ const Session: React.FC = () => {
     form.resetFields(keys as (string | number | (string | number)[])[]);
     computeCompletion(form.getFieldsValue(true) as FormValues, { level: 'basic' });
     message.success('已清空本板块内容');
-    console.log('[Session] 已重置板块', currentSection);
+
   };
 
   if (loading && !isValidId) {
@@ -3410,7 +3389,7 @@ const Session: React.FC = () => {
                       if (linkageCheckDebounceRef.current) window.clearTimeout(linkageCheckDebounceRef.current);
                       linkageCheckDebounceRef.current = window.setTimeout(() => {
                         computeCompletion(form.getFieldsValue(true) as FormValues, { level: 'linkage', focusedSectionKey: currentSection });
-                        console.log('[Session] 关联检测已刷新', { section: currentSection });
+                    
                       }, 900);
                     }
                     if (!isValidId) return;
@@ -3438,7 +3417,7 @@ const Session: React.FC = () => {
                       onClick={() => {
                         setShowAssistant(true);
                         setNewMessage(false);
-                        console.log('[Session] 打开智能问诊助手');
+                    
                       }}
                     >
                       问诊助手
@@ -3459,7 +3438,7 @@ const Session: React.FC = () => {
                   maskClosable={false}
                   keyboard={false}
                   onCancel={() => {
-                    console.log('[Session] 已阻止默认方式关闭病历预览');
+                
                   }}
                   footer={[
                     <Button key="close" onClick={closePreview}>关闭</Button>,

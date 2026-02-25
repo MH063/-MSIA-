@@ -3,8 +3,7 @@ import { Form, Input, Row, Col, Typography, Select, Card, InputNumber, Space, Gr
 import LazyDatePicker from '../../../../components/lazy/LazyDatePicker';
 import dayjs from 'dayjs';
 import AgeDisplayView from './AgeDisplay';
-import { computeAgeDisplay, formatAgeText, normalizeAge, validateAge } from '../../../../utils/age';
-import logger from '../../../../utils/logger';
+import { computeAgeDisplay, formatAgeText, normalizeAge } from '../../../../utils/age';
 
 const { Title } = Typography;
 const { useBreakpoint } = Grid;
@@ -44,13 +43,6 @@ const GeneralSection: React.FC = () => {
 
     if (Object.keys(patch).length > 0) {
       form.setFieldsValue(patch);
-      logger.info('[GeneralSection] 年龄已按策略自动换算', {
-        mainText: display.mainText,
-        backupText: display.backupText,
-        yearsFloat: display.yearsFloat,
-        totalDays: display.totalDays,
-        totalMonthsInt: display.totalMonthsInt
-      });
     }
   }, [birthDate, recordTime, form]);
 
@@ -77,14 +69,8 @@ const GeneralSection: React.FC = () => {
     if (form.getFieldValue('ageDisplayText') !== nextDisplayText) patch.ageDisplayText = nextDisplayText;
     if (form.getFieldValue('ageDisplayBackupText') !== '') patch.ageDisplayBackupText = '';
 
-    const issues = validateAge({ years: hasYears ? ageYears! : 0, months: hasMonths ? ageMonthsPart! : 0 });
-    if (issues.length > 0) {
-      logger.info('[GeneralSection] 年龄输入已校验并归一化', { issues, normalized });
-    }
-
     if (Object.keys(patch).length > 0) {
       form.setFieldsValue(patch);
-      logger.info('[GeneralSection] 未填出生日期，年龄使用手动输入', { normalized, yearsFloat });
     }
   }, [birthDate, recordTime, ageYears, ageMonthsPart, form]);
 
@@ -111,7 +97,6 @@ const GeneralSection: React.FC = () => {
     const personalOccupation = form.getFieldValue(['personalHistory', 'occupation']);
     if (generalOccupation && generalOccupation !== personalOccupation) {
       form.setFieldValue(['personalHistory', 'occupation'], generalOccupation);
-      logger.info('[GeneralSection] 同步职业到个人史:', generalOccupation);
     }
   }, [generalOccupation, form]);
 
@@ -122,7 +107,6 @@ const GeneralSection: React.FC = () => {
     const personalEmployer = form.getFieldValue(['personalHistory', 'employer']);
     if (generalEmployer && generalEmployer !== personalEmployer) {
       form.setFieldValue(['personalHistory', 'employer'], generalEmployer);
-      logger.info('[GeneralSection] 同步工作单位到个人史:', generalEmployer);
     }
   }, [generalEmployer, form]);
 
@@ -133,7 +117,6 @@ const GeneralSection: React.FC = () => {
     const personalBirthplace = form.getFieldValue(['personalHistory', 'birthplace']);
     if (generalPlaceOfBirth && generalPlaceOfBirth !== personalBirthplace) {
       form.setFieldValue(['personalHistory', 'birthplace'], generalPlaceOfBirth);
-      logger.info('[GeneralSection] 同步出生地到个人史', generalPlaceOfBirth);
     }
   }, [generalPlaceOfBirth, form]);
 
@@ -144,8 +127,7 @@ const GeneralSection: React.FC = () => {
     const maritalStatus = form.getFieldValue(['maritalHistory', 'status']);
     // 避免循环更新，只在值确实不同时才设置
     if (generalMaritalStatus && generalMaritalStatus !== maritalStatus) {
-      // 注意：这里不需要额外设置，因为字段路径相同，Form会自动同步；但为了确保一致性，我们记录日志
-      logger.info('[GeneralSection] 婚姻状况已同步', generalMaritalStatus);
+      // 注意：这里不需要额外设置，因为字段路径相同，Form会自动同步
     }
   }, [generalMaritalStatus, form]);
 

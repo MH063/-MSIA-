@@ -207,7 +207,7 @@ export const errorHandler = (
       safeLog('[ErrorHandler] 生产环境错误:', {
         name: err.name,
         message: err.message,
-        code: (err as any)?.code,
+        code: (err as { code?: unknown })?.code,
       });
     }
     safeLog('[ErrorHandler] Server Error:', errorLog);
@@ -226,8 +226,9 @@ export const errorHandler = (
 
   // 开发环境添加详细信息
   if (process.env.NODE_ENV === 'development') {
-    response.error.stack = err.stack;
-    response.error.details = err.message;
+    const errorPayload = response.error as { stack?: string; details?: unknown };
+    errorPayload.stack = err.stack;
+    errorPayload.details = err.message;
   }
 
   res.status(statusCode).json(response);

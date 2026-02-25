@@ -101,7 +101,7 @@ const KnowledgePanel: React.FC<KnowledgePanelProps> = ({
       if (!symptomContext || !symptomContext.name || !validSession) return;
       setDiagnosisLoading(true);
       try {
-          logger.info('[Knowledge] 拉取诊断建议', { name: symptomContext.name, sessionId, patientInfo });
+          
           const symptoms = symptomContext.name.split('、');
           const normalizedAge = (() => {
             const a = patientInfo?.age;
@@ -117,7 +117,7 @@ const KnowledgePanel: React.FC<KnowledgePanelProps> = ({
           const payload = unwrapData<string[]>(res);
           if (Array.isArray(payload)) {
               setDiagnosisSuggestions(payload);
-              logger.info('[Knowledge] 诊断建议更新', { count: payload.length, items: payload });
+              
           }
       } catch (error) {
           logger.error("[Knowledge] 获取诊断建议失败:", error);
@@ -163,7 +163,7 @@ const KnowledgePanel: React.FC<KnowledgePanelProps> = ({
        if (typeof key === 'string' && key.trim() && onAddAssociated) {
          onAddAssociated(key);
          message.success(`已添加伴随症状：${mapToName(s)}`);
-         logger.info('[Knowledge] 添加伴随症状', { source: s, key });
+         
        } else {
          logger.warn('[Knowledge] 添加伴随症状失败：无效键', { source: s });
        }

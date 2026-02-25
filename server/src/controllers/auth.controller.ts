@@ -196,9 +196,9 @@ async function getRefreshSession(sid: string): Promise<{ operatorId: number; rol
       const raw = await redis.get(`auth:refresh:${sid}`);
       if (!raw) {return null;}
       const parsed = JSON.parse(raw) as { operatorId?: unknown; role?: unknown; jti?: unknown };
-      const operatorId = Number((parsed as any).operatorId);
-      const role = String((parsed as any).role || '').trim();
-      const jti = String((parsed as any).jti || '').trim();
+      const operatorId = Number(parsed.operatorId);
+      const role = String(parsed.role || '').trim();
+      const jti = String(parsed.jti || '').trim();
       if (!Number.isFinite(operatorId) || !role || !jti) {return null;}
       return { operatorId, role, jti };
     } catch {
@@ -990,7 +990,7 @@ async function persistLoginAttempt(input: {
         lockedUntil: input.lockedUntil ? new Date(input.lockedUntil) : null,
       },
     });
-  } catch (e: any) {
+  } catch (e: unknown) {
     if (isMissingTableError(e)) {warnLoginDbMissingOnce(e);}
   }
 }

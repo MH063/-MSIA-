@@ -119,7 +119,7 @@ const InterviewOverview: React.FC = () => {
       cancelText: '取消',
       onOk: async () => {
         try {
-          logger.info('[Interview] 请求永久删除问诊记录', { id });
+          
           const res: ApiResponse = await api.delete(`/sessions/${id}`);
           if (res.success) {
             message.success('已永久删除');

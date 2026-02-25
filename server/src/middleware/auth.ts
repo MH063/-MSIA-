@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 import { authCookieConfig, serverConfig } from '../config';
 import { verifyToken } from '../utils/auth-helpers';
+import { secureLogger } from '../utils/secureLogger';
 
 export type OperatorRole = 'admin' | 'doctor';
 
@@ -120,7 +121,7 @@ function parseTokenFromQuery(req: Request): string | null {
   const maybeSse = accept.includes('text/event-stream') || String(req.path || '').endsWith('/stream');
   if (!maybeSse) {return null;}
 
-  const raw = (req.query as any)?.token;
+  const raw = req.query?.token;
   const t = Array.isArray(raw) ? String(raw[0] || '').trim() : String(raw || '').trim();
   return t || null;
 }
@@ -144,7 +145,7 @@ export function loadOperatorFromToken(token: string): OperatorIdentity | null {
   }
 
   if (serverConfig.isDevelopment && t === 'dev-admin') {
-    console.warn('[auth] 开发环境使用 dev-admin 作为管理员 token');
+    secureLogger.warn('[auth] 开发环境使用 dev-admin 作为管理员 token');
     return { token: t, operatorId: 0, role: 'admin' };
   }
 
@@ -157,8 +158,8 @@ export function loadOperatorFromToken(token: string): OperatorIdentity | null {
       >;
       const hit = parsed[t];
       if (hit && typeof hit === 'object') {
-        const operatorId = Number((hit as any).operatorId);
-        const roleRaw = String((hit as any).role || '').trim();
+        const operatorId = Number(hit.operatorId);
+        const roleRaw = String(hit.role || '').trim();
         const role: OperatorRole = roleRaw === 'doctor' ? 'doctor' : 'admin';
         if (Number.isFinite(operatorId) && operatorId >= 0) {
           return { token: t, operatorId, role };
@@ -168,8 +169,8 @@ export function loadOperatorFromToken(token: string): OperatorIdentity | null {
         }
       }
     } catch (e) {
-      console.warn('[auth] OPERATOR_TOKENS_JSON 解析失败');
-      if (serverConfig.isDevelopment) {console.warn(e);}
+      secureLogger.warn('[auth] OPERATOR_TOKENS_JSON 解析失败');
+      if (serverConfig.isDevelopment) {secureLogger.warn('[auth] 解析错误', { error: e instanceof Error ? e.message : String(e) });}
     }
   }
 
@@ -210,7 +211,7 @@ export function requireOperator(req: Request, res: Response, next: NextFunction)
     return;
   }
 
-  (req as any).operator = operator;
+  req.operator = operator;
   next();
 }
 
@@ -245,7 +246,7 @@ export function requirePermission(perms: OperatorPermission | OperatorPermission
       return;
     }
 
-    (req as any).operator = operator;
+    req.operator = operator;
     next();
   };
 }
@@ -279,7 +280,7 @@ export function requireRoles(roles: OperatorRole | OperatorRole[]) {
       return;
     }
 
-    (req as any).operator = operator;
+    req.operator = operator;
     next();
   };
 }

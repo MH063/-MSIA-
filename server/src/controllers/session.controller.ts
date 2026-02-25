@@ -1604,7 +1604,7 @@ async function buildDocxBuffer(params: { title: string; text: string }): Promise
     }
     
     // 检测是否是标题行（以【】或[]包裹的内容）
-    const isSectionTitle = /^(?:【[^【】]+】|\[[^\[\]]+])$/.test(trimmedLine);
+    const isSectionTitle = /^(?:【[^【】]+】|\[[^\]]+])$/.test(trimmedLine);
     // 检测是否是小标题（以数字或特定符号开头）
     const isSubTitle = /^(\d+[.．、]|[-•·])/.test(trimmedLine);
     
@@ -1663,9 +1663,12 @@ async function buildDocxBuffer(params: { title: string; text: string }): Promise
  * getReportTextForExport
  * 复用现有 generateReport 的逻辑，得到报告纯文本（用于导出PDF/Word）
  */
-async function getReportTextForExport(sessionId: number): Promise<{ ok: true; report: string } | { ok: false; status: number; body: any }> {
+type ExportErrorBody = { success: false; message: string };
+type CapturedBody = { success?: boolean; data?: { report?: string } } | { success: false; message: string } | null;
+
+async function getReportTextForExport(sessionId: number): Promise<{ ok: true; report: string } | { ok: false; status: number; body: ExportErrorBody }> {
   const fakeReq = { params: { id: String(sessionId) } } as unknown as Request;
-  const captured: { status: number; body: { success?: boolean; data?: { report?: string } } | null } = { status: 200, body: null };
+  const captured: { status: number; body: CapturedBody } = { status: 200, body: null };
   const fakeRes = {
     status(code: number) {
       captured.status = code;
@@ -1680,10 +1683,14 @@ async function getReportTextForExport(sessionId: number): Promise<{ ok: true; re
   await generateReport(fakeReq, fakeRes);
 
   if (captured.status >= 400 || !captured.body?.success) {
-    return { ok: false, status: captured.status || 500, body: captured.body || { success: false, message: '生成报告失败' } };
+    const errorBody = captured.body;
+    const message = errorBody && typeof errorBody === 'object' && 'message' in errorBody 
+      ? String(errorBody.message) 
+      : '生成报告失败';
+    return { ok: false, status: captured.status || 500, body: { success: false, message } };
   }
 
-  const report = String(captured.body?.data?.report || '').trim();
+  const report = String((captured.body as { data?: { report?: string } })?.data?.report || '').trim();
   if (!report) {
     return { ok: false, status: 500, body: { success: false, message: '报告为空' } };
   }

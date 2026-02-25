@@ -6,6 +6,7 @@ import api, { unwrapData, getApiErrorMessage } from '../../utils/api';
 import type { ApiResponse } from '../../utils/api';
 import Captcha from '../../components/Captcha';
 import { useThemeStore } from '../../store/theme.store';
+import logger from '../../utils/logger';
 import './register.css';
 
 const { Title } = Typography;
@@ -117,7 +118,7 @@ const Register: React.FC = () => {
     setCaptchaVerified(isValid);
   };
   const triggerCaptchaRefresh = () => {
-    console.log('[Register] 刷新验证码');
+    
     setCaptchaVerified(false);
     form.setFieldsValue({ captcha: '', captchaId: '' });
     setCaptchaRefreshKey((prev) => prev + 1);
@@ -146,7 +147,7 @@ const Register: React.FC = () => {
 
     setLoading(true);
     try {
-      console.log('[Register] 尝试注册', values);
+
       const res = (await api.post('/auth/register', values)) as ApiResponse<RegisterResult | { data: RegisterResult }>;
       const payload = unwrapData<RegisterResult>(res);
       
@@ -157,7 +158,7 @@ const Register: React.FC = () => {
       message.success('注册成功，请登录');
       navigate('/login');
     } catch (err) {
-      console.error('[Register] 注册失败', err);
+      logger.error('[Register] 注册失败', err);
       const msg = getApiErrorMessage(err, '注册失败，请稍后重试');
       if (msg.includes('验证码')) {
         triggerCaptchaRefresh();

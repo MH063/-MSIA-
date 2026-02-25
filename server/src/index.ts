@@ -360,7 +360,7 @@ process.on('uncaughtException', (error) => {
     process.exit(1);
   } else {
     // 开发环境显示详细信息
-    console.error('[Development] 未捕获异常详情:', error);
+    secureLogger.error('[Development] 未捕获异常详情:', error instanceof Error ? error : undefined);
   }
 });
 
@@ -385,7 +385,7 @@ process.on('unhandledRejection', (reason, _promise) => {
     secureLogger.error('生产环境发生未处理的Promise拒绝');
   } else {
     // 开发环境显示详细信息
-    console.error('[Development] Promise拒绝详情:', reason);
+    secureLogger.error('[Development] Promise拒绝详情:', reason instanceof Error ? reason : undefined);
   }
 });
 

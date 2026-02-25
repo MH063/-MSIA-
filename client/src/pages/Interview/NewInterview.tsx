@@ -230,7 +230,7 @@ const NewInterview: React.FC = () => {
     setSyncStatus('syncing');
     
     try {
-      logger.info('[NewInterview] 提交表单数据', values);
+
       
       // 1. 创建患者
       const patientRes = await api.post('/patients', {
@@ -256,7 +256,7 @@ const NewInterview: React.FC = () => {
       // 2. 创建会话 - 使用与 GeneralSection 一致的数据结构
       try {
         const sessionData = convertToSessionFormat(values);
-        logger.info('[NewInterview] 会话数据结构', sessionData);
+        
         
         const sessionRes = await api.post('/sessions', {
           patientId: patientId,
@@ -267,7 +267,7 @@ const NewInterview: React.FC = () => {
 
         const sessionResult = unwrapData<{ id: string }>(sessionRes);
         if (sessionResult) {
-          logger.info('[NewInterview] 创建会话成功', sessionResult);
+          
           setSyncStatus('synced');
           message.success('患者档案创建成功，数据已同步到问诊系统');
           navigate(`/interview/${sessionResult.id}`);
@@ -349,7 +349,7 @@ const NewInterview: React.FC = () => {
     const requiredNow = getRequiredFieldsByStep(currentStep);
     if (requiredNow.length > 0) {
       try {
-        logger.info('[NewInterview] 验证当前步骤必填项', { currentStep, requiredNow });
+        
         await form.validateFields(requiredNow);
       } catch {
         logger.warn('[NewInterview] 当前步骤未完成，阻止切换', { currentStep, requiredNow });
@@ -357,7 +357,7 @@ const NewInterview: React.FC = () => {
         return;
       }
     }
-    logger.info('[NewInterview] 步骤切换通过', { from: currentStep, to: nextStep });
+    
     setCurrentStep(nextStep);
   };
 

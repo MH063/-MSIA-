@@ -6,22 +6,25 @@ import { secureLogger } from '../utils/secureLogger';
  */
 export const analyzeComplaint = async (req: Request, res: Response) => {
   try {
-    const { complaint } = req.body;
-    if (!complaint || typeof complaint !== 'string') {
+    // 支持 text 或 complaint 字段
+    const text = req.body.text || req.body.complaint;
+    if (!text || typeof text !== 'string') {
       res.status(400).json({ success: false, message: '主诉内容不能为空' });
       return;
     }
-    
+
     // 简单的症状提取逻辑
-    const symptoms = extractSymptoms(complaint);
-    const duration = extractDuration(complaint);
-    
-    res.json({ 
-      success: true, 
+    const symptoms = extractSymptoms(text);
+    const duration = extractDuration(text);
+
+    res.json({
+      success: true,
       data: {
-        symptoms,
-        duration,
-        originalText: complaint
+        matchedCount: symptoms.length,
+        matchedSymptoms: symptoms.map(name => ({ name, key: name, knowledge: null })),
+        duration: duration.value ? { value: duration.value, unit: duration.unit } : { value: null, unit: null },
+        normalizedComplaint: text,
+        originalText: text
       }
     });
   } catch (error) {

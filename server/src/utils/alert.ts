@@ -365,7 +365,7 @@ class AlertManager {
    */
   private isThrottled(title: string): boolean {
     const lastTime = this.lastAlertTimes.get(title);
-    if (!lastTime) return false;
+    if (!lastTime) {return false;}
     return Date.now() - lastTime < this.config.throttleInterval;
   }
 
@@ -395,7 +395,7 @@ class AlertManager {
    */
   async checkRules(data: unknown): Promise<void> {
     for (const rule of this.rules) {
-      if (!rule.enabled) continue;
+      if (!rule.enabled) {continue;}
 
       try {
         if (rule.condition(data)) {

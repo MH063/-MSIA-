@@ -24,7 +24,7 @@ export function registerServiceWorker(config?: SWConfig): void {
       navigator.serviceWorker
         .register(swUrl)
         .then((registration) => {
-          console.log('[SW] Service Worker registered:', registration.scope);
+          
 
           // 监听更新
           registration.onupdatefound = () => {
@@ -37,11 +37,11 @@ export function registerServiceWorker(config?: SWConfig): void {
               if (installingWorker.state === 'installed') {
                 if (navigator.serviceWorker.controller) {
                   // 有新版本可用
-                  console.log('[SW] New content is available');
+                  
                   config?.onUpdate?.(registration);
                 } else {
                   // 首次安装完成
-                  console.log('[SW] Content is cached for offline use');
+                  
                   config?.onSuccess?.(registration);
                 }
               }
@@ -55,12 +55,12 @@ export function registerServiceWorker(config?: SWConfig): void {
 
     // 监听网络状态变化
     window.addEventListener('online', () => {
-      console.log('[SW] App is online');
+      
       config?.onOnline?.();
     });
 
     window.addEventListener('offline', () => {
-      console.log('[SW] App is offline');
+      
       config?.onOffline?.();
     });
   }
@@ -73,7 +73,7 @@ export async function unregisterServiceWorker(): Promise<void> {
   if ('serviceWorker' in navigator) {
     const registration = await navigator.serviceWorker.ready;
     await registration.unregister();
-    console.log('[SW] Service Worker unregistered');
+    
   }
 }
 
@@ -84,7 +84,7 @@ export async function updateServiceWorker(): Promise<void> {
   if ('serviceWorker' in navigator) {
     const registration = await navigator.serviceWorker.ready;
     await registration.update();
-    console.log('[SW] Service Worker update checked');
+    
   }
 }
 
@@ -136,7 +136,7 @@ export async function requestBackgroundSync(tag: string): Promise<void> {
     if ('sync' in registration) {
       // @ts-expect-error Background Sync API is not yet in types
       await registration.sync.register(tag);
-      console.log('[SW] Background sync registered:', tag);
+      
     }
   }
 }
@@ -151,7 +151,7 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
   }
 
   const permission = await Notification.requestPermission();
-  console.log('[SW] Notification permission:', permission);
+  
   return permission;
 }
 
@@ -184,7 +184,7 @@ export async function subscribeToPushNotifications(
       applicationServerKey: urlBase64ToUint8Array(publicVapidKey),
     });
 
-    console.log('[SW] Push subscription:', subscription);
+    
     return subscription;
   } catch (error) {
     console.error('[SW] Push subscription failed:', error);
@@ -206,7 +206,7 @@ export async function unsubscribeFromPushNotifications(): Promise<boolean> {
 
     if (subscription) {
       await subscription.unsubscribe();
-      console.log('[SW] Push subscription cancelled');
+      
       return true;
     }
     return false;
@@ -283,7 +283,7 @@ export function captureInstallPrompt(): void {
     e.preventDefault();
     // 保存事件以便稍后触发
     deferredPrompt = e;
-    console.log('[SW] PWA install prompt captured');
+    
   });
 }
 
@@ -301,7 +301,7 @@ export async function showInstallPrompt(): Promise<boolean> {
   const { outcome } = await deferredPrompt.userChoice;
   deferredPrompt = null;
 
-  console.log('[SW] PWA install prompt outcome:', outcome);
+  
   return outcome === 'accepted';
 }
 

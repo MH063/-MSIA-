@@ -63,11 +63,95 @@ export interface Patient {
   age?: number;
   ethnicity?: string;
   nativePlace?: string;
+  placeOfBirth?: string;
   occupation?: string;
+  employer?: string;
   address?: string;
   phone?: string;
   createdAt?: Date | string;
   updatedAt?: Date | string;
+}
+
+/**
+ * 体格检查类型
+ */
+export interface PhysicalExam {
+  general?: string;
+  skin?: string;
+  lymph?: string;
+  head?: string;
+  eyes?: string;
+  ears?: string;
+  nose?: string;
+  throat?: string;
+  neck?: string;
+  chest?: string;
+  heart?: string;
+  lungs?: string;
+  abdomen?: string;
+  extremities?: string;
+  nervousSystem?: string;
+  other?: string;
+  [key: string]: string | Record<string, unknown> | undefined;
+}
+
+/**
+ * 月经史类型
+ */
+export interface MenstrualHistory {
+  age?: number | string;
+  duration?: number | string;
+  cycle?: number | string;
+  menopause_age?: number | string;
+  lmp?: string;
+  flow?: string;
+  color?: string;
+  pain?: string;
+  [key: string]: unknown;
+}
+
+/**
+ * 生育史类型
+ */
+export interface FertilityHistory {
+  gravida?: number | string;
+  para?: number | string;
+  abortion_artificial?: number | string;
+  abortion_natural?: number | string;
+  stillbirth?: number | string;
+  premature?: number | string;
+  contraception?: string;
+  [key: string]: unknown;
+}
+
+/**
+ * 家族史类型
+ */
+export interface FamilyHistory {
+  father_health?: string;
+  mother_health?: string;
+  siblings_health?: string;
+  children_health?: string;
+  genetic_disease?: string;
+  similar_disease?: string;
+  parents?: string;
+  siblings?: string;
+  children?: string;
+  conditions?: string[];
+  deceased?: string;
+  other?: string;
+  [key: string]: unknown;
+}
+
+/**
+ * 婚姻史类型
+ */
+export interface MaritalHistory {
+  status?: 'single' | 'married' | 'divorced' | 'widowed';
+  marriage_age?: number;
+  spouse_health?: string;
+  children?: string;
+  other?: string;
 }
 
 /**
@@ -84,12 +168,14 @@ export interface Session {
   presentIllness?: Record<string, unknown>;
   pastHistory?: Record<string, unknown>;
   personalHistory?: Record<string, unknown>;
-  maritalHistory?: Record<string, unknown>;
-  familyHistory?: Record<string, unknown>;
+  maritalHistory?: MaritalHistory;
+  familyHistory?: FamilyHistory;
   reviewOfSystems?: Record<string, unknown>;
-  physicalExam?: Record<string, unknown>;
-  specialist?: Record<string, unknown>;
-  auxiliaryExam?: Record<string, unknown>;
+  physicalExam?: PhysicalExam;
+  specialistExam?: Record<string, unknown>;
+  auxiliaryExams?: Record<string, unknown>;
+  menstrualHistory?: MenstrualHistory;
+  fertilityHistory?: FertilityHistory;
   createdAt?: Date | string;
   updatedAt?: Date | string;
 }

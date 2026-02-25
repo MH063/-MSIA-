@@ -160,7 +160,7 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
       const data = unwrapData<SymptomQuestionPoint[]>(res);
       if (data) {
         setSymptomMappings(data);
-        logger.info('[知识库] 症状映射加载成功', { count: data.length });
+        
       }
     } catch (error) {
       logger.error('[知识库] 获取症状映射失败:', error);
@@ -184,7 +184,7 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
       const data = unwrapData<SymptomQuestionPoint>(res);
       if (data) {
         setCurrentMapping(data);
-        logger.info('[知识库] 当前症状映射加载成功', { symptom: currentSymptom });
+        
       } else {
         // 如果没有精确匹配，尝试模糊匹配
         const fuzzyMatch = symptomMappings.find(m => 
@@ -210,7 +210,7 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
       const data = unwrapData<DiseaseEncyclopedia[]>(res);
       if (data) {
         setDiseaseEncyclopedia(data);
-        logger.info('[知识库] 疾病百科加载成功', { count: data.length });
+        
       }
     } catch (error) {
       logger.error('[知识库] 获取疾病百科失败:', error);
@@ -236,7 +236,7 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
           );
           setRelatedDiseases(related);
         }
-        logger.info('[知识库] 疾病详情加载成功', { disease: diseaseName });
+        
       }
     } catch (error) {
       logger.error('[知识库] 获取疾病详情失败:', error);

@@ -29,7 +29,7 @@ const LazyMarkdown: React.FC<LazyMarkdownProps> = ({ content, className }) => {
         const gfm = await import('remark-gfm');
         if (mounted) {
           setRemarkPlugins([gfm.default]);
-          logger.info('[LazyMarkdown] 插件已按需加载');
+          
         }
       } catch (e) {
         logger.warn('[LazyMarkdown] 插件加载失败，降级为纯文本渲染', e);

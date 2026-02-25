@@ -4,10 +4,11 @@ import Loader from '../components/common/Loader';
 import LazyDrawer from '../components/lazy/LazyDrawer';
 import { MenuOutlined, SunOutlined, MoonOutlined } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import api, { unwrapData, API_BASE_URL } from '../utils/api';
+import api, { unwrapData } from '../utils/api';
 import type { ApiResponse } from '../utils/api';
 import Logo from '../components/Logo';
 import { useThemeStore } from '../store/theme.store';
+import logger from '../utils/logger';
 
 const { Header, Content, Footer } = Layout;
 const { useBreakpoint } = Grid;
@@ -72,7 +73,7 @@ const MainLayout: React.FC = () => {
     setAuthChecking(true);
     
     try {
-      console.log('[MainLayout] 开始认证检查', { baseURL: API_BASE_URL, url: '/auth/me', method: 'GET', pathname: p, host: window.location.hostname });
+      
     } catch {
       // ignore
     }
@@ -220,7 +221,7 @@ const MainLayout: React.FC = () => {
               try {
                 await api.post('/auth/logout');
               } catch (e) {
-                console.warn('[MainLayout] 退出登录接口调用失败', e);
+                logger.warn('[MainLayout] 退出登录接口调用失败', e);
               }
               try {
                 window.localStorage.removeItem('OPERATOR_TOKEN');

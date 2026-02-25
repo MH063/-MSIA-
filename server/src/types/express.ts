@@ -16,6 +16,24 @@ declare module 'express' {
      * 由认证中间件注入
      */
     operator?: OperatorIdentity;
+
+    /**
+     * 验证后的请求体
+     * 由 validateBody 中间件注入
+     */
+    validatedBody?: unknown;
+
+    /**
+     * 验证后的查询参数
+     * 由 validateQuery 中间件注入
+     */
+    validatedQuery?: unknown;
+
+    /**
+     * 验证后的路由参数
+     * 由 validateParams 中间件注入
+     */
+    validatedParams?: unknown;
   }
 }
 

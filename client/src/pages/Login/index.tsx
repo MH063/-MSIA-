@@ -7,6 +7,7 @@ import type { ApiResponse } from '../../utils/api';
 import './login.css';
 import Captcha from '../../components/Captcha';
 import { useThemeStore } from '../../store/theme.store';
+import logger from '../../utils/logger';
 
 const { Title } = Typography;
 
@@ -64,7 +65,6 @@ const PasswordLogin: React.FC<{ onSuccess: (data: LoginResult) => void }> = ({ o
 
   const [form] = Form.useForm<PasswordLoginValues & { captchaId: string }>();
   const triggerCaptchaRefresh = () => {
-    console.log('[Login] 刷新验证码');
     setCaptchaVerified(false);
     setServerCaptcha(null);
     form.setFieldsValue({ captcha: '', captchaId: '' });
@@ -109,11 +109,10 @@ const PasswordLogin: React.FC<{ onSuccess: (data: LoginResult) => void }> = ({ o
       }
       onSuccess(payload);
     } catch (err) {
-      console.error('[Login] Password login failed', err);
+      logger.error('[Login] Password login failed', err);
       const msg = getApiErrorMessage(err, '登录失败，请检查用户名或密码');
       const newCaptcha = getCaptchaFromError(err);
       if (newCaptcha && newCaptcha.id && newCaptcha.svg) {
-        console.log('[Login] 收到服务端下发的新验证码，直接替换');
         setServerCaptcha({ id: newCaptcha.id, svg: newCaptcha.svg });
         setCaptchaVerified(false);
         form.setFieldsValue({ captcha: '', captchaId: String(newCaptcha.id) });
@@ -195,7 +194,6 @@ const TokenLogin: React.FC<{ onSuccess: (data: LoginResult) => void }> = ({ onSu
   const [form] = Form.useForm<TokenLoginValues & { captchaId: string }>();
   
   const triggerCaptchaRefresh = () => {
-    console.log('[Login] 刷新验证码');
     setCaptchaVerified(false);
     setServerCaptcha(null);
     form.setFieldsValue({ captcha: '', captchaId: '' });
@@ -240,11 +238,10 @@ const TokenLogin: React.FC<{ onSuccess: (data: LoginResult) => void }> = ({ onSu
       }
       onSuccess(payload);
     } catch (err) {
-      console.error('[Login] Token login failed', err);
+      logger.error('[Login] Token login failed', err);
       const msg = getApiErrorMessage(err, '登录失败，请检查令牌');
       const newCaptcha = getCaptchaFromError(err);
       if (newCaptcha && newCaptcha.id && newCaptcha.svg) {
-        console.log('[Login] 收到服务端下发的新验证码，直接替换');
         setServerCaptcha({ id: newCaptcha.id, svg: newCaptcha.svg });
         setCaptchaVerified(false);
         form.setFieldsValue({ captcha: '', captchaId: String(newCaptcha.id) });
@@ -327,7 +324,6 @@ const Login: React.FC = () => {
 
   useEffect(() => {
     if (!shouldAutoRedirect) {
-      console.log('[Login] 检测到redirect参数，跳过自动重定向', { search: location.search });
       return;
     }
     const hasToken = (() => {
@@ -339,7 +335,7 @@ const Login: React.FC = () => {
       }
     })();
     if (!hasToken) {
-      console.log('[Login] 无令牌，跳过 /auth/me 自动检查');
+
       return;
     }
     let alive = true;
@@ -349,7 +345,7 @@ const Login: React.FC = () => {
         const payload = unwrapData<LoginResult>(res);
         if (!alive) return;
         if (res?.success && payload) {
-          console.log('[Login] 已登录，自动跳转', { redirectTo });
+
           navigate(redirectTo, { replace: true });
         }
       } catch {
@@ -361,8 +357,8 @@ const Login: React.FC = () => {
     };
   }, [location.search, navigate, redirectTo, shouldAutoRedirect]);
 
-  const handleSuccess = (payload: LoginResult) => {
-    console.log('[Login] 登录成功', { operatorId: payload.operatorId, role: payload.role });
+  const handleSuccess = () => {
+
     message.success('登录成功');
     navigate(redirectTo, { replace: true });
   };

@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import { Form, Input, InputNumber, Card, Row, Col, Select } from 'antd';
 import MenstrualHistorySection from './MenstrualHistorySection';
-import logger from '../../../../utils/logger';
 
 const { Option } = Select;
 
@@ -21,7 +20,7 @@ const MaritalHistorySection: React.FC = () => {
    */
   useEffect(() => {
     if (maritalStatus) {
-      logger.info('[MaritalHistorySection] 婚姻状况变更:', maritalStatus);
+      
     }
   }, [maritalStatus]);
 

@@ -15,7 +15,7 @@ if (import.meta.env.PROD) {
   registerServiceWorker({
     onUpdate: (registration) => {
       // 有新版本可用，可以提示用户刷新
-      console.log('[App] New version available');
+      
       // 可选：显示更新提示
       if (window.confirm('有新版本可用，是否立即更新？')) {
         registration.waiting?.postMessage({ type: 'SKIP_WAITING' });
@@ -23,13 +23,13 @@ if (import.meta.env.PROD) {
       }
     },
     onSuccess: () => {
-      console.log('[App] App is ready for offline use');
+      
     },
     onOffline: () => {
-      console.log('[App] App is offline');
+      
     },
     onOnline: () => {
-      console.log('[App] App is online');
+      
     },
   });
 

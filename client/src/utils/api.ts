@@ -28,7 +28,6 @@ function getDevHost(): string {
   if (isLocal) {
     const candidate = (localHost || envHost || '').trim();
     if (candidate) {
-      logger.info('[api] 使用网卡IP作为开发主机', { host: candidate });
       return candidate;
     }
     return '127.0.0.1';

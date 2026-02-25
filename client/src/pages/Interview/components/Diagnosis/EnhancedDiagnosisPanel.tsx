@@ -147,10 +147,7 @@ const EnhancedDiagnosisPanel: React.FC<EnhancedDiagnosisPanelProps> = ({
         setDiagnoses(data.diagnoses);
         setConfidenceDetails(data.confidenceDetails);
         setSymptomAssociations(data.symptomAssociations);
-        logger.info('[增强诊断] 诊断建议加载成功', { 
-          count: data.diagnoses.length,
-          topConfidence: data.diagnoses[0]?.confidence 
-        });
+        
       }
     } catch (error) {
       logger.error('[增强诊断] 获取诊断建议失败:', error);
@@ -234,9 +231,7 @@ const EnhancedDiagnosisPanel: React.FC<EnhancedDiagnosisPanelProps> = ({
         associatedSymptoms={associatedSymptoms}
         differentialDiagnoses={filteredDiagnoses}
         redFlags={redFlags}
-        onNodeClick={(node) => {
-          logger.info('[图谱] 节点点击', node);
-        }}
+        onNodeClick={() => {}}
         onExcludeDiagnosis={handleExcludeDiagnosis}
         onPrioritizeDiagnosis={handlePrioritizeDiagnosis}
         loading={loading}

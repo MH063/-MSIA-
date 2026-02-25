@@ -70,7 +70,7 @@ const KnowledgeTab: React.FC = () => {
     if (key && typeof key === 'string' && key.trim() && actions.addAssociatedFromKnowledge) {
       actions.addAssociatedFromKnowledge(key);
       message.success(`已添加伴随症状：${mapToName(s)}`);
-      logger.info('[KnowledgeTab] 添加伴随症状', { source: s, key });
+      
     } else {
       logger.warn('[KnowledgeTab] 添加伴随症状失败：无效键', { source: s });
     }

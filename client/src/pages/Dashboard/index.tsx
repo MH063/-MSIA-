@@ -4,6 +4,7 @@ import { SyncOutlined, DownloadOutlined, BulbOutlined, InfoCircleOutlined } from
 import dayjs from 'dayjs';
 import EChartsWrapper from '../../components/EChartsWrapper';
 import api, { type ApiResponse, unwrapData } from '../../utils/api';
+import logger from '../../utils/logger';
 import './index.css';
 
 const { Title, Text, Paragraph } = Typography;
@@ -43,7 +44,7 @@ const Dashboard: React.FC = () => {
         setStats(data);
       }
     } catch (error) {
-      console.error('[Dashboard] 获取统计数据失败:', error);
+      logger.error('[Dashboard] 获取统计数据失败:', error);
     } finally {
       setLoading(false);
     }

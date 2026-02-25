@@ -10,7 +10,7 @@ export const validateBody = (schema: ZodSchema) => {
   return (req: Request, res: Response, next: NextFunction) => {
     try {
       const validated = schema.parse(req.body);
-      (req as any).validatedBody = validated;
+      req.validatedBody = validated;
       req.body = validated;
       next();
     } catch (error) {
@@ -43,7 +43,7 @@ export const validateQuery = (schema: ZodSchema) => {
   return (req: Request, res: Response, next: NextFunction) => {
     try {
       const validated = schema.parse(req.query);
-      (req as any).validatedQuery = validated;
+      req.validatedQuery = validated;
       next();
     } catch (error) {
       if (error instanceof ZodError) {
@@ -75,8 +75,8 @@ export const validateParams = (schema: ZodSchema) => {
   return (req: Request, res: Response, next: NextFunction) => {
     try {
       const validated = schema.parse(req.params);
-      (req as any).validatedParams = validated;
-      req.params = validated as any;
+      req.validatedParams = validated;
+      req.params = validated as Record<string, string>;
       next();
     } catch (error) {
       if (error instanceof ZodError) {
@@ -115,7 +115,7 @@ function formatZodError(error: ZodError): Array<{ field: string; message: string
  * 在控制器中使用
  */
 export const getValidatedBody = <T>(req: Request): T => {
-  return (req as any).validatedBody as T;
+  return req.validatedBody as T;
 };
 
 /**
@@ -123,7 +123,7 @@ export const getValidatedBody = <T>(req: Request): T => {
  * 在控制器中使用
  */
 export const getValidatedQuery = <T>(req: Request): T => {
-  return (req as any).validatedQuery as T;
+  return req.validatedQuery as T;
 };
 
 /**
@@ -131,5 +131,5 @@ export const getValidatedQuery = <T>(req: Request): T => {
  * 在控制器中使用
  */
 export const getValidatedParams = <T>(req: Request): T => {
-  return (req as any).validatedParams as T;
+  return req.validatedParams as T;
 };
