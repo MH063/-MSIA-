@@ -238,9 +238,10 @@ export function generateSecureErrorResponse(error: Error, req: RequestLike): Err
   // 开发环境添加调试信息
   if (isDevelopment && securityConfig.enableDetailedErrors) {
     baseResponse.error.stack = error.stack;
+    const requestIdHeader = req.headers?.['x-request-id'];
     baseResponse.error.details = {
       timestamp: new Date().toISOString(),
-      requestId: req.headers?.['x-request-id'] || 'unknown',
+      requestId: Array.isArray(requestIdHeader) ? requestIdHeader[0] : (requestIdHeader || 'unknown'),
       method: req.method,
       path: req.path
     };
