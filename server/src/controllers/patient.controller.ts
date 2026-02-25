@@ -38,10 +38,11 @@ export const deletePatient = async (req: Request, res: Response) => {
     // 直接尝试删除，若存在外键约束会抛错
     await (await import('../prisma')).default.patient.delete({ where: { id: pid } });
     res.json({ success: true });
-  } catch (error: any) {
+  } catch (error) {
     secureLogger.error('[PatientController] 删除患者失败', error instanceof Error ? error : undefined);
     // 外键约束错误返回 400（Prisma P2003）
-    if (error?.code === 'P2003') {
+    const err = error as { code?: string };
+    if (err?.code === 'P2003') {
       res.status(400).json({ success: false, message: 'Cannot delete patient with existing sessions' });
       return;
     }

@@ -3,7 +3,9 @@
 # 医学生智能问诊辅助系统 - 完整服务编排
 # ============================================
 
-version: '3.8'
+# Docker Compose 版本声明（已弃用，保留用于向后兼容）
+# 现代 Docker Compose 不再需要 version 字段
+# version: '3.8'
 
 services:
   # PostgreSQL 数据库服务

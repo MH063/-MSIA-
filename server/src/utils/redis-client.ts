@@ -1,5 +1,6 @@
 import { createClient } from 'redis';
 import { serverConfig } from '../config';
+import { secureLogger } from './secureLogger';
 
 type RedisClient = ReturnType<typeof createClient>;
 
@@ -25,15 +26,15 @@ export async function getRedisClient(): Promise<RedisClient | null> {
     try {
       const c = createClient({ url });
       c.on('error', (err) => {
-        console.error('[redis] 连接错误', err);
+        secureLogger.error('[redis] 连接错误', err instanceof Error ? err : undefined);
       });
       await c.connect();
-      console.log('[redis] 已连接', { url: sanitizeRedisUrl(url), env: serverConfig.nodeEnv });
+      secureLogger.info('[redis] 已连接', { url: sanitizeRedisUrl(url), env: serverConfig.nodeEnv });
       client = c;
       return client;
     } catch (err) {
-      console.warn('[redis] 连接失败，将临时禁用', { url: sanitizeRedisUrl(url) });
-      console.warn(err);
+      secureLogger.warn('[redis] 连接失败，将临时禁用', { url: sanitizeRedisUrl(url) });
+      secureLogger.warn('[redis] 错误详情', err instanceof Error ? err : undefined);
       disabledUntil = Date.now() + 30_000;
       client = null;
       return null;

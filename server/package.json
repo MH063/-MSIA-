@@ -8,7 +8,7 @@
     "build": "tsc",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix",
-    "test": "vitest run"
+    "test": "vitest run src/"
   },
   "keywords": [],
   "author": "",
@@ -26,7 +26,6 @@
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
-    "msia-root": "file:..",
     "nodemailer": "^8.0.0",
     "pdfkit": "^0.17.2",
     "pg": "^8.17.2",

@@ -306,6 +306,10 @@ export function safeError(message: string, error: Error, ...args: unknown[]): vo
 
 /**
  * 限制控制台输出长度
+ * 防止日志过大导致的性能问题和信息泄露
+ * @param output - 原始输出字符串
+ * @param maxLength - 最大允许长度，默认1000字符
+ * @returns 截断后的字符串，超出部分显示隐藏提示
  */
 export function truncateOutput(output: string, maxLength: number = 1000): string {
   if (output.length <= maxLength) {return output;}
@@ -314,6 +318,9 @@ export function truncateOutput(output: string, maxLength: number = 1000): string
 
 /**
  * 安全的类型检查 - 防止原型污染
+ * 在异常情况下返回'unknown'而不是抛出错误
+ * @param value - 需要检查类型的值
+ * @returns 类型字符串或'unknown'
  */
 export function safeTypeOf(value: unknown): string {
   try {
@@ -325,6 +332,14 @@ export function safeTypeOf(value: unknown): string {
 
 /**
  * 安全的对象属性访问
+ * 支持嵌套路径访问，避免中间属性不存在导致的错误
+ * @param obj - 目标对象
+ * @param path - 属性路径，使用点号分隔（如 'user.profile.name'）
+ * @param defaultValue - 路径不存在时返回的默认值
+ * @returns 属性值或默认值
+ * @example
+ * safeGet({ user: { name: '张三' } }, 'user.name') // '张三'
+ * safeGet({ user: {} }, 'user.age', 0) // 0
  */
 export function safeGet(obj: unknown, path: string, defaultValue: unknown = undefined): unknown {
   try {

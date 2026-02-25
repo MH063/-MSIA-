@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { ZodSchema, ZodError } from 'zod';
+import { secureLogger } from '../utils/secureLogger';
 
 /**
  * 验证请求体的中间件工厂函数
@@ -15,10 +16,9 @@ export const validateBody = (schema: ZodSchema) => {
     } catch (error) {
       if (error instanceof ZodError) {
         const formattedErrors = formatZodError(error);
-        console.warn('[validateBody] 请求体校验失败', {
+        secureLogger.warn('[validateBody] 请求体校验失败', {
           method: req.method,
           path: req.path,
-          body: req.body,
           errors: formattedErrors,
         });
         return res.status(400).json({
@@ -48,10 +48,9 @@ export const validateQuery = (schema: ZodSchema) => {
     } catch (error) {
       if (error instanceof ZodError) {
         const formattedErrors = formatZodError(error);
-        console.warn('[validateQuery] 查询参数校验失败', {
+        secureLogger.warn('[validateQuery] 查询参数校验失败', {
           method: req.method,
           path: req.path,
-          query: req.query,
           errors: formattedErrors,
         });
         return res.status(400).json({
@@ -82,10 +81,9 @@ export const validateParams = (schema: ZodSchema) => {
     } catch (error) {
       if (error instanceof ZodError) {
         const formattedErrors = formatZodError(error);
-        console.warn('[validateParams] 路由参数校验失败', {
+        secureLogger.warn('[validateParams] 路由参数校验失败', {
           method: req.method,
           path: req.path,
-          params: req.params,
           errors: formattedErrors,
         });
         return res.status(400).json({

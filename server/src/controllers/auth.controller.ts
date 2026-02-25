@@ -300,8 +300,9 @@ async function checkLoginIpRateLimit(
       return { blocked: true, status: 429, message: '请求过于频繁，请稍后再试', reason: 'rate_limited' };
     }
     return null;
-  } catch (e: any) {
-    if (isMissingTableError(e)) {warnLoginDbMissingOnce(e);}
+  } catch (e) {
+    const err = e as { code?: string; message?: string };
+    if (isMissingTableError(err)) {warnLoginDbMissingOnce(err);}
   }
 
   const ipWait = bumpWindowCounter(loginIpCounter, ip, now, authGuardConfig.loginIpWindowMs, authGuardConfig.loginIpMax);
@@ -361,8 +362,9 @@ async function getLoginLockedUntil(
       }
     }
     return null;
-  } catch (e: any) {
-    if (isMissingTableError(e)) {warnLoginDbMissingOnce(e);}
+  } catch (e) {
+    const err = e as { code?: string; message?: string };
+    if (isMissingTableError(err)) {warnLoginDbMissingOnce(err);}
   }
 
   const key = `${ip}::${u}`;
@@ -424,8 +426,9 @@ async function recordLoginFailure(
     });
     failCount = Math.max(failCount, db.failCount);
     if (db.lockedUntil) {lockedUntil = Math.max(lockedUntil || 0, db.lockedUntil);}
-  } catch (e: any) {
-    if (isMissingTableError(e)) {warnLoginDbMissingOnce(e);}
+  } catch (e) {
+    const err = e as { code?: string; message?: string };
+    if (isMissingTableError(err)) {warnLoginDbMissingOnce(err);}
   }
 
   const key = `${ip}::${u}`;
@@ -477,8 +480,9 @@ async function clearLoginFailures(req: Request, username: string) {
         lockedUntil: null,
       },
     });
-  } catch (e: any) {
-    if (isMissingTableError(e)) {warnLoginDbMissingOnce(e);}
+  } catch (e) {
+    const err = e as { code?: string; message?: string };
+    if (isMissingTableError(err)) {warnLoginDbMissingOnce(err);}
   }
 
   const key = `${ip}::${u}`;
@@ -958,8 +962,9 @@ async function upsertLockoutFromBlocked(ip: string, username: string, lockedUnti
         lockedUntil: lockedUntilDate,
       },
     });
-  } catch (e: any) {
-    if (isMissingTableError(e)) {warnLoginDbMissingOnce(e);}
+  } catch (e) {
+    const err = e as { code?: string; message?: string };
+    if (isMissingTableError(err)) {warnLoginDbMissingOnce(err);}
   }
 }
 

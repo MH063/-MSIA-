@@ -7,6 +7,10 @@ import PDFDocument from 'pdfkit';
 import { Document, Packer, Paragraph, TextRun } from 'docx';
 import { secureLogger } from '../utils/secureLogger';
 import type { OperatorIdentity } from '../middleware/auth';
+import type { Session as SessionType, Patient, PhysicalExam, MenstrualHistory, FertilityHistory, FamilyHistory, MaritalHistory } from '../types';
+
+// 统一类型别名 - 用于动态 JSON 数据
+type JsonData = Record<string, unknown>;
 
 /**
  * 会话数据类型定义
@@ -15,19 +19,19 @@ interface SessionData {
   historian?: string;
   reliability?: string;
   historianRelationship?: string;
-  generalInfo?: Record<string, unknown>;
-  chiefComplaint?: Record<string, unknown>;
-  presentIllness?: Record<string, unknown>;
-  pastHistory?: Record<string, unknown>;
-  personalHistory?: Record<string, unknown>;
-  maritalHistory?: Record<string, unknown>;
-  menstrualHistory?: Record<string, unknown>;
-  fertilityHistory?: Record<string, unknown>;
-  familyHistory?: Record<string, unknown>;
-  physicalExam?: Record<string, unknown>;
-  specialistExam?: Record<string, unknown>;
-  auxiliaryExams?: Record<string, unknown>;
-  reviewOfSystems?: Record<string, unknown>;
+  generalInfo?: JsonData;
+  chiefComplaint?: JsonData;
+  presentIllness?: JsonData;
+  pastHistory?: JsonData;
+  personalHistory?: JsonData;
+  maritalHistory?: JsonData;
+  menstrualHistory?: JsonData;
+  fertilityHistory?: JsonData;
+  familyHistory?: JsonData;
+  physicalExam?: PhysicalExam;
+  specialistExam?: JsonData;
+  auxiliaryExams?: JsonData;
+  reviewOfSystems?: JsonData;
   status?: string;
   [key: string]: unknown;
 }
@@ -48,6 +52,22 @@ interface PatientData {
   contactInfo?: { phone?: string };
   [key: string]: unknown;
 }
+
+// 辅助函数：安全获取对象属性
+const getValue = <T>(obj: unknown, key: string, defaultValue: T): T => {
+  if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
+    return (obj as Record<string, unknown>)[key] as T ?? defaultValue;
+  }
+  return defaultValue;
+};
+
+// 辅助函数：安全转换为 Record
+const toRecord = (v: unknown): JsonData => {
+  if (typeof v === 'object' && v !== null && !Array.isArray(v)) {
+    return v as JsonData;
+  }
+  return {};
+};
 
 /**
  * 创建会话
@@ -82,7 +102,7 @@ export const getSession = async (req: Request, res: Response) => {
     }
 
     // 权限检查：只有管理员或创建该会话的医生可以访问
-    const operator = (req as any).operator;
+    const operator = req.operator;
     if (operator && operator.role === 'doctor' && session.doctorId !== operator.operatorId) {
       secureLogger.warn('[SessionController.getSession] 权限不足', {
         sessionId: session.id,
@@ -192,7 +212,9 @@ export const generateReport = async (req: Request, res: Response) => {
       return;
     }
 
-    const { patient, chiefComplaint, presentIllness } = session;
+    const patient = session.patient as Patient;
+    const chiefComplaint = session.chiefComplaint;
+    const presentIllness = session.presentIllness;
     const cp = chiefComplaint as Record<string, unknown> | undefined;
     const pi = presentIllness as Record<string, unknown> | undefined;
 
@@ -200,11 +222,6 @@ export const generateReport = async (req: Request, res: Response) => {
       const t = String(text ?? '').trim();
       if (!t) {return '';}
       return /[。！？]$/u.test(t) ? t : `${t}。`;
-    };
-
-    const toRecord = (v: unknown): Record<string, unknown> => {
-      if (typeof v === 'object' && v !== null) {return v as Record<string, unknown>;}
-      return {};
     };
 
     const normalizeText = (v: unknown): string => {
@@ -229,16 +246,16 @@ export const generateReport = async (req: Request, res: Response) => {
     generalItems.push(`姓名：${patient.name || '未记录'}`);
     generalItems.push(`性别：${patient.gender || '未知'}`);
     generalItems.push(`年龄：${ageText}`);
-    generalItems.push(`民族：${(patient as any).ethnicity || '未记录'}`);
-    generalItems.push(`婚况：${(session.maritalHistory as any)?.status || '未记录'}`);
-    generalItems.push(`出生地：${(patient as any).placeOfBirth || '未记录'}`);
-    generalItems.push(`籍贯：${(patient as any).nativePlace || '未记录'}`);
-    generalItems.push(`职业：${(patient as any).occupation || '未记录'}`);
-    generalItems.push(`住址：${(patient as any).address || '未记录'}`);
+    generalItems.push(`民族：${patient.ethnicity || '未记录'}`);
+    generalItems.push(`婚况：${(session.maritalHistory as MaritalHistory | undefined)?.status || '未记录'}`);
+    generalItems.push(`出生地：${patient.placeOfBirth || '未记录'}`);
+    generalItems.push(`籍贯：${patient.nativePlace || '未记录'}`);
+    generalItems.push(`职业：${patient.occupation || '未记录'}`);
+    generalItems.push(`住址：${patient.address || '未记录'}`);
     generalItems.push(`入院日期：${new Date(session.createdAt).toLocaleDateString()}`);
     generalItems.push(`记录日期：${new Date().toLocaleDateString()}`);
-    generalItems.push(`病史陈述者：${(session as any).historian || '本人'}`);
-    if ((session as any).historianRelationship) {
+    generalItems.push(`病史陈述者：${session.historian || '本人'}`);
+    if (session.historianRelationship) {
       const relationMap: Record<string, string> = {
         'self': '本人',
         'spouse': '配偶',
@@ -247,10 +264,10 @@ export const generateReport = async (req: Request, res: Response) => {
         'sibling': '兄弟姐妹',
         'other': '其他'
       };
-      const relation = relationMap[(session as any).historianRelationship] || (session as any).historianRelationship;
+      const relation = relationMap[session.historianRelationship] || session.historianRelationship;
       generalItems.push(`关系：${relation}`);
     }
-    generalItems.push(`可靠程度：${(session as any).reliability || '可靠'}`);
+    generalItems.push(`可靠程度：${session.reliability || '可靠'}`);
     report += `${generalItems.map(it => `  ${it}`).join('\n')}\n\n`;
 
     const ccText = ensureSentenceEnd(cp?.text || '未记录');
@@ -679,15 +696,15 @@ export const generateReport = async (req: Request, res: Response) => {
       report += `\n`;
     }
 
-    const pmh = (session.pastHistory || {}) as any;
+    const pmh = (session.pastHistory || {}) as Record<string, unknown>;
     report += `【既往史】\n`;
 
-    const surgeries = pmh?.surgeries;
+    const surgeries = pmh.surgeries as unknown[] | undefined;
     const surgeryItems: string[] = [];
     const traumaItems: string[] = [];
     const formatMonth = (v: unknown, fallback: string): string => {
       if (!v) {return fallback;}
-      const d = new Date(v as any);
+      const d = new Date(String(v));
       if (Number.isNaN(d.getTime())) {return fallback;}
       return `${d.getFullYear()}年${d.getMonth() + 1}月`;
     };
@@ -710,7 +727,7 @@ export const generateReport = async (req: Request, res: Response) => {
     report += `  手术史：${surgeryText}\n`;
     report += `  外伤史：${traumaText}\n`;
 
-    const transfusions = pmh?.transfusions;
+    const transfusions = getValue(pmh, 'transfusions', undefined) as unknown[] | undefined;
     if (Array.isArray(transfusions) && transfusions.length > 0) {
       const trans = transfusions
         .map((t: unknown) => {
@@ -729,8 +746,8 @@ export const generateReport = async (req: Request, res: Response) => {
       report += `  输血史：否认输血史。\n`;
     }
 
-    const allergies = pmh?.allergies;
-    const noAllergies = Boolean(pmh?.noAllergies);
+    const allergies = getValue(pmh, 'allergies', undefined) as unknown[] | undefined;
+    const noAllergies = Boolean(getValue(pmh, 'noAllergies', false));
     if (Array.isArray(allergies) && allergies.length > 0) {
       const severityMap: Record<string, string> = { mild: '轻度', moderate: '中度', severe: '重度' };
       const algs = allergies
@@ -751,14 +768,14 @@ export const generateReport = async (req: Request, res: Response) => {
       report += `  过敏史：否认药物及食物过敏史。\n`;
     }
 
-    const infectiousRaw = normalizeText(pmh?.infectiousHistory ?? pmh?.pmh_infectious);
+    const infectiousRaw = normalizeText(getValue(pmh, 'infectiousHistory', undefined) ?? getValue(pmh, 'pmh_infectious', undefined));
     const infectiousText = infectiousRaw
       ? ensureSentenceEnd(infectiousRaw)
       : '否认肝炎、结核、梅毒、艾滋病等传染病史。';
     report += `  传染病史：${infectiousText}\n`;
 
-    const diseases: string[] = Array.isArray(pmh?.pmh_diseases) ? pmh.pmh_diseases : [];
-    const diseaseDetails = (pmh?.diseaseDetails || {}) as Record<string, { year?: number; control?: string; medication?: string }>;
+    const diseases: string[] = Array.isArray(getValue(pmh, 'pmh_diseases', undefined)) ? getValue(pmh, 'pmh_diseases', []) as string[] : [];
+    const diseaseDetails = getValue(pmh, 'diseaseDetails', {}) as Record<string, { year?: number; control?: string; medication?: string }>;
     const systemicText = (() => {
       if (diseases.length > 0) {
         const diseaseTexts = diseases.map((d: string) => {
@@ -781,7 +798,7 @@ export const generateReport = async (req: Request, res: Response) => {
     if (vaccination) {report += `  预防接种史：${ensureSentenceEnd(vaccination)}\n`;}
 
     report += `\n【系统回顾】\n`;
-      const ros = session.reviewOfSystems as any;
+      const ros = session.reviewOfSystems;
       
       // 症状英文到中文的映射
       const symptomNameMap: Record<string, string> = {
@@ -886,22 +903,24 @@ export const generateReport = async (req: Request, res: Response) => {
 
       if (ros && typeof ros === 'object') {
           let hasRos = false;
+          const rosData = ros as JsonData;
           
           for (const item of rosConfig) {
-              const data = ros[item.key];
+              const data = rosData[item.key];
               if (!data) {continue;}
 
               let content = '';
               // Handle new structure { symptoms: [], details: '' }
               if (typeof data === 'object' && !Array.isArray(data)) {
+                  const dataObj = data as JsonData;
                   const parts = [];
-                  if (data.symptoms && Array.isArray(data.symptoms) && data.symptoms.length > 0) {
+                  if (dataObj.symptoms && Array.isArray(dataObj.symptoms) && dataObj.symptoms.length > 0) {
                       // 翻译症状名称为中文
-                      const translatedSymptoms = data.symptoms.map((s: string) => translateSymptom(s));
+                      const translatedSymptoms = (dataObj.symptoms as string[]).map((s: string) => translateSymptom(s));
                       parts.push(`症状：${translatedSymptoms.join('、')}`);
                   }
-                  if (data.details) {
-                      parts.push(`详情：${data.details}`);
+                  if (dataObj.details) {
+                      parts.push(`详情：${dataObj.details}`);
                   }
                   if (parts.length > 0) {
                       content = parts.join('；');
@@ -926,7 +945,7 @@ export const generateReport = async (req: Request, res: Response) => {
       }
       
       report += `\n【个人史】\n`;
-     const personal = session.personalHistory as any;
+     const personal = session.personalHistory as JsonData | undefined;
      if (personal && typeof personal === 'object') {
          // 1. 社会经历
          if (personal.social) {
@@ -934,8 +953,8 @@ export const generateReport = async (req: Request, res: Response) => {
          }
 
          // 2. 职业及工作条件
-         const occupation = (session as any).occupation || '未记录';
-         const employer = (session as any).employer || '未记录';
+         const occupation = session.patient?.occupation || '未记录';
+         const employer = (session.patient as { employer?: string })?.employer || '未记录';
          if (personal.work_cond || occupation !== '未记录' || employer !== '未记录') {
              report += `2. 职业及工作条件：\n`;
              if (occupation !== '未记录') {report += `   职业：${occupation}  `;}
@@ -985,7 +1004,7 @@ export const generateReport = async (req: Request, res: Response) => {
      }
 
      report += `\n【婚姻史】\n`;
-     const marital = session.maritalHistory as any;
+     const marital = session.maritalHistory as MaritalHistory | undefined;
      if (marital) {
          let mContent = `婚姻状况：${marital.status || '未记录'}`;
          if (marital.marriage_age) {mContent += `，结婚年龄：${marital.marriage_age}岁`;}
@@ -998,8 +1017,8 @@ export const generateReport = async (req: Request, res: Response) => {
          report += "未记录\n";
      }
 
-     const menstrual = session.menstrualHistory as any;
-     const fertility = session.fertilityHistory as any;
+     const menstrual = session.menstrualHistory as MenstrualHistory | undefined;
+     const fertility = session.fertilityHistory as FertilityHistory | undefined;
      
      if (menstrual || fertility) {
          report += `\n【月经与生育史】\n`;
@@ -1040,7 +1059,7 @@ export const generateReport = async (req: Request, res: Response) => {
      }
 
      report += `\n【家族史】\n`;
-     const family = session.familyHistory as any;
+     const family = session.familyHistory as FamilyHistory | undefined;
      if (family) {
          let hasFamily = false;
          
@@ -1088,7 +1107,7 @@ export const generateReport = async (req: Request, res: Response) => {
 
      // 体格检查
      report += `\n【体格检查】\n`;
-     const physicalExam = session.physicalExam as any;
+     const physicalExam = session.physicalExam as PhysicalExam & { vitalSigns?: Record<string, unknown>; general?: Record<string, unknown> } | undefined;
      if (physicalExam) {
          let hasPhysical = false;
          
@@ -1234,7 +1253,7 @@ export const generateReport = async (req: Request, res: Response) => {
 
      // 辅助检查
      report += `\n【辅助检查】\n`;
-     const auxiliaryExams = session.auxiliaryExams as any;
+     const auxiliaryExams = session.auxiliaryExams;
      
      // 辅助检查类型中文映射
      const examTypeMap: Record<string, string> = {
@@ -1766,7 +1785,7 @@ export const getAllSessions = async (req: Request, res: Response) => {
             skip = (p - 1) * take;
         }
 
-        const where: any = {};
+        const where: Record<string, unknown> = {};
         
         // Status filtering
         if (status) {
@@ -1912,7 +1931,7 @@ export const deleteSession = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         const sessionId = Number(id);
-        const operator = (req as any).operator as OperatorIdentity | undefined;
+        const operator = req.operator;
         if (!operator) {
             res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: '缺少操作人信息' } });
             return;
@@ -1920,11 +1939,12 @@ export const deleteSession = async (req: Request, res: Response) => {
 
         const result = await sessionService.deleteSessionPermanently({ sessionId, operator });
         res.json({ success: true, data: { deletedId: result.deletedId } });
-    } catch (error: any) {
+    } catch (error) {
         secureLogger.error('[SessionController.deleteSession] 删除会话失败', error instanceof Error ? error : undefined);
-        const statusCode = Number(error?.statusCode) || 500;
-        const code = String(error?.errorCode || 'INTERNAL_ERROR');
-        const message = String(error?.message || '删除失败');
+        const err = error as { statusCode?: number; errorCode?: string; message?: string };
+        const statusCode = Number(err?.statusCode) || 500;
+        const code = String(err?.errorCode || 'INTERNAL_ERROR');
+        const message = String(err?.message || '删除失败');
         res.status(statusCode).json({ success: false, error: { code, message } });
     }
 };
@@ -1939,7 +1959,7 @@ export const deleteSessionsBulk = async (req: Request, res: Response) => {
             res.status(400).json({ success: false, message: '缺少有效的ID列表' });
             return;
         }
-        const operator = (req as any).operator as OperatorIdentity | undefined;
+        const operator = req.operator;
         if (!operator) {
             res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: '缺少操作人信息' } });
             return;

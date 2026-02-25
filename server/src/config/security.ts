@@ -195,12 +195,21 @@ export function setupSecureConsole(): void {
 }
 
 /**
+ * 请求对象类型
+ */
+interface RequestLike {
+  headers?: Record<string, string | string[] | undefined>;
+  method?: string;
+  path?: string;
+}
+
+/**
  * 安全的错误响应生成
  */
-export function generateSecureErrorResponse(error: Error, req: any): any {
+export function generateSecureErrorResponse(error: Error, req: RequestLike): Record<string, unknown> {
   const isDevelopment = securityConfig.isDevelopment;
   
-  const baseResponse: any = {
+  const baseResponse: Record<string, unknown> = {
     success: false,
     error: {
       code: 'INTERNAL_ERROR',

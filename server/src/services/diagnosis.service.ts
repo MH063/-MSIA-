@@ -1,4 +1,5 @@
 import prisma from '../prisma';
+import { secureLogger } from '../utils/secureLogger';
 
 /**
  * 诊断置信度计算参数
@@ -314,7 +315,7 @@ export const initDiagnosisData = async () => {
   // 检查是否已有数据
   const count = await prisma.diagnosis.count();
   if (count > 0) {
-    console.log('[DiagnosisService] 诊断数据已存在，跳过初始化');
+    secureLogger.info('[DiagnosisService] 诊断数据已存在，跳过初始化');
     return;
   }
 
@@ -458,5 +459,5 @@ export const initDiagnosisData = async () => {
     }
   }
 
-  console.log(`[DiagnosisService] 已初始化 ${baseDiagnoses.length} 个诊断数据`);
+  secureLogger.info(`[DiagnosisService] 已初始化 ${baseDiagnoses.length} 个诊断数据`);
 };

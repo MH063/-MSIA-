@@ -216,7 +216,7 @@ export const errorHandler = (
   }
 
   // 发送错误响应
-  const response: any = {
+  const response: Record<string, unknown> = {
     success: false,
     error: {
       code: errorCode,
