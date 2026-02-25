@@ -204,12 +204,30 @@ interface RequestLike {
 }
 
 /**
+ * 错误响应类型
+ */
+interface ErrorResponse {
+  success: false;
+  error: {
+    code: string;
+    message: string;
+    stack?: string;
+    details?: {
+      timestamp: string;
+      requestId: string;
+      method?: string;
+      path?: string;
+    };
+  };
+}
+
+/**
  * 安全的错误响应生成
  */
-export function generateSecureErrorResponse(error: Error, req: RequestLike): Record<string, unknown> {
+export function generateSecureErrorResponse(error: Error, req: RequestLike): ErrorResponse {
   const isDevelopment = securityConfig.isDevelopment;
   
-  const baseResponse: Record<string, unknown> = {
+  const baseResponse: ErrorResponse = {
     success: false,
     error: {
       code: 'INTERNAL_ERROR',
@@ -222,7 +240,7 @@ export function generateSecureErrorResponse(error: Error, req: RequestLike): Rec
     baseResponse.error.stack = error.stack;
     baseResponse.error.details = {
       timestamp: new Date().toISOString(),
-      requestId: req.headers['x-request-id'] || 'unknown',
+      requestId: req.headers?.['x-request-id'] || 'unknown',
       method: req.method,
       path: req.path
     };
