@@ -9,7 +9,13 @@ type LogLevel = (typeof LOG_LEVEL)[keyof typeof LOG_LEVEL];
 const isProduction = import.meta.env.PROD;
 
 // 根据环境设置最低日志级别
-const currentLevel = isProduction ? LOG_LEVEL.WARN : LOG_LEVEL.DEBUG;
+// 可以通过 import.meta.env.VITE_LOG_LEVEL 环境变量覆盖
+const envLogLevel = import.meta.env.VITE_LOG_LEVEL?.toUpperCase();
+const currentLevel = envLogLevel === 'ERROR' ? LOG_LEVEL.ERROR :
+                     envLogLevel === 'WARN' ? LOG_LEVEL.WARN :
+                     envLogLevel === 'INFO' ? LOG_LEVEL.INFO :
+                     envLogLevel === 'DEBUG' ? LOG_LEVEL.DEBUG :
+                     isProduction ? LOG_LEVEL.WARN : LOG_LEVEL.DEBUG;
 
 /**
  * 检查是否应该记录该级别的日志
