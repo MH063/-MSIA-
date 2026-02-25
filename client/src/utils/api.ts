@@ -2,37 +2,20 @@ import axios, { type AxiosRequestConfig, type AxiosResponse, type AxiosRequestHe
 import { logger } from './logger';
 import { API_CONFIG, AUTH_CONFIG } from '../config';
 
-const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
 const isProduction = import.meta.env.PROD;
 
 /**
- * 计算开发环境下的网卡IP主机名
- * 优先使用环境变量或本地存储的网卡IP，当页面在 localhost/127.0.0.1 访问时强制切换为该网卡IP
+ * 获取当前页面的主机名
+ * 开发环境下使用与页面相同的主机名，确保 Cookie 的 domain 匹配
  */
 function getDevHost(): string {
-  interface ViteEnv { VITE_DEV_HOST?: string }
-  const envHost = ((import.meta as unknown as { env?: ViteEnv }).env?.VITE_DEV_HOST) || undefined;
-  const localHost = (() => {
-    if (typeof window === 'undefined') return undefined;
-    try {
-      const byLocal = window.localStorage.getItem(API_CONFIG.DEV_HOST_KEY) || window.localStorage.getItem(API_CONFIG.VITE_DEV_HOST_KEY) || undefined;
-      if (byLocal && typeof byLocal === 'string' && byLocal.trim()) return byLocal.trim();
-      const fromQuery = new URL(window.location.href).searchParams.get('dev_host') || undefined;
-      if (fromQuery && typeof fromQuery === 'string' && fromQuery.trim()) return fromQuery.trim();
-      return undefined;
-    } catch {
-      return undefined;
-    }
-  })();
-  const isLocal = host === 'localhost' || host === '127.0.0.1';
-  if (isLocal) {
-    const candidate = (localHost || envHost || '').trim();
-    if (candidate) {
-      return candidate;
-    }
-    return '127.0.0.1';
+  if (typeof window === 'undefined') return 'localhost';
+  try {
+    // 使用与页面相同的主机名，确保 Cookie 的 domain 匹配
+    return window.location.hostname;
+  } catch {
+    return 'localhost';
   }
-  return host;
 }
 
 export const API_BASE_URL = isProduction ? API_CONFIG.BASE_URL : `http://${getDevHost()}:${API_CONFIG.DEV_PORT}/api`;
@@ -43,18 +26,12 @@ const api = axios.create({
   timeout: API_CONFIG.TIMEOUT,
 });
 
+/**
+ * 请求拦截器
+ * Cookie-only 方案：不再从 localStorage 读取 token
+ * 认证信息完全通过 Cookie 传递，由浏览器自动处理
+ */
 api.interceptors.request.use((config) => {
-  try {
-    const token = typeof window !== 'undefined' ? window.localStorage.getItem(AUTH_CONFIG.TOKEN_KEY) : null;
-    if (token && typeof token === 'string' && token.trim()) {
-      config.headers = {
-        ...(config.headers || {}),
-        Authorization: `Bearer ${token.trim()}`,
-      } as AxiosRequestHeaders;
-    }
-  } catch {
-    // ignore
-  }
   return config;
 });
 
@@ -156,9 +133,6 @@ api.interceptors.response.use(
       try {
         const p = typeof window !== 'undefined' ? String(window.location.pathname || '/') : '/';
         logger.warn('[api] 认证失败(401)，即将跳转到登录页', { path: p });
-        window.localStorage.removeItem('OPERATOR_TOKEN');
-        window.localStorage.removeItem('OPERATOR_ROLE');
-        window.localStorage.removeItem('OPERATOR_ID');
         if (!p.startsWith('/login')) {
           window.location.assign(`/login?redirect=${encodeURIComponent(p)}`);
         }

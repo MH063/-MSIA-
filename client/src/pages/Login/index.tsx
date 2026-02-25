@@ -25,8 +25,8 @@ const getEnvLabel = () => {
 };
 
 type LoginResult = { operatorId: number; role: 'admin' | 'doctor'; name?: string };
-type PasswordLoginValues = { username: string; password: string; captcha?: string; captchaId?: string };
-type TokenLoginValues = { token: string; captcha?: string; captchaId?: string };
+type PasswordLoginValues = { username: string; password: string; captcha: string; captchaId: string };
+type TokenLoginValues = { token: string; captcha: string; captchaId: string };
 
 function getCaptchaFromError(e: unknown): { id: string; svg: string } | null {
   const asRecord = (v: unknown): Record<string, unknown> | null =>
@@ -71,9 +71,11 @@ const PasswordLogin: React.FC<{ onSuccess: (data: LoginResult) => void }> = ({ o
   };
 
   const onFinish = async (values: PasswordLoginValues) => {
+    logger.info('[Login] 提交登录表单', { values });
     try {
       const idOk = isValidUuid(values.captchaId);
       const codeOk = isValidCaptchaCode(values.captcha);
+      logger.info('[Login] 验证码校验', { captchaId: values.captchaId, captcha: values.captcha, idOk, codeOk });
       if (!idOk || !codeOk) {
         message.error('验证码ID或验证码格式无效，请点击图片刷新后重试');
         triggerCaptchaRefresh();
@@ -88,23 +90,14 @@ const PasswordLogin: React.FC<{ onSuccess: (data: LoginResult) => void }> = ({ o
       const res = (await api.post('/auth/login', values)) as ApiResponse<LoginResult | { data: LoginResult }>;
       const payload = unwrapData<LoginResult>(res);
       if (!res?.success || !payload) throw new Error('登录响应无效');
-      try {
-        const token = ((res as unknown as Record<string, unknown>)?.data as Record<string, unknown>)?.['token']
-          ?? (((res as unknown as Record<string, unknown>)?.data as Record<string, unknown>)?.['data'] as Record<string, unknown> | undefined)?.['token'];
-        if (typeof token === 'string' && token.trim()) {
-          window.localStorage.setItem('OPERATOR_TOKEN', token.trim());
-        }
-        if (typeof payload.operatorId === 'number') {
-          window.localStorage.setItem('OPERATOR_ID', String(payload.operatorId));
-        }
-        if (typeof payload.role === 'string') {
-          window.localStorage.setItem('OPERATOR_ROLE', String(payload.role));
-        }
-        if (typeof payload.name === 'string') {
-          window.localStorage.setItem('OPERATOR_NAME', String(payload.name));
-        }
-      } catch {
-        // ignore
+      if (typeof payload.operatorId === 'number') {
+        window.localStorage.setItem('OPERATOR_ID', String(payload.operatorId));
+      }
+      if (typeof payload.role === 'string') {
+        window.localStorage.setItem('OPERATOR_ROLE', String(payload.role));
+      }
+      if (typeof payload.name === 'string') {
+        window.localStorage.setItem('OPERATOR_NAME', String(payload.name));
       }
       onSuccess(payload);
     } catch (err) {
@@ -217,23 +210,14 @@ const TokenLogin: React.FC<{ onSuccess: (data: LoginResult) => void }> = ({ onSu
       const res = (await api.post('/auth/login', values)) as ApiResponse<LoginResult | { data: LoginResult }>;
       const payload = unwrapData<LoginResult>(res);
       if (!res?.success || !payload) throw new Error('登录响应无效');
-      try {
-        const token = ((res as unknown as Record<string, unknown>)?.data as Record<string, unknown>)?.['token']
-          ?? (((res as unknown as Record<string, unknown>)?.data as Record<string, unknown>)?.['data'] as Record<string, unknown> | undefined)?.['token'];
-        if (typeof token === 'string' && token.trim()) {
-          window.localStorage.setItem('OPERATOR_TOKEN', token.trim());
-        }
-        if (typeof payload.operatorId === 'number') {
-          window.localStorage.setItem('OPERATOR_ID', String(payload.operatorId));
-        }
-        if (typeof payload.role === 'string') {
-          window.localStorage.setItem('OPERATOR_ROLE', String(payload.role));
-        }
-        if (typeof payload.name === 'string') {
-          window.localStorage.setItem('OPERATOR_NAME', String(payload.name));
-        }
-      } catch {
-        // ignore
+      if (typeof payload.operatorId === 'number') {
+        window.localStorage.setItem('OPERATOR_ID', String(payload.operatorId));
+      }
+      if (typeof payload.role === 'string') {
+        window.localStorage.setItem('OPERATOR_ROLE', String(payload.role));
+      }
+      if (typeof payload.name === 'string') {
+        window.localStorage.setItem('OPERATOR_NAME', String(payload.name));
       }
       onSuccess(payload);
     } catch (err) {
@@ -322,18 +306,6 @@ const Login: React.FC = () => {
     if (!shouldAutoRedirect) {
       return;
     }
-    const hasToken = (() => {
-      try {
-        const t = window.localStorage.getItem('OPERATOR_TOKEN') || '';
-        return typeof t === 'string' && t.trim().length > 0;
-      } catch {
-        return false;
-      }
-    })();
-    if (!hasToken) {
-
-      return;
-    }
     let alive = true;
     (async () => {
       try {
@@ -341,7 +313,6 @@ const Login: React.FC = () => {
         const payload = unwrapData<LoginResult>(res);
         if (!alive) return;
         if (res?.success && payload) {
-
           navigate(redirectTo, { replace: true });
         }
       } catch {

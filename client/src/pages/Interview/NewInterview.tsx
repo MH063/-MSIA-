@@ -40,6 +40,8 @@ import LazyDatePicker from '../../components/lazy/LazyDatePicker';
 import api, { unwrapData } from '../../utils/api';
 import { computeAgeDisplay, formatAgeText, normalizeAge } from '../../utils/age';
 import AgeDisplayView from './components/Editor/AgeDisplay';
+import HukouSelect from '../../components/HukouSelect';
+import BirthplaceSelect from '../../components/BirthplaceSelect';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -565,7 +567,6 @@ const NewInterview: React.FC = () => {
                 <Form.Item
                   name="ethnicity"
                   label={<Space><TeamOutlined />民族</Space>}
-                  initialValue="汉族"
                   rules={[
                     { required: true, message: '请选择民族' },
                     {
@@ -740,13 +741,30 @@ const NewInterview: React.FC = () => {
               </Col>
               
               <Col xs={24} sm={12} md={8}>
-                <Form.Item name="nativePlace" label={<Space><EnvironmentOutlined />籍贯</Space>}>
-                  <Input placeholder="省/市" size="large" style={{ borderRadius: 8 }} />
+                <Form.Item 
+                  name="nativePlace" 
+                  label={<Space><EnvironmentOutlined />籍贯</Space>}
+                  rules={[{ required: true, message: '请选择籍贯' }]}
+                >
+                  <HukouSelect 
+                    placeholder="选择籍贯（到市级）" 
+                    size="large" 
+                    style={{ borderRadius: 8 }}
+                  />
                 </Form.Item>
               </Col>
               <Col xs={24} sm={12} md={8}>
-                <Form.Item name="placeOfBirth" label={<Space><EnvironmentOutlined />出生地</Space>}>
-                  <Input placeholder="省/市/区" size="large" style={{ borderRadius: 8 }} />
+                <Form.Item 
+                  name="placeOfBirth" 
+                  label={<Space><EnvironmentOutlined />出生地</Space>}
+                  rules={[{ required: true, message: '请选择出生地' }]}
+                >
+                  <BirthplaceSelect 
+                    placeholder="选择出生地（到区县级）" 
+                    size="large" 
+                    style={{ borderRadius: 8 }}
+                    label="出生地"
+                  />
                 </Form.Item>
               </Col>
               <Col xs={24} sm={12} md={8}>

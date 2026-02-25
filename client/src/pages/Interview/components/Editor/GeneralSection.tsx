@@ -4,6 +4,8 @@ import LazyDatePicker from '../../../../components/lazy/LazyDatePicker';
 import dayjs from 'dayjs';
 import AgeDisplayView from './AgeDisplay';
 import { computeAgeDisplay, formatAgeText, normalizeAge } from '../../../../utils/age';
+import HukouSelect from '../../../../components/HukouSelect';
+import BirthplaceSelect from '../../../../components/BirthplaceSelect';
 
 const { Title } = Typography;
 const { useBreakpoint } = Grid;
@@ -367,12 +369,12 @@ const GeneralSection: React.FC = () => {
           </Col>
           <Col xs={12} sm={12} md={6}>
               <Form.Item name="nativePlace" label="籍贯">
-                  <Input placeholder="如：广东广州" />
+                  <HukouSelect placeholder="选择籍贯（到市级）" />
               </Form.Item>
           </Col>
           <Col xs={12} sm={12} md={6}>
               <Form.Item name="placeOfBirth" label="出生地">
-                  <Input placeholder="如：广东广州" />
+                  <BirthplaceSelect placeholder="选择出生地（到区县级）" />
               </Form.Item>
           </Col>
           <Col xs={12} sm={12} md={6}>

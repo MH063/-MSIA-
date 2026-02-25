@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Form, Input, Radio, Typography, Card, Row, Col, InputNumber, Statistic, Space } from 'antd';
+import BirthplaceSelect from '../../../../components/BirthplaceSelect';
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -198,18 +199,18 @@ const PersonalHistorySection: React.FC = () => {
                 <Form.Item
                   name={['personalHistory', 'birthplace']}
                   label="出生地"
-                  rules={[{ required: true, message: '请填写出生地' }]}
+                  rules={[{ required: true, message: '请选择出生地' }]}
                 >
-                    <Input placeholder="如：广东广州" />
+                    <BirthplaceSelect placeholder="选择出生地（到区县级）" />
                 </Form.Item>
             </Col>
             <Col xs={24} sm={12} md={12}>
                 <Form.Item
                   name={['personalHistory', 'residence']}
                   label="居留地"
-                  rules={[{ required: true, message: '请填写居留地' }]}
+                  rules={[{ required: true, message: '请选择居留地' }]}
                 >
-                    <Input placeholder="长期居住地" />
+                    <BirthplaceSelect placeholder="选择长期居住地（到区县级）" />
                 </Form.Item>
             </Col>
         </Row>

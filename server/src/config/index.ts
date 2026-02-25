@@ -153,8 +153,8 @@ export const authCookieConfig = {
   accessCookieName: String(process.env.AUTH_ACCESS_COOKIE || 'msia_at').trim() || 'msia_at',
   refreshCookieName: String(process.env.AUTH_REFRESH_COOKIE || 'msia_rt').trim() || 'msia_rt',
   sameSite: parseEnumEnv('AUTH_COOKIE_SAMESITE', ['lax', 'strict', 'none'] as const, 'lax'),
-  secure: parseBoolEnv('AUTH_COOKIE_SECURE', serverConfig.isProduction),
-  domain: String(process.env.AUTH_COOKIE_DOMAIN || '').trim() || undefined,
+  secure: parseBoolEnv('AUTH_COOKIE_SECURE', false), // 开发环境必须为 false
+  domain: undefined, // 不设置 domain，让浏览器自动处理
 };
 
 export const authSessionConfig = {

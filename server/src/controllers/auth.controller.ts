@@ -86,12 +86,17 @@ function readCookie(req: Request, name: string): string | null {
   return v || null;
 }
 
+/**
+ * 设置认证 Cookie
+ * 开发环境下使用宽松的 sameSite 设置以支持跨域
+ */
 function setAuthCookies(res: Response, input: { accessToken: string; refreshToken: string }) {
+  const isDev = process.env.NODE_ENV !== 'production';
   const base = {
     httpOnly: true,
-    secure: authCookieConfig.secure,
-    sameSite: authCookieConfig.sameSite,
-    domain: authCookieConfig.domain,
+    secure: false, // 开发环境必须为 false
+    sameSite: isDev ? 'lax' : 'strict',
+    domain: undefined, // 不设置 domain，让浏览器自动处理
   } as const;
 
   res.cookie(authCookieConfig.accessCookieName, input.accessToken, {
@@ -107,12 +112,16 @@ function setAuthCookies(res: Response, input: { accessToken: string; refreshToke
   });
 }
 
+/**
+ * 清除认证 Cookie
+ */
 function clearAuthCookies(res: Response) {
+  const isDev = process.env.NODE_ENV !== 'production';
   const base = {
     httpOnly: true,
-    secure: authCookieConfig.secure,
-    sameSite: authCookieConfig.sameSite,
-    domain: authCookieConfig.domain,
+    secure: false, // 开发环境必须为 false
+    sameSite: isDev ? 'lax' : 'strict',
+    domain: undefined, // 不设置 domain，让浏览器自动处理
   } as const;
 
   res.clearCookie(authCookieConfig.accessCookieName, { ...base, path: '/' });

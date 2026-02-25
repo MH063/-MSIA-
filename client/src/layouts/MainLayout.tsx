@@ -219,7 +219,6 @@ const MainLayout: React.FC = () => {
                 logger.warn('[MainLayout] 退出登录接口调用失败', e);
               }
               try {
-                window.localStorage.removeItem('OPERATOR_TOKEN');
                 window.localStorage.removeItem('OPERATOR_ROLE');
                 window.localStorage.removeItem('OPERATOR_ID');
                 window.localStorage.removeItem('OPERATOR_NAME');
