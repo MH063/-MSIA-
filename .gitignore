@@ -30,8 +30,10 @@ deploy.sh
 server/.env
 server/.env.local
 server/.env.production
+server/.env.docker
 server/dist
 server/package-lock.json
+server/node_modules
 
 # Client specific
 client/dist
