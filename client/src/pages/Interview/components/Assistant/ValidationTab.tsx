@@ -10,6 +10,14 @@ const ValidationTab: React.FC = () => {
   const panel = useAssistantStore(s => s.panel);
   const progressPercent = useAssistantStore(s => s.progressPercent);
 
+  const getProgressColor = (percent: number): string => {
+    if (percent >= 80) return token.colorSuccess;
+    if (percent >= 50) return token.colorWarning;
+    return token.colorError;
+  };
+
+  const progressColor = getProgressColor(progressPercent);
+
   // 聚合所有校验相关的提示
   const omissions = [
     ...(panel.omissions || []),
@@ -27,7 +35,13 @@ const ValidationTab: React.FC = () => {
   return (
     <div style={{ padding: '0 12px' }}>
       <div style={{ marginBottom: 24, textAlign: 'center' }}>
-        <Progress type="circle" percent={progressPercent} size={80} />
+        <Progress 
+          type="circle" 
+          percent={progressPercent} 
+          size={80} 
+          strokeColor={progressColor}
+          railColor={token.colorFillSecondary}
+        />
         <div style={{ marginTop: 8, color: token.colorTextSecondary }}>问诊完整度</div>
       </div>
 

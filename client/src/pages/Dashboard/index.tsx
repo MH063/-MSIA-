@@ -82,7 +82,7 @@ const Dashboard: React.FC = () => {
       smooth: true,
       data: trendData.values,
       areaStyle: { opacity: 0.3 },
-      itemStyle: { color: '#0052D9' }
+      itemStyle: { color: '#0066CC' }
     }]
   };
 
@@ -94,7 +94,7 @@ const Dashboard: React.FC = () => {
       type: 'pie',
       radius: ['40%', '70%'],
       avoidLabelOverlap: false,
-      itemStyle: { borderRadius: 10, borderColor: '#fff', borderWidth: 2 },
+      itemStyle: { borderRadius: 8, borderColor: '#fff', borderWidth: 2 },
       data: stats?.statusCounts 
         ? Object.entries(stats.statusCounts).map(([name, value]) => ({
             name: name === 'completed' ? '已完成' : name === 'archived' ? '已归档' : name === 'draft' ? '草稿' : name,
@@ -105,10 +105,10 @@ const Dashboard: React.FC = () => {
   };
 
   const statsCards = [
-    { title: '今日问诊', value: stats?.todayCount ?? 0, color: '#0052D9' },
-    { title: '总问诊数', value: stats?.totalSessions ?? 0, color: '#36CFC9' },
-    { title: '患者总数', value: stats?.totalPatients ?? 0, color: '#9254DE' },
-    { title: '完成率', value: `${completionRate}%`, color: '#52C41A' },
+    { title: '今日问诊', value: stats?.todayCount ?? 0, color: '#0066CC' },
+    { title: '总问诊数', value: stats?.totalSessions ?? 0, color: '#00A3BF' },
+    { title: '患者总数', value: stats?.totalPatients ?? 0, color: '#8B5CF6' },
+    { title: '完成率', value: `${completionRate}%`, color: '#10B981' },
   ];
 
   const handleChartClick = (info: { title: string; content: string }) => {
@@ -210,7 +210,7 @@ const Dashboard: React.FC = () => {
           })}
         >
           <Space align="start">
-            <BulbOutlined style={{ fontSize: 24, color: '#0052D9' }} />
+            <BulbOutlined style={{ fontSize: 24, color: '#0066CC' }} />
             <div>
               <Text strong style={{ fontSize: 16 }}>数据概览</Text>
               <Paragraph style={{ margin: 0, color: 'var(--msia-text-secondary)' }} ellipsis={{ rows: 2 }}>

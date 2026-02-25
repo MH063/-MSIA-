@@ -6,19 +6,34 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: var(--msia-spacing-lg);
   flex-wrap: wrap;
-  gap: 16px;
+  gap: var(--msia-spacing-md);
+  padding: 0 var(--msia-spacing-lg);
 }
 
+/* 统计卡片 */
+.stat-card {
+  background: var(--msia-card);
+  border-radius: var(--msia-radius-md);
+  border: 1px solid var(--msia-border);
+  transition: all var(--msia-transition-base);
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--msia-shadow-card-hover);
+}
+
+/* 图表卡片 */
 .chart-card {
   background: var(--msia-card);
-  border-radius: var(--msia-radius-card);
-  padding: 24px;
+  border-radius: var(--msia-radius-md);
+  padding: var(--msia-spacing-lg);
   box-shadow: var(--msia-shadow-card);
   height: 100%;
   border: 1px solid var(--msia-border);
-  transition: all 0.3s ease;
+  transition: all var(--msia-transition-base);
 }
 
 .chart-card:hover {
@@ -26,29 +41,75 @@
 }
 
 .chart-title {
-  font-size: 16px;
+  font-size: var(--msia-font-lg);
   font-weight: 600;
-  margin-bottom: 16px;
+  margin-bottom: var(--msia-spacing-md);
   display: flex;
   justify-content: space-between;
   align-items: center;
+  color: var(--msia-text-primary);
 }
 
+/* 分析卡片 */
 .analysis-card {
-  background: linear-gradient(135deg, rgba(0, 82, 217, 0.1) 0%, rgba(54, 207, 201, 0.1) 100%);
-  border: 1px solid rgba(0, 82, 217, 0.2);
-  border-radius: 8px;
-  padding: 16px;
-  margin-bottom: 16px;
+  background: linear-gradient(135deg, rgba(0, 102, 204, 0.08) 0%, rgba(16, 185, 129, 0.06) 100%);
+  border: 1px solid rgba(0, 102, 204, 0.15);
+  border-radius: var(--msia-radius-md);
+  padding: var(--msia-spacing-lg);
+  margin-bottom: var(--msia-spacing-md);
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all var(--msia-transition-base);
 }
 
 .analysis-card:hover {
-  background: linear-gradient(135deg, rgba(0, 82, 217, 0.15) 0%, rgba(54, 207, 201, 0.15) 100%);
+  background: linear-gradient(135deg, rgba(0, 102, 204, 0.12) 0%, rgba(16, 185, 129, 0.1) 100%);
+  transform: translateY(-2px);
+  box-shadow: var(--msia-shadow-md);
 }
 
 [data-theme='dark'] .analysis-card {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.1);
+  background: linear-gradient(135deg, rgba(59, 158, 255, 0.08) 0%, rgba(52, 211, 153, 0.06) 100%);
+  border-color: rgba(59, 158, 255, 0.15);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .dashboard-header {
+    padding: 0 var(--msia-spacing-md);
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .dashboard-header .ant-space {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .chart-card {
+    padding: var(--msia-spacing-md);
+  }
+}
+
+/* 动画效果 */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dashboard-page .ant-row {
+  animation: fadeInUp 0.4s ease-out;
+}
+
+.dashboard-page .ant-row:nth-child(2) {
+  animation-delay: 0.1s;
+}
+
+.dashboard-page .ant-row:nth-child(3) {
+  animation-delay: 0.2s;
 }

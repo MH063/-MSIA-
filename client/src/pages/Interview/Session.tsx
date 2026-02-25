@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { App as AntdApp, Form, Button, Space, Tooltip, Popconfirm } from 'antd';
+import { App as AntdApp, Form, Button, Space, Tooltip, Popconfirm, Alert, theme } from 'antd';
 import Loader from '../../components/common/Loader';
 import LazyModal from '../../components/lazy/LazyModal';
 import { ArrowLeftOutlined, ArrowRightOutlined, EyeOutlined, FilePdfOutlined, FileWordOutlined, UndoOutlined, RobotOutlined } from '@ant-design/icons';
@@ -189,19 +189,32 @@ interface FormValues {
 }
 
 const SECTIONS = [
-  { key: 'general', label: '一般项目' },
-  { key: 'chief_complaint', label: '主诉' },
-  { key: 'hpi', label: '现病史' },
-  { key: 'past_history', label: '既往史' },
-  { key: 'personal_history', label: '个人史' },
-  { key: 'marital_history', label: '婚育史' },
-  { key: 'family_history', label: '家族史' },
-  { key: 'review_of_systems', label: '系统回顾' },
-  { key: 'physical_exam', label: '体格检查' },
-  { key: 'specialist', label: '专科情况' },
-  { key: 'auxiliary_exam', label: '辅助检查' },
+  { key: 'general', label: '一般项目', icon: <UserOutlined /> },
+  { key: 'chief_complaint', label: '主诉', icon: <MessageOutlined /> },
+  { key: 'hpi', label: '现病史', icon: <FileTextOutlined /> },
+  { key: 'past_history', label: '既往史', icon: <HistoryOutlined /> },
+  { key: 'personal_history', label: '个人史', icon: <GlobalOutlined /> },
+  { key: 'marital_history', label: '婚育史', icon: <HeartOutlined /> },
+  { key: 'family_history', label: '家族史', icon: <TeamOutlined /> },
+  { key: 'review_of_systems', label: '系统回顾', icon: <AuditOutlined /> },
+  { key: 'physical_exam', label: '体格检查', icon: <ExperimentOutlined /> },
+  { key: 'specialist', label: '专科情况', icon: <MedicineBoxOutlined /> },
+  { key: 'auxiliary_exam', label: '辅助检查', icon: <ExperimentOutlined /> },
 ];
 
+
+import { 
+  UserOutlined,
+  MessageOutlined,
+  FileTextOutlined,
+  HistoryOutlined,
+  GlobalOutlined,
+  HeartOutlined,
+  TeamOutlined,
+  AuditOutlined,
+  ExperimentOutlined,
+  MedicineBoxOutlined,
+} from '@ant-design/icons';
 
 type SessionRes = {
   patient?: {
@@ -235,6 +248,7 @@ type SessionRes = {
 const Session: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { token } = theme.useToken();
   const [form] = Form.useForm();
   const { modal, message } = AntdApp.useApp();
   const setModule = useAssistantStore(s => s.setModule);
@@ -262,18 +276,21 @@ const Session: React.FC = () => {
   const [previewContent, setPreviewContent] = useState('');
   const [previewPlainText, setPreviewPlainText] = useState('');
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const [clockTick, setClockTick] = useState(0);
   const previewHistoryPushedRef = useRef(false);
   const previewPopStateHandlerRef = useRef<((e: PopStateEvent) => void) | null>(null);
   const [sections, setSections] = useState<SectionStatus[]>(() => SECTIONS.map(s => ({
     key: s.key,
     label: s.label,
+    icon: s.icon,
     isCompleted: false,
     status: 'not_started',
     progress: 0,
   })));
   const [progress, setLocalProgress] = useState(0);
   const [showAssistant, setShowAssistant] = useState(false);
+  const [error, setError] = useState<{ message: string; code?: string } | null>(null);
   const autoSaveDebounceRef = useRef<number | null>(null);
   const linkageCheckDebounceRef = useRef<number | null>(null);
   const basicCheckDebounceRef = useRef<number | null>(null);
@@ -1720,6 +1737,7 @@ const Session: React.FC = () => {
       return {
         key: s.key,
         label: s.label,
+        icon: s.icon,
         isCompleted: completed,
         status: completed ? 'completed' : (started ? 'in_progress' : 'not_started'),
         progress: sectionProgress,
@@ -3027,22 +3045,22 @@ const Session: React.FC = () => {
         logger.error('[Session] 加载会话失败:', err);
         setIsValidId(false);
         
-        // 处理不同错误类型
+        let errorMessage = '加载失败，请检查网络连接';
         if (err && typeof err === 'object' && 'response' in err) {
           const axiosError = err as { response?: { status?: number; data?: { message?: string } } };
           const status = axiosError.response?.status;
           const serverMessage = axiosError.response?.data?.message;
           
           if (status === 403) {
-            message.error(serverMessage || '无权访问该会话');
+            errorMessage = serverMessage || '无权访问该会话';
           } else if (status === 404) {
-            message.error('未找到该会话记录');
+            errorMessage = '未找到该会话记录';
           } else {
-            message.error(serverMessage || '加载失败');
+            errorMessage = serverMessage || '加载失败';
           }
-        } else {
-          message.error('加载失败，请检查网络连接');
         }
+        setError({ message: errorMessage });
+        message.error(errorMessage);
       } finally {
         setLoading(false);
       }
@@ -3076,7 +3094,11 @@ const Session: React.FC = () => {
     try {
       const values = form.getFieldsValue(true) as FormValues;
       computeCompletion(values, { level: 'deep' });
-      if (!isAutoSave) setLoading(true);
+      if (!isAutoSave) {
+        setLoading(true);
+      } else {
+        setIsSaving(true);
+      }
 
       // Separate patient and session data
       const payload = {
@@ -3115,7 +3137,7 @@ const Session: React.FC = () => {
   
       await api.patch(`/sessions/${id}`, normalized);
       
-      if (!silent) message.success('保存成功');
+      if (!silent && !isAutoSave) message.success('保存成功');
 
       setLastSavedAt(Date.now());
     } catch (err) {
@@ -3142,10 +3164,14 @@ const Session: React.FC = () => {
           // ignore
         }
       } else {
-        if (!silent) message.error('保存失败');
+        if (!silent && !isAutoSave) message.error('保存失败');
       }
     } finally {
-      if (!isAutoSave) setLoading(false);
+      if (!isAutoSave) {
+        setLoading(false);
+      } else {
+        setIsSaving(false);
+      }
     }
   }, [id, form, normalizePayload, computeCompletion, message, navigate]);
 
@@ -3186,14 +3212,43 @@ const Session: React.FC = () => {
      return () => clearInterval(timer);
   }, [isValidId, handleSave]);
 
-  const handlePreview = () => {
+  const handlePreview = useCallback(() => {
     const val = form.getFieldsValue(true);
     computeCompletion(val as FormValues, { level: 'linkage' });
     const md = generateReportMarkdown(val);
     setPreviewContent(md);
     setPreviewPlainText(generateReportPlainText(val));
     setShowPreview(true);
-  };
+  }, [form, computeCompletion, generateReportMarkdown, generateReportPlainText]);
+
+  // 键盘快捷键支持
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        handleSave(false, false);
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+        e.preventDefault();
+        handlePreview();
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        if (isValidId) {
+          handleSave(false, false);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleSave, handlePreview, isValidId]);
 
   /**
    * parseDownloadFilename
@@ -3319,6 +3374,32 @@ const Session: React.FC = () => {
 
   };
 
+  if (error) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        height: '100vh',
+        padding: 24,
+        textAlign: 'center'
+      }}>
+        <Alert 
+          message="加载失败" 
+          description={error.message || '获取问诊数据时发生错误，请稍后重试'} 
+          type="error" 
+          showIcon 
+          style={{ maxWidth: 400 }}
+        />
+        <Space style={{ marginTop: 24 }}>
+          <Button onClick={() => window.location.reload()}>刷新页面</Button>
+          <Button type="primary" onClick={() => navigate('/home')}>返回首页</Button>
+        </Space>
+      </div>
+    );
+  }
+
   if (loading && !isValidId) {
     return <Loader fullscreen percent={loadingProgress} />;
   }
@@ -3335,6 +3416,12 @@ const Session: React.FC = () => {
             onGoInterviewStart={() => navigate('/sessions')}
           />
         }
+        onMobileNavigationChange={() => {
+          const editorContent = document.querySelector('.interview-section-card');
+          if (editorContent) {
+            editorContent.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }}
         editor={
         <>
           <div className="interview-editor-shell">
@@ -3342,7 +3429,13 @@ const Session: React.FC = () => {
               <div className="interview-editor-header-inner">
                 <div>
                   <div className="interview-editor-header-title">当前编辑：{currentSectionLabel}</div>
-                  <div className="interview-editor-header-subtitle">上一次保存：{lastSavedText}</div>
+                  <div className="interview-editor-header-subtitle">
+                    {isSaving ? (
+                      <span style={{ color: token.colorWarning }}>正在保存...</span>
+                    ) : (
+                      <>上一次保存：{lastSavedText}</>
+                    )}
+                  </div>
                 </div>
                 <Space size={8}>
                   <Tooltip title="上一模块">
@@ -3360,6 +3453,7 @@ const Session: React.FC = () => {
                 <Form
                   form={form}
                   layout="vertical"
+                  validateTrigger="onBlur"
                   onValuesChange={(changedValues) => {
                     if (isHydratingRef.current) return;
                     if (basicCheckDebounceRef.current) window.clearTimeout(basicCheckDebounceRef.current);

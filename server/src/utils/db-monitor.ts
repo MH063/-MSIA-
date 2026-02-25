@@ -251,40 +251,44 @@ class DatabaseMonitor {
       clearInterval(this.healthCheckTimer);
     }
 
-    this.healthCheckTimer = setInterval(async () => {
-      const status = await this.checkHealth();
+    this.healthCheckTimer = setInterval(() => {
+      void this.checkHealth()
+        .then((status) => {
+          if (!status.healthy) {
+            // 发送告警
+            void alertManager.checkRules({
+              type: 'database',
+              healthy: false,
+              responseTime: status.responseTime,
+              message: status.message,
+            });
 
-      if (!status.healthy) {
-        // 发送告警
-        await alertManager.checkRules({
-          type: 'database',
-          healthy: false,
-          responseTime: status.responseTime,
-          message: status.message,
+            secureLogger.error('[DBMonitor] 健康检查失败', new Error(status.message || 'Unknown error'));
+          }
+
+          // 检查慢查询告警
+          if (this.queryStats.slowQueries > 0) {
+            void alertManager.checkRules({
+              type: 'slow-query',
+              count: this.queryStats.slowQueries,
+              maxDuration: this.queryStats.maxQueryTime,
+            });
+          }
+
+          // 检查连接池利用率
+          const poolStats = this.getPoolStats();
+          if (poolStats && poolStats.connectionUtilization > 0.9) {
+            void alertManager.checkRules({
+              type: 'connection-pool',
+              utilization: poolStats.connectionUtilization,
+              activeConnections: poolStats.activeConnections,
+              maxConnections: poolStats.maxConnections,
+            });
+          }
+        })
+        .catch((err) => {
+          secureLogger.error('[DBMonitor] 健康检查执行出错', err instanceof Error ? err : new Error(String(err)));
         });
-
-        secureLogger.error('[DBMonitor] 健康检查失败', new Error(status.message || 'Unknown error'));
-      }
-
-      // 检查慢查询告警
-      if (this.queryStats.slowQueries > 0) {
-        await alertManager.checkRules({
-          type: 'slow-query',
-          count: this.queryStats.slowQueries,
-          maxDuration: this.queryStats.maxQueryTime,
-        });
-      }
-
-      // 检查连接池利用率
-      const poolStats = this.getPoolStats();
-      if (poolStats && poolStats.connectionUtilization > 0.9) {
-        await alertManager.checkRules({
-          type: 'connection-pool',
-          utilization: poolStats.connectionUtilization,
-          activeConnections: poolStats.activeConnections,
-          maxConnections: poolStats.maxConnections,
-        });
-      }
     }, this.config.healthCheckInterval);
 
     // 确保定时器不会阻止程序退出

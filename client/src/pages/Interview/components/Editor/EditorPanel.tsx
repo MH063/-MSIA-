@@ -127,39 +127,17 @@ const EditorPanel: React.FC<EditorPanelProps> = ({
         extra={resetButton}
         variant="borderless"
       >
-        <div style={{ display: currentSection === 'general' ? 'block' : 'none' }}>
-          <GeneralSection />
-        </div>
-        <div style={{ display: currentSection === 'chief_complaint' ? 'block' : 'none' }}>
-          <ChiefComplaintSection form={form} />
-        </div>
-        <div style={{ display: currentSection === 'hpi' ? 'block' : 'none' }}>
-          <HPISection />
-        </div>
-        <div style={{ display: currentSection === 'past_history' ? 'block' : 'none' }}>
-          <PastHistorySection form={form} />
-        </div>
-        <div style={{ display: currentSection === 'personal_history' ? 'block' : 'none' }}>
-          <PersonalHistorySection />
-        </div>
-        <div style={{ display: currentSection === 'marital_history' ? 'block' : 'none' }}>
-          <MaritalHistorySection />
-        </div>
-        <div style={{ display: currentSection === 'family_history' ? 'block' : 'none' }}>
-          <FamilyHistorySection />
-        </div>
-        <div style={{ display: currentSection === 'physical_exam' ? 'block' : 'none' }}>
-          <PhysicalExamSection />
-        </div>
-        <div style={{ display: currentSection === 'specialist' ? 'block' : 'none' }}>
-          <SpecialistSection />
-        </div>
-        <div style={{ display: currentSection === 'auxiliary_exam' ? 'block' : 'none' }}>
-          <AuxiliaryExamSection />
-        </div>
-        <div style={{ display: currentSection === 'review_of_systems' ? 'block' : 'none' }}>
-          <ReviewOfSystemsSection />
-        </div>
+        {currentSection === 'general' && <GeneralSection />}
+        {currentSection === 'chief_complaint' && <ChiefComplaintSection form={form} />}
+        {currentSection === 'hpi' && <HPISection />}
+        {currentSection === 'past_history' && <PastHistorySection form={form} />}
+        {currentSection === 'personal_history' && <PersonalHistorySection />}
+        {currentSection === 'marital_history' && <MaritalHistorySection />}
+        {currentSection === 'family_history' && <FamilyHistorySection />}
+        {currentSection === 'physical_exam' && <PhysicalExamSection />}
+        {currentSection === 'specialist' && <SpecialistSection />}
+        {currentSection === 'auxiliary_exam' && <AuxiliaryExamSection />}
+        {currentSection === 'review_of_systems' && <ReviewOfSystemsSection />}
       </Card>
     </div>
   );

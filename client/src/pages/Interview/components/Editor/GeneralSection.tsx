@@ -26,6 +26,17 @@ const GeneralSection: React.FC = () => {
   const generalMaritalStatus = Form.useWatch(['maritalHistory', 'status'], form);
 
   /**
+   * 确保民族字段有默认值（汉族）
+   * 当从数据库加载数据时，如果 ethnicity 为 null/undefined，则设置为默认值
+   */
+  useEffect(() => {
+    const currentEthnicity = form.getFieldValue('ethnicity');
+    if (!currentEthnicity) {
+      form.setFieldValue('ethnicity', '汉族');
+    }
+  }, [form]);
+
+  /**
    * 自动计算并写回表单字段，避免重复写入导致受控组件循环更新
    */
   useEffect(() => {
@@ -251,8 +262,93 @@ const GeneralSection: React.FC = () => {
              </Form.Item>
           </Col>
           <Col xs={12} sm={12} md={6}>
-              <Form.Item name="ethnicity" label="民族" initialValue="汉族" rules={[{ required: true, message: '请输入民族' }]}>
-                <Input placeholder="如：汉族" />
+              <Form.Item 
+                name="ethnicity" 
+                label="民族" 
+                initialValue="汉族" 
+                rules={[
+                  { required: true, message: '请选择民族' },
+                  {
+                    validator: (_, value) => {
+                      const validEthnicities = [
+                        '汉族', '蒙古族', '回族', '藏族', '维吾尔族', '苗族', '彝族', '壮族', '布依族', '朝鲜族',
+                        '满族', '侗族', '瑶族', '白族', '土家族', '哈尼族', '哈萨克族', '傣族', '黎族', '傈僳族',
+                        '佤族', '畲族', '高山族', '拉祜族', '水族', '东乡族', '纳西族', '景颇族', '柯尔克孜族', '土族',
+                        '达斡尔族', '仫佬族', '羌族', '布朗族', '撒拉族', '毛南族', '仡佬族', '锡伯族', '阿昌族', '普米族',
+                        '塔吉克族', '怒族', '乌孜别克族', '俄罗斯族', '鄂温克族', '德昂族', '保安族', '裕固族', '京族', '塔塔尔族',
+                        '独龙族', '鄂伦春族', '赫哲族', '门巴族', '珞巴族', '基诺族'
+                      ];
+                      if (!value || validEthnicities.includes(value)) {
+                        return Promise.resolve();
+                      }
+                      return Promise.reject(new Error('请从列表中选择民族'));
+                    }
+                  }
+                ]}
+              >
+                <Select 
+                  placeholder="选择民族" 
+                  showSearch 
+                  optionFilterProp="children"
+                  notFoundContent="无匹配民族"
+                >
+                  <Select.Option value="汉族">汉族</Select.Option>
+                  <Select.Option value="蒙古族">蒙古族</Select.Option>
+                  <Select.Option value="回族">回族</Select.Option>
+                  <Select.Option value="藏族">藏族</Select.Option>
+                  <Select.Option value="维吾尔族">维吾尔族</Select.Option>
+                  <Select.Option value="苗族">苗族</Select.Option>
+                  <Select.Option value="彝族">彝族</Select.Option>
+                  <Select.Option value="壮族">壮族</Select.Option>
+                  <Select.Option value="布依族">布依族</Select.Option>
+                  <Select.Option value="朝鲜族">朝鲜族</Select.Option>
+                  <Select.Option value="满族">满族</Select.Option>
+                  <Select.Option value="侗族">侗族</Select.Option>
+                  <Select.Option value="瑶族">瑶族</Select.Option>
+                  <Select.Option value="白族">白族</Select.Option>
+                  <Select.Option value="土家族">土家族</Select.Option>
+                  <Select.Option value="哈尼族">哈尼族</Select.Option>
+                  <Select.Option value="哈萨克族">哈萨克族</Select.Option>
+                  <Select.Option value="傣族">傣族</Select.Option>
+                  <Select.Option value="黎族">黎族</Select.Option>
+                  <Select.Option value="傈僳族">傈僳族</Select.Option>
+                  <Select.Option value="佤族">佤族</Select.Option>
+                  <Select.Option value="畲族">畲族</Select.Option>
+                  <Select.Option value="高山族">高山族</Select.Option>
+                  <Select.Option value="拉祜族">拉祜族</Select.Option>
+                  <Select.Option value="水族">水族</Select.Option>
+                  <Select.Option value="东乡族">东乡族</Select.Option>
+                  <Select.Option value="纳西族">纳西族</Select.Option>
+                  <Select.Option value="景颇族">景颇族</Select.Option>
+                  <Select.Option value="柯尔克孜族">柯尔克孜族</Select.Option>
+                  <Select.Option value="土族">土族</Select.Option>
+                  <Select.Option value="达斡尔族">达斡尔族</Select.Option>
+                  <Select.Option value="仫佬族">仫佬族</Select.Option>
+                  <Select.Option value="羌族">羌族</Select.Option>
+                  <Select.Option value="布朗族">布朗族</Select.Option>
+                  <Select.Option value="撒拉族">撒拉族</Select.Option>
+                  <Select.Option value="毛南族">毛南族</Select.Option>
+                  <Select.Option value="仡佬族">仡佬族</Select.Option>
+                  <Select.Option value="锡伯族">锡伯族</Select.Option>
+                  <Select.Option value="阿昌族">阿昌族</Select.Option>
+                  <Select.Option value="普米族">普米族</Select.Option>
+                  <Select.Option value="塔吉克族">塔吉克族</Select.Option>
+                  <Select.Option value="怒族">怒族</Select.Option>
+                  <Select.Option value="乌孜别克族">乌孜别克族</Select.Option>
+                  <Select.Option value="俄罗斯族">俄罗斯族</Select.Option>
+                  <Select.Option value="鄂温克族">鄂温克族</Select.Option>
+                  <Select.Option value="德昂族">德昂族</Select.Option>
+                  <Select.Option value="保安族">保安族</Select.Option>
+                  <Select.Option value="裕固族">裕固族</Select.Option>
+                  <Select.Option value="京族">京族</Select.Option>
+                  <Select.Option value="塔塔尔族">塔塔尔族</Select.Option>
+                  <Select.Option value="独龙族">独龙族</Select.Option>
+                  <Select.Option value="鄂伦春族">鄂伦春族</Select.Option>
+                  <Select.Option value="赫哲族">赫哲族</Select.Option>
+                  <Select.Option value="门巴族">门巴族</Select.Option>
+                  <Select.Option value="珞巴族">珞巴族</Select.Option>
+                  <Select.Option value="基诺族">基诺族</Select.Option>
+                </Select>
               </Form.Item>
           </Col>
           <Col xs={12} sm={12} md={6}>

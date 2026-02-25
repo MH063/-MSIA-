@@ -22,6 +22,8 @@ const AssistantOverlay: React.FC<AssistantOverlayProps> = ({
   onClose,
 }) => {
   const [activeTab, setActiveTab] = useState<TabKey>('knowledge');
+  // 统一使用 large 尺寸，确保展开页面大小一致
+  const drawerSize = 'large';
 
   const tabItems = [
     {
@@ -62,7 +64,7 @@ const AssistantOverlay: React.FC<AssistantOverlayProps> = ({
       placement="right"
       onClose={onClose}
       open={open}
-      size="large"
+      size={drawerSize}
       styles={{
         body: {
           padding: 0,

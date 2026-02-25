@@ -203,15 +203,6 @@ const Knowledge: React.FC = () => {
   // 菜单项
   const menuItems = useMemo(() => buildMenuItems(knowledgeList), [knowledgeList]);
 
-  // 过滤后的列表
-  const filteredList = useMemo(() => {
-    if (!searchTerm) return knowledgeList;
-    return knowledgeList.filter(k => 
-      k.displayName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      k.description?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [knowledgeList, searchTerm]);
-
   const onMenuSelect = ({ key }: { key: string }) => {
     const item = knowledgeList.find(k => k.symptomKey === key);
     if (item) {

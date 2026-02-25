@@ -2,7 +2,7 @@ import React from 'react';
 import { Menu, Progress, Typography, Button, Tooltip, Grid, theme } from 'antd';
 import { 
   HomeOutlined,
-  ArrowLeftOutlined
+  ArrowLeftOutlined,
 } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
@@ -11,6 +11,8 @@ const { useBreakpoint } = Grid;
 export interface SectionStatus {
   key: string;
   label: string;
+  icon?: React.ReactNode;
+  fallbackIcon?: React.ReactNode;
   isCompleted: boolean;
   status?: 'not_started' | 'in_progress' | 'completed';
   progress?: number;
@@ -125,9 +127,15 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
     return { mark: '○', color: token.colorTextDisabled };
   };
 
+  const getProgressBarColor = (prog: number): string => {
+    if (prog >= 100) return token.colorSuccess;
+    if (prog >= 50) return token.colorWarning;
+    return token.colorError;
+  };
+
   const menuItems = sections.map((section) => {
     const status = getStatusMark(section.key, section);
-    const icon = (
+    const statusIcon = (
       <span style={{ color: status.color, fontSize: 14, display: 'inline-flex', width: 16, justifyContent: 'center' }}>
         {status.mark}
       </span>
@@ -149,9 +157,21 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
         : undefined;
 
     const labelNode = (
-      <span style={{ fontWeight: section.key === currentSection ? 500 : 400 }}>
-        {section.label}
-      </span>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '4px 0' }}>
+        <span style={{ fontWeight: section.key === currentSection ? 500 : 400 }}>
+          {section.label}
+        </span>
+        {!isMobile && typeof section.progress === 'number' && (
+          <div style={{ height: 3, background: token.colorFillSecondary, borderRadius: 2, overflow: 'hidden' }}>
+            <div style={{ 
+              height: '100%', 
+              width: `${Math.min(100, section.progress)}%`, 
+              background: getProgressBarColor(section.progress),
+              transition: 'width 0.3s ease'
+            }} />
+          </div>
+        )}
+      </div>
     );
 
     return {
@@ -159,7 +179,8 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
       label: (
         tooltipTitle && !isMobile ? <Tooltip title={tooltipTitle} placement="right">{labelNode}</Tooltip> : labelNode
       ),
-      icon: icon
+      // 手机端和桌面端都显示状态标记（✓、•、○等）
+      icon: statusIcon
     };
   });
 

@@ -82,6 +82,14 @@ const KnowledgeTab: React.FC = () => {
     return symptomContext && symptomContext.name ? [symptomContext] as Array<NonNullable<typeof symptomContext>> : [];
   })();
 
+  if (loading) {
+    return (
+      <div style={{ padding: '0 16px 16px' }}>
+        <Loading height={200} />
+      </div>
+    );
+  }
+
   if (activeContexts.length === 0) {
     return (
       <div style={{ padding: '0 16px 16px', textAlign: 'center' }}>

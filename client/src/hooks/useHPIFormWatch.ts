@@ -35,8 +35,8 @@ interface UseHPIFormWatchReturn {
 }
 
 export const useHPIFormWatch = (form: FormInstance): UseHPIFormWatchReturn => {
-  // 只监听整个 presentIllness 对象，而不是每个字段
-  const presentIllness = Form.useWatch('presentIllness', form) || {};
+  const watched = Form.useWatch('presentIllness', form) as HPIFormValues | undefined;
+  const presentIllness = useMemo<HPIFormValues>(() => watched ?? ({} as HPIFormValues), [watched]);
   
   // 使用 ref 记录上一次的值，用于检测变化
   const prevValuesRef = useRef<HPIFormValues>({});

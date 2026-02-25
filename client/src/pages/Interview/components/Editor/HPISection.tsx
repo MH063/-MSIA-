@@ -6,12 +6,50 @@ import api, { unwrapData, type ApiResponse } from '../../../../utils/api';
 import { buildHpiNarrative } from '../../../../utils/narrative';
 import dayjs from 'dayjs';
 import { useQuery } from '@tanstack/react-query';
-import logger from '../../../../utils/logger';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
 // 使用 Collapse items API，避免 rc-collapse children 未来移除带来的警告
 
+
+// 症状key到系统回顾的映射（用于自动同步）
+// key 是后端返回的 symptom key，value 是系统回顾的系统key
+// 注意：某些症状可能属于多个系统，使用数组表示
+const symptomKeyToSystemMap: Record<string, string | string[]> = {
+  // 呼吸系统
+  'cough_and_expectoration': 'respiratory', // 咳嗽、咳痰
+  'hemoptysis': 'respiratory', // 咯血
+  'chest_pain': ['respiratory', 'cardiovascular'], // 胸痛同时属于呼吸系统和循环系统
+  'dyspnea': 'respiratory', // 呼吸困难
+  // 循环系统
+  'palpitation': 'cardiovascular', // 心悸
+  'edema': 'cardiovascular', // 水肿
+  'syncope': ['cardiovascular', 'neurological'], // 晕厥同时属于循环系统和神经系统
+  // 消化系统
+  'nausea_vomiting': 'digestive', // 恶心、呕吐
+  'abdominal_pain': 'digestive', // 腹痛
+  'diarrhea': 'digestive', // 腹泻
+  'constipation': 'digestive', // 便秘
+  'hematemesis': 'digestive', // 呕血
+  'jaundice': 'digestive', // 黄疸
+  // 泌尿系统
+  'urinary_frequency_urgency_dysuria': 'urinary', // 尿频、尿急、尿痛
+  'hematuria': 'urinary', // 血尿
+  'dysuria_urinary_retention': 'urinary', // 排尿困难
+  'lumbodorsalgia': 'urinary', // 腰痛
+  // 血液系统
+  'cutaneous_mucosal_hemorrhage': 'hematologic', // 皮肤出血点、瘀斑、牙龈出血、鼻出血
+  // 内分泌及代谢
+  'oliguria_anuria_polyuria': 'endocrine', // 多尿
+  'emaciation': 'endocrine', // 消瘦
+  // 神经精神
+  'headache': 'neurological', // 头痛
+  'tic_convulsion': 'neurological', // 抽搐
+  'disturbance_of_consciousness': 'neurological', // 意识障碍
+  'vertigo': ['hematologic', 'neurological'], // 头晕同时属于血液系统和神经系统
+  // 肌肉骨骼
+  'arthralgia': 'musculoskeletal', // 关节痛
+};
 
 const SeverityBlocks: React.FC<{ value?: string; onChange?: (v: string) => void }> = ({ value, onChange }) => {
   const current = String(value || '');
@@ -63,16 +101,24 @@ const HPISection: React.FC = () => {
   });
   const mappingPayload = unwrapData<{ synonyms: Record<string, string>; nameToKey: Record<string, string> }>(mappingQuery.data as ApiResponse<{ synonyms: Record<string, string>; nameToKey: Record<string, string> }>);
   const symptomOptions = React.useMemo<{ label: string; value: string }[]>(() => {
-    if (mappingQuery.data && (mappingQuery.data as ApiResponse<unknown>).success && mappingPayload && mappingPayload.nameToKey) {
-      const opts = Object.entries(mappingPayload.nameToKey).map(([name, key]) => ({ label: name, value: key }));
+    if (mappingPayload && mappingPayload.nameToKey) {
+      // 去重：同一个 key 只保留一个选项（优先保留完整名称，如"咳嗽与咳痰"而非"咳嗽"）
+      const keyToLabel: Record<string, string> = {};
+      
+      for (const [name, key] of Object.entries(mappingPayload.nameToKey)) {
+        // 如果 key 已存在，优先保留更长的名称（通常是完整名称）
+        if (!keyToLabel[key] || name.length > keyToLabel[key].length) {
+          keyToLabel[key] = name;
+        }
+      }
+      
+      const opts = Object.entries(keyToLabel).map(([key, name]) => ({ label: name, value: key }));
       opts.sort((a, b) => a.label.localeCompare(b.label, 'zh-CN'));
+      
       return opts;
     }
-    if (mappingQuery.isError) {
-      logger.error('[HPI] 症状映射接口异常', mappingQuery.error);
-    }
     return [];
-  }, [mappingQuery.data, mappingQuery.isError, mappingQuery.error, mappingPayload]);
+  }, [mappingPayload]);
   const labelByKey = React.useMemo<Record<string, string>>(
     () => Object.fromEntries(symptomOptions.map(opt => [opt.value, opt.label])),
     [symptomOptions]
@@ -88,7 +134,11 @@ const HPISection: React.FC = () => {
   const lastAutoNarrativeRef = useRef<string>('');
   // 记录上一次伴随症状的选择
   const lastAssociatedSymptomsRef = useRef<string[]>([]);
-  
+  // 记录上一次同步到系统回顾的症状（用于精确同步）
+  const lastSyncedToRosRef = useRef<string[]>([]);
+  // 标记是否已初始化
+  const isInitializedRef = useRef<boolean>(false);
+
   // 监听关键字段以驱动时间线和自动生成
   const onsetTime = Form.useWatch(['presentIllness', 'onsetTime'], form);
   const onsetMode = Form.useWatch(['presentIllness', 'onsetMode'], form);
@@ -276,24 +326,137 @@ const HPISection: React.FC = () => {
     // 检查伴随症状选择是否发生变化
     const symptomsChanged = JSON.stringify(associatedSymptoms) !== JSON.stringify(lastAssociatedSymptomsRef.current);
     lastAssociatedSymptomsRef.current = associatedSymptoms;
-    
-    if (associatedSymptoms.length > 0) {
-      const labels = associatedSymptoms.map((key: string) => labelByKey[key] || key);
-      const autoDesc = `伴有${labels.join('、')}。`;
-      const currentDesc = form.getFieldValue(['presentIllness', 'associatedSymptomsDetails']);
-      
-      // 只在伴随症状选择变化且用户未手动修改时，才自动更新描述
-      if (symptomsChanged && !userModifiedAssocSymptomsRef.current && (!currentDesc || currentDesc === '')) {
+
+    const labels = associatedSymptoms.map((key: string) => labelByKey[key] || key);
+    const autoDesc = associatedSymptoms.length > 0 ? `伴有${labels.join('、')}。` : '';
+    const currentDesc = form.getFieldValue(['presentIllness', 'associatedSymptomsDetails']);
+
+    // 只在伴随症状选择变化且用户未手动修改时，才自动更新描述
+    if (symptomsChanged && !userModifiedAssocSymptomsRef.current) {
+      // 如果当前描述是自动生成的格式（以"伴有"开头），则更新或清空
+      if (!currentDesc || currentDesc === '' || currentDesc.startsWith('伴有')) {
         form.setFieldValue(['presentIllness', 'associatedSymptomsDetails'], autoDesc);
-  
-      }
-    } else {
-      // 当没有选择伴随症状时，如果之前是自动生成的描述，则清空
-      const currentDesc = form.getFieldValue(['presentIllness', 'associatedSymptomsDetails']);
-      if (symptomsChanged && !userModifiedAssocSymptomsRef.current && currentDesc && currentDesc.startsWith('伴有')) {
-        form.setFieldValue(['presentIllness', 'associatedSymptomsDetails'], '');
       }
     }
+  }, [associatedSymptoms, form, labelByKey]);
+
+  /**
+   * 同步伴随症状到系统回顾模块
+   * 单向同步：现病史 → 系统回顾
+   * 每次伴随症状变化时，直接同步到系统回顾
+   * 注意：存储格式统一使用 symptom key（与 ROS 组件一致）
+   */
+  useEffect(() => {
+    // 当前选中的症状（这些是 symptom key）
+    const currentSymptomKeys = associatedSymptoms || [];
+
+    // 获取上一次同步的症状 key
+    const lastSyncedKeys = lastSyncedToRosRef.current;
+
+    // 首次加载：如果系统回顾中已经有这些症状，视为已同步
+    if (!isInitializedRef.current && currentSymptomKeys.length > 0) {
+      // 检查系统回顾中是否已存在这些症状（使用 key 格式）
+      const rosData = form.getFieldValue('reviewOfSystems') || {};
+      let allSymptomsExist = true;
+
+      for (const symptomKey of currentSymptomKeys) {
+        const systemKeys = symptomKeyToSystemMap[symptomKey];
+        if (systemKeys) {
+          const systemKeyArray = Array.isArray(systemKeys) ? systemKeys : [systemKeys];
+          const exists = systemKeyArray.some((systemKey: string) => {
+            const systemSymptoms = rosData[systemKey]?.symptoms || [];
+            return systemSymptoms.includes(symptomKey);
+          });
+          if (!exists) {
+            allSymptomsExist = false;
+            break;
+          }
+        }
+      }
+
+      if (allSymptomsExist) {
+        // 如果所有症状都已存在，标记为已初始化并跳过
+        lastSyncedToRosRef.current = [...currentSymptomKeys];
+        isInitializedRef.current = true;
+        return;
+      }
+    }
+
+    // 检测变化：找出新增和移除的症状 key
+    const addedKeys = currentSymptomKeys.filter((key: string) => !lastSyncedKeys.includes(key));
+    const removedKeys = lastSyncedKeys.filter((key: string) => !currentSymptomKeys.includes(key));
+
+    // 如果没有实际变化，跳过
+    if (addedKeys.length === 0 && removedKeys.length === 0) {
+      return;
+    }
+
+    console.log('[症状同步] 新增:', addedKeys, '移除:', removedKeys);
+
+    // 处理新增的症状
+    if (addedKeys.length > 0) {
+      addedKeys.forEach((symptomKey: string) => {
+        const systemKeys = symptomKeyToSystemMap[symptomKey];
+        if (systemKeys) {
+          const systemKeyArray = Array.isArray(systemKeys) ? systemKeys : [systemKeys];
+          systemKeyArray.forEach((systemKey: string) => {
+            const systemPath = ['reviewOfSystems', systemKey, 'symptoms'];
+            const existingSymptoms: string[] = form.getFieldValue(systemPath) || [];
+            // 存储时使用 key 格式（与 ROS 组件一致）
+            if (!existingSymptoms.includes(symptomKey)) {
+              form.setFieldValue(systemPath, [...existingSymptoms, symptomKey]);
+              const symptomLabel = labelByKey[symptomKey] || symptomKey;
+              console.log(`[症状同步] 添加 "${symptomKey}"(${symptomLabel}) 到 ${systemKey}`);
+            }
+          });
+        }
+      });
+    }
+
+    // 处理移除的症状
+    if (removedKeys.length > 0) {
+      removedKeys.forEach((symptomKey: string) => {
+        const systemKeys = symptomKeyToSystemMap[symptomKey];
+        if (systemKeys) {
+          const systemKeyArray = Array.isArray(systemKeys) ? systemKeys : [systemKeys];
+          systemKeyArray.forEach((systemKey: string) => {
+            const systemPath = ['reviewOfSystems', systemKey, 'symptoms'];
+            const existingSymptoms: string[] = form.getFieldValue(systemPath) || [];
+            const updatedSymptoms = existingSymptoms.filter((s: string) => s !== symptomKey);
+            if (existingSymptoms.length !== updatedSymptoms.length) {
+              form.setFieldValue(systemPath, updatedSymptoms);
+              const symptomLabel = labelByKey[symptomKey] || symptomKey;
+              console.log(`[症状同步] 从 ${systemKey} 移除 "${symptomKey}"(${symptomLabel})`);
+            }
+          });
+        }
+      });
+    }
+
+    // 更新上一次同步的症状 key 列表
+    lastSyncedToRosRef.current = [...currentSymptomKeys];
+    isInitializedRef.current = true;
+
+    // 检查系统回顾是否还有症状，更新"无系统回顾异常"状态
+    setTimeout(() => {
+      const rosData = form.getFieldValue('reviewOfSystems') || {};
+      let hasAnySymptoms = false;
+      for (const key of Object.keys(rosData)) {
+        if (key === 'none') continue;
+        const systemSymptoms = rosData[key]?.symptoms;
+        if (Array.isArray(systemSymptoms) && systemSymptoms.length > 0) {
+          hasAnySymptoms = true;
+          break;
+        }
+      }
+
+      const rosNone = form.getFieldValue(['reviewOfSystems', 'none']);
+      if (hasAnySymptoms && rosNone) {
+        form.setFieldValue(['reviewOfSystems', 'none'], false);
+      } else if (!hasAnySymptoms && !rosNone) {
+        form.setFieldValue(['reviewOfSystems', 'none'], true);
+      }
+    }, 0);
   }, [associatedSymptoms, form, labelByKey]);
 
   // 通过 React Query 自动拉取映射，无需在 effect 中手动 setState

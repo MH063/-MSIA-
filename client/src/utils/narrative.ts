@@ -364,8 +364,8 @@ export function buildHpiNarrative(
       if (!t) return '';
       const cleaned = t.replace(/^大小便/u, '').trim().replace(/^[:：]/u, '').trim();
       if (!cleaned) return '';
-      if (/^(小便|大便|二便)/u.test(cleaned)) return cleaned;
-      return `二便${cleaned}`;
+      if (/^(小便|大便|大小便)/u.test(cleaned)) return cleaned;
+      return `大小便${cleaned}`;
     })();
 
     const base = (() => {
@@ -401,7 +401,7 @@ export function buildHpiNarrative(
       if (appetite && !/食欲/u.test(withWeightJin)) extraParts.push(`食欲${appetite}`);
       if (sleep && !/睡眠/u.test(withWeightJin)) extraParts.push(`睡眠${sleep}`);
       if (strength && !/体力/u.test(withWeightJin)) extraParts.push(`体力${strength}`);
-      if (excretion && !/(小便|大便|二便|大小便)/u.test(withWeightJin)) extraParts.push(excretion);
+      if (excretion && !/(小便|大便|大小便)/u.test(withWeightJin)) extraParts.push(excretion);
       if (weight && !/体重/u.test(withWeightJin)) extraParts.push(`体重${weight}`);
 
       const merged = [withWeightJin, ...extraParts].filter(Boolean).join('、').replace(/[。；，、]+$/u, '');
@@ -412,7 +412,7 @@ export function buildHpiNarrative(
     const appetiteText = appetite || '未详';
     const sleepText = sleep || '未详';
     const strengthText = strength || '未详';
-    const excretionText = excretion || '二便未详';
+    const excretionText = excretion || '大小便未详';
     const weightText = weight || '未详';
 
     generalParts.push(`精神${spiritText}`);

@@ -72,11 +72,6 @@ const MainLayout: React.FC = () => {
     let alive = true;
     setAuthChecking(true);
     
-    try {
-      
-    } catch {
-      // ignore
-    }
     (async () => {
       try {
         setLoadingProgress(10);

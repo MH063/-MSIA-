@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { Form, Input, InputNumber, Card, Row, Col, Select } from 'antd';
 import MenstrualHistorySection from './MenstrualHistorySection';
+import { logger } from '../../../../utils/logger';
 
 const { Option } = Select;
 
@@ -19,9 +20,7 @@ const MaritalHistorySection: React.FC = () => {
    * Form 会自动处理同步，这里添加日志记录
    */
   useEffect(() => {
-    if (maritalStatus) {
-      
-    }
+    if (maritalStatus) { logger.info('[MaritalHistory] 婚姻状况变更', { status: maritalStatus }); }
   }, [maritalStatus]);
 
   return (

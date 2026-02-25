@@ -6,7 +6,6 @@ import api, { unwrapData, getApiErrorMessage } from '../../utils/api';
 import type { ApiResponse } from '../../utils/api';
 import './login.css';
 import Captcha from '../../components/Captcha';
-import { useThemeStore } from '../../store/theme.store';
 import logger from '../../utils/logger';
 
 const { Title } = Typography;
@@ -301,12 +300,9 @@ const TokenLogin: React.FC<{ onSuccess: (data: LoginResult) => void }> = ({ onSu
 
 const Login: React.FC = () => {
   const { message } = AntdApp.useApp();
-  const { token } = theme.useToken();
   const navigate = useNavigate();
   const location = useLocation();
   const [activeTab, setActiveTab] = useState('password');
-  const { mode } = useThemeStore();
-  const isDark = mode === 'dark';
   const envTag = getEnvLabel();
 
   const redirectTo = useMemo(() => {
@@ -367,31 +363,34 @@ const Login: React.FC = () => {
     <div className="login-page">
       <style>{`
         .login-page {
-          background: ${isDark ? token.colorBgLayout : '#f0f2f5'} !important;
+          background: var(--msia-bg) !important;
         }
         .login-bg-blob {
-          opacity: ${isDark ? 0.15 : 0.6} !important;
+          opacity: var(--is-dark, 0.5) !important;
+        }
+        [data-theme="dark"] .login-bg-blob {
+          --is-dark: 0.35;
         }
         .login-card {
-          background: ${token.colorBgContainer} !important;
-          border: 1px solid ${token.colorBorderSecondary} !important;
+          background: var(--msia-card) !important;
+          border: 1px solid var(--msia-border) !important;
         }
         .login-input {
-          background: ${token.colorBgContainer} !important;
-          border-color: ${token.colorBorder} !important;
-          color: ${token.colorText} !important;
+          background: var(--msia-bg) !important;
+          border-color: var(--msia-border) !important;
+          color: var(--msia-text) !important;
         }
         .login-input:hover, .login-input:focus {
-          border-color: ${token.colorPrimary} !important;
+          border-color: var(--msia-primary) !important;
         }
         .login-input-icon {
-          color: ${token.colorTextDescription} !important;
+          color: var(--msia-text-tertiary) !important;
         }
         .login-title {
-          color: ${token.colorText} !important;
+          color: var(--msia-text-primary) !important;
         }
         .login-subtitle {
-          color: ${token.colorTextSecondary} !important;
+          color: var(--msia-text-secondary) !important;
         }
       `}</style>
       
@@ -414,7 +413,7 @@ const Login: React.FC = () => {
             <MedicineBoxFilled />
           </div>
           <Title level={3} className="login-title">医学生智能问诊辅助系统</Title>
-          <div className="login-subtitle" style={{ color: token.colorTextSecondary }}>Medical Student Intelligent Assistant</div>
+          <div className="login-subtitle">Medical Student Intelligent Assistant</div>
         </div>
 
         {SHOW_TOKEN_LOGIN ? (
@@ -422,6 +421,7 @@ const Login: React.FC = () => {
             activeKey={activeTab} 
             onChange={setActiveTab}
             centered
+            className="login-tabs"
             items={[
               {
                 key: 'password',

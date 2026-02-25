@@ -24,7 +24,7 @@ const TeachingTab: React.FC = () => {
     panel.drinkingHint,
   ].filter(Boolean) as string[];
 
-  if (tips.length === 0) {
+  if (tips.length === 0 && !moduleLabel) {
     return (
       <div style={{ padding: '0 16px 16px', textAlign: 'center' }}>
         <Empty description="当前暂无特定的教学指导，请继续问诊" image={Empty.PRESENTED_IMAGE_SIMPLE} />
@@ -34,23 +34,33 @@ const TeachingTab: React.FC = () => {
 
   return (
     <div style={{ padding: '0 12px' }}>
-      <Alert title={`当前阶段：${moduleLabel}`} type="info" showIcon style={{ marginBottom: 16 }} />
+      {moduleLabel && (
+        <Alert title={`当前阶段：${moduleLabel}`} type="info" showIcon style={{ marginBottom: 16 }} />
+      )}
       
-      <Title level={5} style={{ fontSize: 14, marginBottom: 12 }}>
-        <BulbOutlined style={{ color: token.colorWarning, marginRight: 8 }} />
-        问诊建议
-      </Title>
-      
-      <div>
-        {tips.map((item, index) => (
-          <div key={index} style={{ padding: '8px 0', borderBottom: `1px solid ${token.colorBorderSecondary}` }}>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-              <InfoCircleOutlined style={{ color: token.colorInfo, marginTop: 4, flexShrink: 0 }} />
-              <Text style={{ fontSize: 14 }}>{item}</Text>
-            </div>
+      {tips.length > 0 && (
+        <>
+          <Title level={5} style={{ fontSize: 14, marginBottom: 12 }}>
+            <BulbOutlined style={{ color: token.colorWarning, marginRight: 8 }} />
+            问诊建议
+          </Title>
+          
+          <div>
+            {tips.map((item, index) => (
+              <div key={index} style={{ padding: '8px 0', borderBottom: `1px solid ${token.colorBorderSecondary}` }}>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                  <InfoCircleOutlined style={{ color: token.colorInfo, marginTop: 4, flexShrink: 0 }} />
+                  <Text style={{ fontSize: 14 }}>{item}</Text>
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </>
+      )}
+
+      {tips.length === 0 && moduleLabel && (
+        <Alert title={`当前阶段：${moduleLabel}`} type="info" showIcon description="暂无教学指导建议" />
+      )}
     </div>
   );
 };

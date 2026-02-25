@@ -3,7 +3,7 @@
  * 支持响应式布局，桌面端和移动端自适应
  */
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Button, Grid, Layout, theme } from 'antd';
 import LazyDrawer from '../../../../components/lazy/LazyDrawer';
 import { MenuOutlined } from '@ant-design/icons';
@@ -14,16 +14,27 @@ const { useBreakpoint } = Grid;
 interface InterviewLayoutProps {
   navigation: React.ReactNode;
   editor: React.ReactNode;
+  onMobileNavigationChange?: () => void;
 }
 
 const InterviewLayout: React.FC<InterviewLayoutProps> = ({
   navigation,
   editor,
+  onMobileNavigationChange,
 }) => {
   const { token } = theme.useToken();
   const screens = useBreakpoint();
   const isDesktop = Boolean(screens.md);
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  const handleDrawerClose = useCallback(() => {
+    setDrawerOpen(false);
+    if (onMobileNavigationChange) {
+      setTimeout(() => {
+        onMobileNavigationChange();
+      }, 300);
+    }
+  }, [onMobileNavigationChange]);
 
   // 桌面端布局
   if (isDesktop) {
@@ -110,12 +121,17 @@ const InterviewLayout: React.FC<InterviewLayoutProps> = ({
       <LazyDrawer
         open={drawerOpen}
         placement="left"
-        onClose={() => setDrawerOpen(false)}
+        onClose={handleDrawerClose}
         size={280}
         styles={{ body: { padding: 0 } }}
         title={null}
+        afterOpenChange={(open) => {
+          if (!open && onMobileNavigationChange) {
+            onMobileNavigationChange();
+          }
+        }}
       >
-        <div onClick={() => setDrawerOpen(false)}>{navigation}</div>
+        <div>{navigation}</div>
       </LazyDrawer>
     </Layout>
   );

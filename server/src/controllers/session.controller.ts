@@ -6,7 +6,7 @@ import fs from 'fs';
 import PDFDocument from 'pdfkit';
 import { Document, Packer, Paragraph, TextRun } from 'docx';
 import { secureLogger } from '../utils/secureLogger';
-import type { Session as SessionType, Patient, PhysicalExam, MenstrualHistory, FertilityHistory, FamilyHistory, MaritalHistory } from '../types';
+import type { Patient, PhysicalExam, MenstrualHistory, FertilityHistory, FamilyHistory, MaritalHistory } from '../types';
 
 // 统一类型别名 - 用于动态 JSON 数据
 type JsonData = Record<string, unknown>;

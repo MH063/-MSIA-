@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { Form, Input, Checkbox, Typography, Collapse } from 'antd';
 import api, { unwrapData } from '../../../../utils/api';
 import type { ApiResponse } from '../../../../utils/api';
@@ -57,14 +57,53 @@ const ReviewOfSystemsSection: React.FC = () => {
   const form = Form.useFormInstance();
   const rosNone = Form.useWatch(['reviewOfSystems', 'none'], form);
 
+  // 监听所有系统的症状和详情字段
+  const systemsData = Form.useWatch('reviewOfSystems', form);
+
+  /**
+   * 检查是否存在任何症状勾选或详情填写
+   */
+  const hasAnySymptomsOrDetails = useMemo(() => {
+    if (!systemsData || typeof systemsData !== 'object') return false;
+    const data = systemsData as Record<string, unknown>;
+    
+    for (const system of systemsConfig) {
+      const systemData = data[system.key] as Record<string, unknown> | undefined;
+      if (!systemData) continue;
+      
+      // 检查是否有症状被勾选
+      const symptoms = systemData.symptoms;
+      if (Array.isArray(symptoms) && symptoms.length > 0) {
+        return true;
+      }
+      
+      // 检查是否有详情填写
+      const details = systemData.details;
+      if (typeof details === 'string' && details.trim().length > 0) {
+        return true;
+      }
+    }
+    return false;
+  }, [systemsData]);
+
+  // 监听"无系统回顾异常"勾选状态变化
   useEffect(() => {
     if (!rosNone) return;
     const curr = form.getFieldValue('reviewOfSystems') as Record<string, unknown> | undefined;
     if (!curr || typeof curr !== 'object') return;
     const isOnlyNone = (v: Record<string, unknown>) => Object.keys(v).length === 1 && v.none === true;
     if (isOnlyNone(curr)) return;
+    // 清空所有系统数据，只保留 none: true
     form.setFieldValue('reviewOfSystems', { none: true });
   }, [form, rosNone]);
+
+  // 监听症状/详情变化，当存在数据时自动取消"无系统回顾异常"勾选
+  useEffect(() => {
+    if (hasAnySymptomsOrDetails && rosNone) {
+      form.setFieldValue(['reviewOfSystems', 'none'], false);
+    }
+  }, [form, hasAnySymptomsOrDetails, rosNone]);
+
   /**
    * 使用后端映射将系统症状的勾选值统一为键（key），显示为中文名称（label）
    * 这样保证表单存储与知识库/接口一致性，同时叙述生成中可通过 key→name 还原中文
@@ -103,46 +142,38 @@ const ReviewOfSystemsSection: React.FC = () => {
       </Typography.Paragraph>
 
       <Form.Item name={['reviewOfSystems', 'none']} valuePropName="checked">
-        <Checkbox>无系统回顾异常</Checkbox>
+        <Checkbox disabled={hasAnySymptomsOrDetails}>无系统回顾异常</Checkbox>
       </Form.Item>
 
-      <Collapse
-        defaultActiveKey={systemsConfig.map(s => s.key)}
-        items={systemsConfig.map(system => ({
-          key: system.key,
-          label: system.label,
-          children: (
-            <div>
-              <Form.Item 
-                  name={['reviewOfSystems', system.key, 'symptoms']} 
-                  label="常见症状"
-              >
-                <Checkbox.Group
-                  options={optionsBySystem[system.key] || system.symptoms.map(name => ({ label: name, value: name }))}
-                  onChange={() => {
-                    if (form.getFieldValue(['reviewOfSystems', 'none'])) {
-                      form.setFieldValue(['reviewOfSystems', 'none'], false);
-                    }
-                  }}
-                />
-              </Form.Item>
-              <Form.Item 
-                  name={['reviewOfSystems', system.key, 'details']} 
-                  label="详情补充"
-              >
-                <Input
-                  placeholder="如有其他症状或具体描述，请在此补充"
-                  onChange={() => {
-                    if (form.getFieldValue(['reviewOfSystems', 'none'])) {
-                      form.setFieldValue(['reviewOfSystems', 'none'], false);
-                    }
-                  }}
-                />
-              </Form.Item>
-            </div>
-          )
-        }))}
-      />
+      {!rosNone && (
+        <Collapse
+          defaultActiveKey={systemsConfig.map(s => s.key)}
+          items={systemsConfig.map(system => ({
+            key: system.key,
+            label: system.label,
+            children: (
+              <div>
+                <Form.Item 
+                    name={['reviewOfSystems', system.key, 'symptoms']} 
+                    label="常见症状"
+                >
+                  <Checkbox.Group
+                    options={optionsBySystem[system.key] || system.symptoms.map(name => ({ label: name, value: name }))}
+                  />
+                </Form.Item>
+                <Form.Item 
+                    name={['reviewOfSystems', system.key, 'details']} 
+                    label="详情补充"
+                >
+                  <Input
+                    placeholder="如有其他症状或具体描述，请在此补充"
+                  />
+                </Form.Item>
+              </div>
+            )
+          }))}
+        />
+      )}
     </div>
   );
 };

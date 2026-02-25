@@ -61,7 +61,7 @@ const Captcha: React.FC<CaptchaProps> = ({ onChange, onVerify, onIdChange, exter
     } finally {
       setIsLoading(false);
     }
-  }, [isLoading]);
+  }, [isLoading, token.colorFillAlter, token.colorTextSecondary]);
 
   useEffect(() => {
     refreshRef.current = refreshCaptcha;
