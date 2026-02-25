@@ -7,7 +7,7 @@ import prisma from '../prisma';
  */
 export const suggestDiagnosis = async (req: Request, res: Response) => {
   try {
-    const { symptoms, patientInfo } = req.body;
+    const { symptoms } = req.body;
     
     if (!symptoms || !Array.isArray(symptoms) || symptoms.length === 0) {
       res.status(400).json({ success: false, message: '症状列表不能为空' });
@@ -210,7 +210,7 @@ function adjustDiagnosesByPatientInfo(
   patientInfo?: PatientInfo,
   history?: HistoryInfo
 ): DiagnosisResult[] {
-  if (!patientInfo && !history) return diagnoses;
+  if (!patientInfo && !history) {return diagnoses;}
 
   return diagnoses.map(diagnosis => {
     let adjustedScore = diagnosis.score;
@@ -239,7 +239,7 @@ function adjustDiagnosesByPatientInfo(
 
 // 辅助函数：计算置信度
 function calculateConfidence(symptoms: string[], diagnoses: DiagnosisResult[]): number {
-  if (diagnoses.length === 0) return 0;
+  if (diagnoses.length === 0) {return 0;}
 
   const topScore = diagnoses[0]?.score || 0;
   const symptomCoverage = (diagnoses[0]?.matchedSymptoms?.length || 0) / symptoms.length || 0;

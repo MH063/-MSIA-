@@ -177,7 +177,7 @@ async function putRefreshSession(input: { sid: string; operatorId: number; role:
         { EX: ttlSeconds }
       );
       return;
-    } catch (e) {
+    } catch {
       secureLogger.warn('[auth.refresh] Redis 写入失败，将使用内存兜底');
     }
   }
@@ -201,7 +201,7 @@ async function getRefreshSession(sid: string): Promise<{ operatorId: number; rol
       const jti = String((parsed as any).jti || '').trim();
       if (!Number.isFinite(operatorId) || !role || !jti) {return null;}
       return { operatorId, role, jti };
-    } catch (e) {
+    } catch {
       secureLogger.warn('[auth.refresh] Redis 读取失败，将尝试内存兜底');
     }
   }
@@ -217,7 +217,7 @@ async function deleteRefreshSession(sid: string): Promise<void> {
   if (redis) {
     try {
       await redis.del(`auth:refresh:${sid}`);
-    } catch (e) {
+    } catch {
       secureLogger.warn('[auth.refresh] Redis 删除失败，将继续清理内存兜底');
     }
   }
@@ -285,7 +285,7 @@ async function checkLoginIpRateLimit(
         return { blocked: true, status: 429, message: '请求过于频繁，请稍后再试', reason: 'rate_limited' };
       }
       return null;
-    } catch (e) {
+    } catch {
       secureLogger.warn('[auth.login] Redis 限流检查失败，尝试数据库兜底', { ip });
     }
   }
@@ -300,9 +300,8 @@ async function checkLoginIpRateLimit(
       return { blocked: true, status: 429, message: '请求过于频繁，请稍后再试', reason: 'rate_limited' };
     }
     return null;
-  } catch (e) {
-    const err = e as { code?: string; message?: string };
-    if (isMissingTableError(err)) {warnLoginDbMissingOnce(err);}
+  } catch {
+    warnLoginDbMissingOnce({});
   }
 
   const ipWait = bumpWindowCounter(loginIpCounter, ip, now, authGuardConfig.loginIpWindowMs, authGuardConfig.loginIpMax);
@@ -333,7 +332,7 @@ async function getLoginLockedUntil(
       if (!v) {return null;}
       const lockedUntil = Number(v);
       return Number.isFinite(lockedUntil) ? lockedUntil : null;
-    } catch (e) {
+    } catch {
       secureLogger.warn('[auth.login] Redis 锁定检查失败，尝试数据库兜底', { ip, username: u });
     }
   }
@@ -362,9 +361,8 @@ async function getLoginLockedUntil(
       }
     }
     return null;
-  } catch (e) {
-    const err = e as { code?: string; message?: string };
-    if (isMissingTableError(err)) {warnLoginDbMissingOnce(err);}
+  } catch {
+    warnLoginDbMissingOnce({});
   }
 
   const key = `${ip}::${u}`;
@@ -408,7 +406,7 @@ async function recordLoginFailure(
         await redis.set(lockKey, String(lockedUntil), { EX: Math.ceil(policy.lockMs / 1000) });
         secureLogger.warn('[auth.login] 触发登录失败锁定（Redis）', { ip, username: u, lockedUntil: new Date(lockedUntil).toISOString() });
       }
-    } catch (e) {
+    } catch {
       secureLogger.warn('[auth.login] Redis 失败计数写入失败，尝试数据库兜底', { ip, username: u });
     }
   }
@@ -426,9 +424,8 @@ async function recordLoginFailure(
     });
     failCount = Math.max(failCount, db.failCount);
     if (db.lockedUntil) {lockedUntil = Math.max(lockedUntil || 0, db.lockedUntil);}
-  } catch (e) {
-    const err = e as { code?: string; message?: string };
-    if (isMissingTableError(err)) {warnLoginDbMissingOnce(err);}
+  } catch {
+    warnLoginDbMissingOnce({});
   }
 
   const key = `${ip}::${u}`;
@@ -465,7 +462,7 @@ async function clearLoginFailures(req: Request, username: string) {
   if (redis) {
     try {
       await redis.del([`rl:auth:login:fail:${ip}:${u}`, `rl:auth:login:lock:${ip}:${u}`]);
-    } catch (e) {
+    } catch {
       secureLogger.warn('[auth.login] Redis 清理失败计数失败', { ip, username: u });
     }
   }
@@ -480,9 +477,8 @@ async function clearLoginFailures(req: Request, username: string) {
         lockedUntil: null,
       },
     });
-  } catch (e) {
-    const err = e as { code?: string; message?: string };
-    if (isMissingTableError(err)) {warnLoginDbMissingOnce(err);}
+  } catch {
+    warnLoginDbMissingOnce({});
   }
 
   const key = `${ip}::${u}`;
@@ -962,9 +958,8 @@ async function upsertLockoutFromBlocked(ip: string, username: string, lockedUnti
         lockedUntil: lockedUntilDate,
       },
     });
-  } catch (e) {
-    const err = e as { code?: string; message?: string };
-    if (isMissingTableError(err)) {warnLoginDbMissingOnce(err);}
+  } catch {
+    warnLoginDbMissingOnce({});
   }
 }
 
@@ -1004,10 +999,11 @@ async function persistLoginAttempt(input: {
  * isMissingTableError
  * 判断是否为 Prisma 的“表不存在”错误，便于在未执行建表 SQL 时兼容运行
  */
-function isMissingTableError(e: any): boolean {
-  const code = String(e?.code || '').trim();
+function isMissingTableError(e: unknown): boolean {
+  const err = e as { code?: string; message?: string };
+  const code = String(err?.code || '').trim();
   if (code === 'P2021') {return true;}
-  const msg = String(e?.message || '').toLowerCase();
+  const msg = String(err?.message || '').toLowerCase();
   return msg.includes('does not exist') || msg.includes('relation') || msg.includes('table');
 }
 
@@ -1015,7 +1011,7 @@ function isMissingTableError(e: any): boolean {
  * warnLoginDbMissingOnce
  * 首次检测到登录审计相关表不存在时打印提示日志，避免刷屏
  */
-function warnLoginDbMissingOnce(e: any) {
+function warnLoginDbMissingOnce(_e: unknown) {
   if (warnedLoginDbMissing) {return;}
   warnedLoginDbMissing = true;
   secureLogger.warn('[auth.login] 登录审计/锁定相关表不存在，已自动退化为 Redis/内存方案，请先执行建表 SQL');
