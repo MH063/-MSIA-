@@ -18,7 +18,7 @@ export interface PatientData {
 /**
  * 获取所有患者
  */
-export const getAllPatients = async (): Promise<Prisma.PatientGetPayload<{}>[]> => {
+export const getAllPatients = async (): Promise<Prisma.PatientGetPayload<object>[]> => {
   return await prisma.patient.findMany();
 };
 
@@ -26,7 +26,7 @@ export const getAllPatients = async (): Promise<Prisma.PatientGetPayload<{}>[]> 
  * 创建新患者
  * @param data 患者数据
  */
-export const createPatient = async (data: PatientData): Promise<Prisma.PatientGetPayload<{}>> => {
+export const createPatient = async (data: PatientData): Promise<Prisma.PatientGetPayload<object>> => {
   return await prisma.patient.create({
     data: {
         name: data.name,

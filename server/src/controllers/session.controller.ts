@@ -1119,15 +1119,15 @@ export const generateReport = async (req: Request, res: Response) => {
              
              // 体温
              const temp = v.temperature || v.temp || v.t;
-             if (temp) items.push(`体温：${temp}°C`);
+             if (temp) {items.push(`体温：${temp}°C`);}
              
              // 脉搏/心率
              const pulse = v.pulse || v.heartRate || v.heart_rate || v.hr || v.p;
-             if (pulse) items.push(`脉搏：${pulse}次/分`);
+             if (pulse) {items.push(`脉搏：${pulse}次/分`);}
              
              // 呼吸
              const resp = v.respiration || v.respiratoryRate || v.respiratory_rate || v.rr || v.r;
-             if (resp) items.push(`呼吸：${resp}次/分`);
+             if (resp) {items.push(`呼吸：${resp}次/分`);}
              
              // 血压 - 支持多种格式
              let bp = v.bloodPressure || v.bp || v.blood_pressure;
@@ -1143,27 +1143,27 @@ export const generateReport = async (req: Request, res: Response) => {
                      bp = `/${diastolic}`;
                  }
              }
-             if (bp) items.push(`血压：${bp}mmHg`);
+             if (bp) {items.push(`血压：${bp}mmHg`);}
              
              // 体重
              const weight = v.weight || v.wt;
-             if (weight) items.push(`体重：${weight}kg`);
+             if (weight) {items.push(`体重：${weight}kg`);}
              
              // 身高
              const height = v.height || v.ht;
-             if (height) items.push(`身高：${height}cm`);
+             if (height) {items.push(`身高：${height}cm`);}
              
              // BMI
              const bmi = v.BMI || v.bmi;
-             if (bmi) items.push(`BMI：${bmi}`);
+             if (bmi) {items.push(`BMI：${bmi}`);}
              
              // 血氧饱和度
              const spo2 = v.spo2 || v.SpO2 || v.oxygenSaturation || v.oxygen_saturation || v.o2sat;
-             if (spo2) items.push(`血氧饱和度：${spo2}%`);
+             if (spo2) {items.push(`血氧饱和度：${spo2}%`);}
              
              // 疼痛评分
              const painScore = v.painScore !== undefined ? v.painScore : (v.pain_score !== undefined ? v.pain_score : v.pain);
-             if (painScore !== undefined && painScore !== null) items.push(`疼痛评分：${painScore}分`);
+             if (painScore !== undefined && painScore !== null) {items.push(`疼痛评分：${painScore}分`);}
              
              if (items.length > 0) {
                  report += `生命体征：${items.join('，')}\n`;
@@ -1328,9 +1328,9 @@ export const generateReport = async (req: Request, res: Response) => {
 
     // 格式化辅助检查结果，避免显示 [object Object]
     const formatExamResult = (value: unknown): string => {
-      if (value === null || value === undefined) return '未记录结果';
-      if (typeof value === 'string') return value;
-      if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+      if (value === null || value === undefined) {return '未记录结果';}
+      if (typeof value === 'string') {return value;}
+      if (typeof value === 'number' || typeof value === 'boolean') {return String(value);}
       if (Array.isArray(value)) {
         return value.map(item => formatExamResult(item)).join('；');
       }
@@ -1338,19 +1338,19 @@ export const generateReport = async (req: Request, res: Response) => {
         const obj = value as Record<string, unknown>;
         // 提取对象中的关键字段
         const parts: string[] = [];
-        if (obj.result !== undefined) parts.push(formatExamResult(obj.result));
-        if (obj.value !== undefined) parts.push(formatExamResult(obj.value));
-        if (obj.content !== undefined) parts.push(formatExamResult(obj.content));
-        if (obj.description !== undefined) parts.push(formatExamResult(obj.description));
-        if (obj.finding !== undefined) parts.push(formatExamResult(obj.finding));
-        if (obj.conclusion !== undefined) parts.push(formatExamResult(obj.conclusion));
-        if (obj.diagnosis !== undefined) parts.push(formatExamResult(obj.diagnosis));
-        if (parts.length > 0) return parts.join('；');
+        if (obj.result !== undefined) {parts.push(formatExamResult(obj.result));}
+        if (obj.value !== undefined) {parts.push(formatExamResult(obj.value));}
+        if (obj.content !== undefined) {parts.push(formatExamResult(obj.content));}
+        if (obj.description !== undefined) {parts.push(formatExamResult(obj.description));}
+        if (obj.finding !== undefined) {parts.push(formatExamResult(obj.finding));}
+        if (obj.conclusion !== undefined) {parts.push(formatExamResult(obj.conclusion));}
+        if (obj.diagnosis !== undefined) {parts.push(formatExamResult(obj.diagnosis));}
+        if (parts.length > 0) {return parts.join('；');}
         // 如果没有标准字段，尝试提取所有非空值
         const entries = Object.entries(obj)
           .filter(([k, v]) => v !== null && v !== undefined && v !== '' && k !== 'id' && k !== 'createdAt' && k !== 'updatedAt')
           .map(([k, v]) => `${k}: ${formatExamResult(v)}`);
-        if (entries.length > 0) return entries.join('；');
+        if (entries.length > 0) {return entries.join('；');}
         return '已检查';
       }
       return String(value);
@@ -1376,8 +1376,8 @@ export const generateReport = async (req: Request, res: Response) => {
             let index = 0;
             exams.forEach(([key, value]: [string, unknown]) => {
                 // 过滤掉无意义的键
-                if (key === 'none' || key === 'exams' || key === 'id' || key === 'createdAt' || key === 'updatedAt') return;
-                if (value === null || value === undefined || value === '') return;
+                if (key === 'none' || key === 'exams' || key === 'id' || key === 'createdAt' || key === 'updatedAt') {return;}
+                if (value === null || value === undefined || value === '') {return;}
                 if (typeof value === 'boolean' && value === true) {
                   // 如果值只是 true，显示为"已检查"
                   index++;
@@ -1605,7 +1605,7 @@ async function buildDocxBuffer(params: { title: string; text: string }): Promise
     }
     
     // 检测是否是标题行（以【】或[]包裹的内容）
-    const isSectionTitle = /^(?:【[^【】]+】|\[[^\[\]]+\])$/.test(trimmedLine);
+    const isSectionTitle = /^(?:【[^【】]+】|\[[^\[\]]+])$/.test(trimmedLine);
     // 检测是否是小标题（以数字或特定符号开头）
     const isSubTitle = /^(\d+[.．、]|[-•·])/.test(trimmedLine);
     

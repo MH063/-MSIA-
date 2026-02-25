@@ -67,7 +67,7 @@ class DatabaseMonitor {
     healthCheckInterval: 30000,
     maxQueryHistory: 1000,
   };
-  private healthCheckTimer: NodeJS.Timeout | null = null;
+  private healthCheckTimer: ReturnType<typeof setInterval> | null = null;
   private lastHealthStatus: HealthStatus | null = null;
 
   /**
@@ -92,7 +92,7 @@ class DatabaseMonitor {
    * 设置连接池事件监听
    */
   private setupPoolListeners(): void {
-    if (!this.pool) return;
+    if (!this.pool) {return;}
 
     this.pool.on('connect', () => {
       secureLogger.debug('[DBMonitor] 新连接建立');
@@ -145,7 +145,7 @@ class DatabaseMonitor {
    * 更新查询统计
    */
   private updateQueryStats(): void {
-    if (this.queryTimes.length === 0) return;
+    if (this.queryTimes.length === 0) {return;}
 
     const sum = this.queryTimes.reduce((a, b) => a + b, 0);
     this.queryStats.averageQueryTime = sum / this.queryTimes.length;
@@ -156,7 +156,7 @@ class DatabaseMonitor {
    * 获取连接池统计
    */
   getPoolStats(): PoolStats | null {
-    if (!this.pool) return null;
+    if (!this.pool) {return null;}
 
     const pool = this.pool as unknown as {
       totalCount: number;

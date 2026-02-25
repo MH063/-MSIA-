@@ -36,9 +36,9 @@ export interface DeleteResult {
 /**
  * 获取所有症状知识库列表（带缓存）
  */
-export const getAllKnowledge = async (): Promise<Prisma.SymptomKnowledgeGetPayload<{}>[]> => {
+export const getAllKnowledge = async (): Promise<Prisma.SymptomKnowledgeGetPayload<object>[]> => {
   // 尝试从缓存获取
-  const cached = await cache.get<Prisma.SymptomKnowledgeGetPayload<{}>[]>('knowledge:all');
+  const cached = await cache.get<Prisma.SymptomKnowledgeGetPayload<object>[]>('knowledge:all');
   if (cached) {
     secureLogger.debug('[KnowledgeService] 从缓存获取所有知识库');
     return cached;
@@ -56,7 +56,7 @@ export const getAllKnowledge = async (): Promise<Prisma.SymptomKnowledgeGetPaylo
 /**
  * 获取增量知识库（按更新时间）
  */
-export const getKnowledgeSince = async (since: Date): Promise<Prisma.SymptomKnowledgeGetPayload<{}>[]> => {
+export const getKnowledgeSince = async (since: Date): Promise<Prisma.SymptomKnowledgeGetPayload<object>[]> => {
   return await prisma.symptomKnowledge.findMany({
     where: { updatedAt: { gt: since } },
   });
@@ -66,11 +66,11 @@ export const getKnowledgeSince = async (since: Date): Promise<Prisma.SymptomKnow
  * 根据 Key 或 DisplayName 获取症状知识（带缓存）
  * 支持通过 symptomKey、displayName 或模糊匹配查询
  */
-export const getKnowledgeByKey = async (key: string): Promise<Prisma.SymptomKnowledgeGetPayload<{}> | null> => {
+export const getKnowledgeByKey = async (key: string): Promise<Prisma.SymptomKnowledgeGetPayload<object> | null> => {
   const cacheKey = `knowledge:key:${key}`;
 
   // 尝试从缓存获取
-  const cached = await cache.get<Prisma.SymptomKnowledgeGetPayload<{}>>(cacheKey);
+  const cached = await cache.get<Prisma.SymptomKnowledgeGetPayload<object>>(cacheKey);
   if (cached) {
     secureLogger.debug('[KnowledgeService] 从缓存获取知识库', { key });
     return cached;
@@ -110,7 +110,7 @@ export const getKnowledgeByKey = async (key: string): Promise<Prisma.SymptomKnow
 /**
  * 创建或更新症状知识（清除相关缓存）
  */
-export const upsertKnowledge = async (data: SymptomKnowledgeData): Promise<Prisma.SymptomKnowledgeGetPayload<{}>> => {
+export const upsertKnowledge = async (data: SymptomKnowledgeData): Promise<Prisma.SymptomKnowledgeGetPayload<object>> => {
   const result = await prisma.symptomKnowledge.upsert({
     where: { symptomKey: data.symptomKey },
     update: {
@@ -183,7 +183,7 @@ export const countKnowledge = async (): Promise<number> => {
 /**
  * 获取最近更新的知识库条目
  */
-export const getRecentKnowledge = async (take: number = 3): Promise<Pick<Prisma.SymptomKnowledgeGetPayload<{}>, 'id' | 'displayName' | 'symptomKey'>[]> => {
+export const getRecentKnowledge = async (take: number = 3): Promise<Pick<Prisma.SymptomKnowledgeGetPayload<object>, 'id' | 'displayName' | 'symptomKey'>[]> => {
   return await prisma.symptomKnowledge.findMany({
     take,
     orderBy: { updatedAt: 'desc' },
@@ -254,14 +254,14 @@ export const getSymptomMappings = async () => {
 /**
  * 根据症状名称获取映射
  */
-export const getSymptomMappingByName = async (name: string): Promise<Prisma.SymptomKnowledgeGetPayload<{}> | null> => {
+export const getSymptomMappingByName = async (name: string): Promise<Prisma.SymptomKnowledgeGetPayload<object> | null> => {
   return await getKnowledgeByKey(name);
 };
 
 /**
  * 获取疾病列表
  */
-export const getDiseases = async (): Promise<Prisma.SymptomKnowledgeGetPayload<{}>[]> => {
+export const getDiseases = async (): Promise<Prisma.SymptomKnowledgeGetPayload<object>[]> => {
   return await prisma.symptomKnowledge.findMany({
     where: { category: 'disease' }
   });
@@ -270,6 +270,6 @@ export const getDiseases = async (): Promise<Prisma.SymptomKnowledgeGetPayload<{
 /**
  * 根据疾病名称获取详情
  */
-export const getDiseaseByName = async (name: string): Promise<Prisma.SymptomKnowledgeGetPayload<{}> | null> => {
+export const getDiseaseByName = async (name: string): Promise<Prisma.SymptomKnowledgeGetPayload<object> | null> => {
   return await getKnowledgeByKey(name);
 };
