@@ -3570,7 +3570,7 @@ const Session: React.FC = () => {
                   }
                   open={showPreview}
                   closable={false}
-                  maskClosable={false}
+                  mask={{ closable: false }}
                   keyboard={false}
                   onCancel={() => {
                 

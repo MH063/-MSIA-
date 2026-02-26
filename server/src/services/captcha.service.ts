@@ -98,7 +98,6 @@ export async function createCaptcha(): Promise<{ id: string; svg: string; ttlMs:
       await redis.set(`debug:captcha:${code}`, id, { EX: 60 });
       // 同时在控制台打印，便于本地调试
       // 注意：仅开发环境打印，生产环境不会输出验证码
-      // eslint-disable-next-line no-console
       console.log(`[DEV] Captcha generated (redis) - ID: ${id}, Code: ${code}`);
     }
     await redis.set(key, hash, { EX: Math.ceil(ttlMs / 1000) });
@@ -106,7 +105,6 @@ export async function createCaptcha(): Promise<{ id: string; svg: string; ttlMs:
     FALLBACK_STORE.set(id, { hash, expireAt: Date.now() + ttlMs, used: false });
     // 开发环境: 打印验证码到控制台
     if (process.env.NODE_ENV === 'development') {
-      // eslint-disable-next-line no-console
       console.log(`[DEV] Captcha generated (fallback) - ID: ${id}, Code: ${code}`);
     }
     // 清理过期

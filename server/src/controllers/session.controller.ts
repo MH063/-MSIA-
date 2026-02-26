@@ -8,7 +8,6 @@ import { Document, Packer, Paragraph, TextRun } from 'docx';
 import { secureLogger } from '../utils/secureLogger';
 import { validateRosData } from '../utils/rosSecurity';
 import {
-  validateSessionData,
   validateChiefComplaint,
   validatePresentIllness,
   validatePastHistory,

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Typography, Row, Col, DatePicker, Button, Drawer, Space, Alert, Spin, Empty } from 'antd';
 import { SyncOutlined, DownloadOutlined, BulbOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import * as echarts from 'echarts';
 import EChartsWrapper from '../../components/EChartsWrapper';
 import api, { type ApiResponse, unwrapData } from '../../utils/api';
 import logger from '../../utils/logger';

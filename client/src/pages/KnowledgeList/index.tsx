@@ -253,6 +253,42 @@ ${selectedItem.questions?.map((q: string) => `- ${q}`).join('\n') || '暂无'}
     `;
   }, [selectedItem]);
 
+  /**
+   * Tabs 配置项，使用 useMemo 缓存避免每次渲染重新创建
+   */
+  const tabItems = useMemo(() => [
+    {
+      key: 'detail',
+      label: <span><FileTextOutlined /> 详情内容</span>,
+      children: (
+        <div className="markdown-body" style={{ color: token.colorText }}>
+          <ReactMarkdown 
+            rehypePlugins={[rehypeRaw]} 
+            remarkPlugins={[remarkGfm]}
+            components={{
+              h1: ({ node, ...props }) => { void node; return <h1 style={{ color: token.colorTextHeading }} {...props} />; },
+              h2: ({ node, ...props }) => { void node; return <h2 style={{ color: token.colorTextHeading, borderBottom: `1px solid ${token.colorBorder}` }} {...props} />; },
+              p: ({ node, ...props }) => { void node; return <p style={{ color: token.colorText }} {...props} />; },
+              strong: ({ node, ...props }) => { void node; return <strong style={{ color: token.colorTextHeading }} {...props} />; },
+              li: ({ node, ...props }) => { void node; return <li style={{ color: token.colorText }} {...props} />; },
+            }}
+          >
+            {markdownContent}
+          </ReactMarkdown>
+        </div>
+      )
+    },
+    {
+      key: 'graph',
+      label: <span><DeploymentUnitOutlined /> 知识图谱</span>,
+      children: (
+        <div style={{ height: 500, background: token.colorBgLayout, borderRadius: 8, padding: 16, overflow: 'hidden' }}>
+          <KnowledgeGraph data={graphData} />
+        </div>
+      )
+    }
+  ], [token, markdownContent, graphData]);
+
   const handleShare = () => {
     const url = window.location.href;
     navigator.clipboard.writeText(url).then(() => {
@@ -364,38 +400,7 @@ ${selectedItem.questions?.map((q: string) => `- ${q}`).join('\n') || '暂无'}
                   activeKey={activeTab}
                   onChange={setActiveTab}
                   destroyOnHidden={false}
-                  items={[
-                    {
-                      key: 'detail',
-                      label: <span><FileTextOutlined /> 详情内容</span>,
-                      children: (
-                        <div className="markdown-body" style={{ color: token.colorText }}>
-                          <ReactMarkdown 
-                            rehypePlugins={[rehypeRaw]} 
-                            remarkPlugins={[remarkGfm]}
-                            components={{
-                              h1: ({ node, ...props }) => { void node; return <h1 style={{ color: token.colorTextHeading }} {...props} />; },
-                              h2: ({ node, ...props }) => { void node; return <h2 style={{ color: token.colorTextHeading, borderBottom: `1px solid ${token.colorBorder}` }} {...props} />; },
-                              p: ({ node, ...props }) => { void node; return <p style={{ color: token.colorText }} {...props} />; },
-                              strong: ({ node, ...props }) => { void node; return <strong style={{ color: token.colorTextHeading }} {...props} />; },
-                              li: ({ node, ...props }) => { void node; return <li style={{ color: token.colorText }} {...props} />; },
-                            }}
-                          >
-                            {markdownContent}
-                          </ReactMarkdown>
-                        </div>
-                      )
-                    },
-                    {
-                      key: 'graph',
-                      label: <span><DeploymentUnitOutlined /> 知识图谱</span>,
-                      children: (
-                        <div style={{ height: 500, background: token.colorBgLayout, borderRadius: 8, padding: 16, overflow: 'hidden' }}>
-                          <KnowledgeGraph data={graphData} />
-                        </div>
-                      )
-                    }
-                  ]}
+                  items={tabItems}
                 />
               </div>
             </div>

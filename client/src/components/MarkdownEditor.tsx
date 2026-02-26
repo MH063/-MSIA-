@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { Button, Space, Input, theme } from 'antd';
 import { 
   BoldOutlined, 
@@ -18,6 +18,10 @@ interface MarkdownEditorProps {
   height?: number | string;
 }
 
+/**
+ * Markdown 编辑器组件
+ * 支持工具栏快捷插入和实时预览
+ */
 const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ 
   value = '', 
   onChange, 
@@ -26,13 +30,39 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
 }) => {
   const { token } = theme.useToken();
   const [activeTab, setActiveTab] = useState<'write' | 'preview'>('write');
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const insertText = (before: string, after: string = '') => {
-    // Simple insertion at end for now, as textarea ref manipulation is complex without refs
-    // In a real app, we would use a ref to insert at cursor position
-    const newValue = value + before + ' ' + after;
+  /**
+   * 在光标位置插入文本
+   * 支持选中文本时包裹前后缀
+   */
+  const insertText = useCallback((before: string, after: string = '') => {
+    const textarea = textareaRef.current;
+    
+    if (!textarea) {
+      // 降级处理：在末尾插入
+      const newValue = value + before + ' ' + after;
+      onChange?.(newValue);
+      return;
+    }
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = value.substring(start, end);
+    
+    // 构建新值：光标前 + before + 选中文本 + after + 光标后
+    const newValue = value.substring(0, start) + before + selectedText + after + value.substring(end);
     onChange?.(newValue);
-  };
+    
+    // 恢复光标位置和焦点
+    setTimeout(() => {
+      if (textarea) {
+        const newCursorPos = start + before.length + selectedText.length;
+        textarea.setSelectionRange(newCursorPos, newCursorPos);
+        textarea.focus();
+      }
+    }, 0);
+  }, [value, onChange]);
 
   const toolbar = (
     <Space style={{ padding: '8px', borderBottom: `1px solid ${token.colorBorderSecondary}`, background: token.colorFillQuaternary, width: '100%' }}>
@@ -73,6 +103,7 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       <div style={{ flex: 1, overflow: 'auto', position: 'relative' }}>
         {activeTab === 'write' ? (
           <Input.TextArea 
+            ref={textareaRef}
             value={value} 
             onChange={e => onChange?.(e.target.value)} 
             placeholder={placeholder}

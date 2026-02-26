@@ -23,23 +23,26 @@ const EChartsWrapper: React.FC<EChartsWrapperProps> = ({
 }) => {
   const chartRef = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<echarts.ECharts | null>(null);
+  const optionRef = useRef<echarts.EChartsOption>(option);
   const { mode } = useThemeStore();
+
+  optionRef.current = option;
 
   useEffect(() => {
     if (chartRef.current) {
       const theme = mode === 'dark' ? 'dark' : undefined;
-      // 销毁旧实例以防万一
       if (chartInstance.current) {
         chartInstance.current.dispose();
       }
       chartInstance.current = echarts.init(chartRef.current, theme);
+      
+      chartInstance.current.setOption(optionRef.current);
 
       const resizeObserver = new ResizeObserver(() => {
         chartInstance.current?.resize();
       });
       resizeObserver.observe(chartRef.current);
 
-      // 初始 Resize (延迟以处理 Tab 切换动画)
       setTimeout(() => {
         chartInstance.current?.resize();
       }, 100);
@@ -56,10 +59,14 @@ const EChartsWrapper: React.FC<EChartsWrapperProps> = ({
 
   useEffect(() => {
     if (chartInstance.current && onEvents) {
+      // 先解绑所有可能的事件
+      const eventNames = Object.keys(onEvents);
+      eventNames.forEach(eventName => {
+        chartInstance.current?.off(eventName);
+      });
+      // 绑定新事件
       Object.entries(onEvents).forEach(([eventName, handler]) => {
-        // 重新绑定事件以避免多次绑定
-        chartInstance.current!.off(eventName);
-        chartInstance.current!.on(eventName, handler);
+        chartInstance.current?.on(eventName, handler);
       });
     }
   }, [onEvents]);
