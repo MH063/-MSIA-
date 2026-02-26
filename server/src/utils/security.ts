@@ -32,44 +32,117 @@ export const securityHeaders = (req: Request, res: Response, next: NextFunction)
 
 /**
  * SQL注入防护中间件
+ * 采用更精确的检测模式，避免误判正常输入
+ * 
+ * 检测策略：
+ * 1. SQL注释符号
+ * 2. 单引号闭合攻击
+ * 3. UNION注入
+ * 4. 堆叠查询
+ * 5. 危险函数调用
+ * 6. 布尔表达式注入
  */
 export const sqlInjectionProtection = (req: Request, res: Response, next: NextFunction): void => {
-  // 检查请求体中的可疑SQL模式
-  const suspiciousPatterns = [
-    /(\bor\b|\band\b|\bxor\b|\bselect\b|\bunion\b|\bdrop\b|\binsert\b|\bupdate\b|\bdelete\b)/i,
-    /['";\\]/,
-    /(\bexec\b|\bexecute\b|\bsp_)/i
+  /**
+   * 精确的 SQL 注入检测模式
+   * 按危险等级排序，优先检测高危模式
+   */
+  const sqlInjectionPatterns = [
+    // SQL 注释符号
+    /--\s*$|--\s+/,
+    /\/\*[\s\S]*?\*\//,
+    
+    // 单引号闭合攻击
+    /'\s*(OR|AND|XOR)\s+['"]?\d+['"]?\s*=\s*['"]?\d+/i,
+    /'\s*(OR|AND|XOR)\s+['"][^'"]+['"]?\s*=\s*['"]/i,
+    /'\s*;\s*(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|TRUNCATE)/i,
+    
+    // UNION 注入
+    /\bUNION\s+(ALL\s+)?SELECT\b/i,
+    /\bUNION\s+(ALL\s+)?\(/i,
+    
+    // 堆叠查询
+    /;\s*(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|TRUNCATE|EXEC)\b/i,
+    
+    // 危险存储过程和函数
+    /\b(EXEC|EXECUTE)\s+\w+/i,
+    /\b(xp_|sp_)\w+/i,
+    
+    // 布尔盲注特征
+    /'\s*=\s*'/,
+    /'\s*>\s*'/,
+    /'\s*<\s*'/,
+    
+    // 时间盲注特征
+    /\b(SLEEP|WAITFOR|BENCHMARK|PG_SLEEP)\s*\(/i,
+    
+    // 信息获取函数
+    /\b(INFORMATION_SCHEMA|SYSOBJECTS|SYSCOLUMNS)\b/i,
+    
+    // 十六进制编码绕过
+    /0x[0-9a-fA-F]+\s*\(/,
+    
+    // 字符串连接绕过
+    /'\s*\|\|\s*'/,
+    /'\s*\+\s*'/,
+    
+    // INTO OUTFILE/INTO DUMPFILE
+    /\bINTO\s+(OUT|DUMP)FILE\b/i,
   ];
-  
+
+  /**
+   * 检查值是否包含 SQL 注入特征
+   * @param value 要检查的值
+   * @returns 是否检测到注入特征
+   */
   const checkValue = (value: unknown): boolean => {
-    if (typeof value === 'string') {
-      return suspiciousPatterns.some(pattern => pattern.test(value));
+    if (typeof value !== 'string' || value.length === 0) {
+      return false;
     }
+    
+    // 检查所有 SQL 注入模式
+    return sqlInjectionPatterns.some(pattern => pattern.test(value));
+  };
+
+  /**
+   * 递归检查对象中的所有值
+   * @param obj 要检查的对象
+   * @returns 是否检测到注入特征
+   */
+  const checkObject = (obj: unknown): boolean => {
+    if (typeof obj === 'string') {
+      return checkValue(obj);
+    }
+    
+    if (Array.isArray(obj)) {
+      return obj.some(item => checkObject(item));
+    }
+    
+    if (obj && typeof obj === 'object') {
+      return Object.values(obj).some(value => checkObject(value));
+    }
+    
     return false;
   };
-  
+
   // 检查查询参数
-  const queryValues = Object.values(req.query || {});
-  if (queryValues.some(checkValue)) {
+  if (checkObject(req.query)) {
     res.status(400).json({
       success: false,
-      error: { code: 'INVALID_INPUT', message: '请求包含非法字符' }
+      error: { code: 'INVALID_INPUT', message: '请求参数包含潜在的SQL注入特征' }
     });
     return;
   }
-  
+
   // 检查请求体
-  if (req.body && typeof req.body === 'object') {
-    const bodyValues = Object.values(req.body);
-    if (bodyValues.some(checkValue)) {
-      res.status(400).json({
-        success: false,
-        error: { code: 'INVALID_INPUT', message: '请求包含非法字符' }
-      });
-      return;
-    }
+  if (req.body && checkObject(req.body)) {
+    res.status(400).json({
+      success: false,
+      error: { code: 'INVALID_INPUT', message: '请求体包含潜在的SQL注入特征' }
+    });
+    return;
   }
-  
+
   next();
 };
 

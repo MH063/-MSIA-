@@ -117,21 +117,38 @@ export function safeGetEnv(key: string, defaultValue?: string): string | undefin
 
 /**
  * 安全的配置验证
+ * 验证关键环境变量，确保生产环境安全
  */
 export function validateConfig(): void {
+  // 必需的环境变量
   const requiredVars = [
     'DATABASE_URL',
-    'JWT_SECRET'
+    'JWT_SECRET',
   ];
-  
+
+  // 生产环境额外必需的变量
+  const productionRequiredVars = [
+    'ENCRYPTION_KEY',
+  ];
+
   const missingVars: string[] = [];
-  
+
+  // 检查基础必需变量
   for (const varName of requiredVars) {
     if (!process.env[varName]) {
       missingVars.push(varName);
     }
   }
-  
+
+  // 生产环境检查额外变量
+  if (securityConfig.isProduction) {
+    for (const varName of productionRequiredVars) {
+      if (!process.env[varName]) {
+        missingVars.push(varName);
+      }
+    }
+  }
+
   if (missingVars.length > 0) {
     if (securityConfig.isProduction) {
       throw new Error(`生产环境缺少必要的环境变量: ${missingVars.join(', ')}`);
@@ -139,13 +156,63 @@ export function validateConfig(): void {
       console.warn(`警告: 缺少环境变量: ${missingVars.join(', ')}`);
     }
   }
-  
+
   // JWT密钥强度检查
-  if (process.env.JWT_SECRET && process.env.JWT_SECRET.length < 32) {
-    if (securityConfig.isProduction) {
-      throw new Error('生产环境JWT_SECRET长度至少32位');
-    } else {
-      console.warn('警告: JWT_SECRET长度建议至少32位');
+  if (process.env.JWT_SECRET) {
+    const jwtSecret = process.env.JWT_SECRET;
+    if (jwtSecret.length < 32) {
+      if (securityConfig.isProduction) {
+        throw new Error('生产环境JWT_SECRET长度至少32位');
+      } else {
+        console.warn('警告: JWT_SECRET长度建议至少32位');
+      }
+    }
+    // 检查是否使用默认值
+    const weakSecrets = ['secret', 'password', 'jwt_secret', 'your-secret', 'default'];
+    if (weakSecrets.some(weak => jwtSecret.toLowerCase().includes(weak))) {
+      if (securityConfig.isProduction) {
+        throw new Error('生产环境JWT_SECRET不能使用默认值或弱密钥');
+      } else {
+        console.warn('警告: JWT_SECRET使用了弱密钥，生产环境请使用强密钥');
+      }
+    }
+  }
+
+  // ENCRYPTION_KEY 验证
+  if (process.env.ENCRYPTION_KEY) {
+    const encKey = process.env.ENCRYPTION_KEY;
+    if (encKey.length !== 32) {
+      if (securityConfig.isProduction) {
+        throw new Error('生产环境ENCRYPTION_KEY必须为32位');
+      } else {
+        console.warn('警告: ENCRYPTION_KEY应为32位');
+      }
+    }
+  }
+
+  // 数据库连接字符串验证
+  if (process.env.DATABASE_URL) {
+    const dbUrl = process.env.DATABASE_URL;
+    // 检查是否包含默认密码
+    if (dbUrl.includes('YOUR_DB_PASSWORD') || dbUrl.includes('password') && dbUrl.includes('localhost')) {
+      if (securityConfig.isProduction) {
+        throw new Error('生产环境DATABASE_URL不能使用默认密码');
+      } else {
+        console.warn('警告: DATABASE_URL使用了默认密码，生产环境请更换');
+      }
+    }
+  }
+
+  // Redis URL 验证（如果配置了）
+  if (process.env.REDIS_URL) {
+    try {
+      new URL(process.env.REDIS_URL);
+    } catch {
+      if (securityConfig.isProduction) {
+        throw new Error('生产环境REDIS_URL格式无效');
+      } else {
+        console.warn('警告: REDIS_URL格式可能无效');
+      }
     }
   }
 }

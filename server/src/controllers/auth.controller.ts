@@ -87,17 +87,28 @@ function readCookie(req: Request, name: string): string | null {
 }
 
 /**
- * 设置认证 Cookie
- * 开发环境下使用宽松的 sameSite 设置以支持跨域
+ * 获取 Cookie 安全配置
+ * 生产环境强制 HTTPS（secure: true）
+ * 开发环境允许 HTTP（secure: false）
  */
-function setAuthCookies(res: Response, input: { accessToken: string; refreshToken: string }) {
-  const isDev = process.env.NODE_ENV !== 'production';
-  const base = {
+function getCookieSecurityOptions() {
+  const isProduction = process.env.NODE_ENV === 'production';
+  const isDev = !isProduction;
+  
+  return {
     httpOnly: true,
-    secure: false, // 开发环境必须为 false
+    secure: isProduction, // 生产环境强制 HTTPS
     sameSite: isDev ? 'lax' : 'strict',
     domain: undefined, // 不设置 domain，让浏览器自动处理
   } as const;
+}
+
+/**
+ * 设置认证 Cookie
+ * 生产环境强制 HTTPS，开发环境允许 HTTP
+ */
+function setAuthCookies(res: Response, input: { accessToken: string; refreshToken: string }) {
+  const base = getCookieSecurityOptions();
 
   res.cookie(authCookieConfig.accessCookieName, input.accessToken, {
     ...base,
@@ -116,13 +127,7 @@ function setAuthCookies(res: Response, input: { accessToken: string; refreshToke
  * 清除认证 Cookie
  */
 function clearAuthCookies(res: Response) {
-  const isDev = process.env.NODE_ENV !== 'production';
-  const base = {
-    httpOnly: true,
-    secure: false, // 开发环境必须为 false
-    sameSite: isDev ? 'lax' : 'strict',
-    domain: undefined, // 不设置 domain，让浏览器自动处理
-  } as const;
+  const base = getCookieSecurityOptions();
 
   res.clearCookie(authCookieConfig.accessCookieName, { ...base, path: '/' });
   res.clearCookie(authCookieConfig.refreshCookieName, { ...base, path: '/api/auth' });

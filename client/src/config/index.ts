@@ -12,14 +12,6 @@ export const API_CONFIG = {
   TIMEOUT: 30000,
 } as const;
 
-// 认证配置
-export const AUTH_CONFIG = {
-  TOKEN_KEY: 'OPERATOR_TOKEN',
-  ROLE_KEY: 'OPERATOR_ROLE',
-  ID_KEY: 'OPERATOR_ID',
-  NAME_KEY: 'OPERATOR_NAME',
-} as const;
-
 // 缓存配置
 export const CACHE_CONFIG = {
   SYMPTOM_MAPPINGS: {

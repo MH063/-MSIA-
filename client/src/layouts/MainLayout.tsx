@@ -218,13 +218,7 @@ const MainLayout: React.FC = () => {
               } catch (e) {
                 logger.warn('[MainLayout] 退出登录接口调用失败', e);
               }
-              try {
-                window.localStorage.removeItem('OPERATOR_ROLE');
-                window.localStorage.removeItem('OPERATOR_ID');
-                window.localStorage.removeItem('OPERATOR_NAME');
-              } catch {
-                // ignore
-              }
+              // 认证信息通过 Cookie 传递，服务端已清除 Cookie
               message.success('已退出登录');
               navigate('/login', { replace: true });
             }}

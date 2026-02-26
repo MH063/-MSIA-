@@ -90,15 +90,7 @@ const PasswordLogin: React.FC<{ onSuccess: (data: LoginResult) => void }> = ({ o
       const res = (await api.post('/auth/login', values)) as ApiResponse<LoginResult | { data: LoginResult }>;
       const payload = unwrapData<LoginResult>(res);
       if (!res?.success || !payload) throw new Error('登录响应无效');
-      if (typeof payload.operatorId === 'number') {
-        window.localStorage.setItem('OPERATOR_ID', String(payload.operatorId));
-      }
-      if (typeof payload.role === 'string') {
-        window.localStorage.setItem('OPERATOR_ROLE', String(payload.role));
-      }
-      if (typeof payload.name === 'string') {
-        window.localStorage.setItem('OPERATOR_NAME', String(payload.name));
-      }
+      // 认证信息通过 Cookie 传递，无需存储到 localStorage
       onSuccess(payload);
     } catch (err) {
       logger.error('[Login] Password login failed', err);
@@ -210,15 +202,7 @@ const TokenLogin: React.FC<{ onSuccess: (data: LoginResult) => void }> = ({ onSu
       const res = (await api.post('/auth/login', values)) as ApiResponse<LoginResult | { data: LoginResult }>;
       const payload = unwrapData<LoginResult>(res);
       if (!res?.success || !payload) throw new Error('登录响应无效');
-      if (typeof payload.operatorId === 'number') {
-        window.localStorage.setItem('OPERATOR_ID', String(payload.operatorId));
-      }
-      if (typeof payload.role === 'string') {
-        window.localStorage.setItem('OPERATOR_ROLE', String(payload.role));
-      }
-      if (typeof payload.name === 'string') {
-        window.localStorage.setItem('OPERATOR_NAME', String(payload.name));
-      }
+      // 认证信息通过 Cookie 传递，无需存储到 localStorage
       onSuccess(payload);
     } catch (err) {
       logger.error('[Login] Token login failed', err);

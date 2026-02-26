@@ -45,42 +45,75 @@ const host = process.env.HOST || '0.0.0.0';
 // 安全响应头
 app.use(securityHeaders);
 
-// 配置CORS - 只允许特定来源
+// 配置CORS - 根据环境严格限制来源
 app.use(cors({
   origin: (origin, callback) => {
-    // 允许无来源的请求（如移动应用）
-    if (!origin) {return callback(null, true);}
+    // 允许无来源的请求（如移动应用、服务端请求）
+    if (!origin) {
+      if (serverConfig.isProduction) {
+        secureLogger.warn('[CORS] 生产环境收到无来源请求');
+      }
+      return callback(null, true);
+    }
 
-    const allowDev = (() => {
-      if (!serverConfig.isDevelopment) {return false;}
-      try {
-        const u = new URL(origin);
-        const h = u.hostname;
-        const p = u.port ? Number(u.port) : (u.protocol === 'https:' ? 443 : 80);
-        // 允许的前端开发端口：5173(Vite), 3000(React), 8000/8100(其他), 80(Prod)
-        const allowedPorts = new Set([5173, 3000, 8000, 8100, 80, 443]);
-        if (!allowedPorts.has(p)) {return false;}
-        if (h === 'localhost' || h === '127.0.0.1') {return true;}
-        if (/^192\.168\.\d{1,3}\.\d{1,3}$/u.test(h)) {return true;}
-        if (/^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/u.test(h)) {return true;}
-        const m = /^172\.(\d{1,3})\.\d{1,3}\.\d{1,3}$/u.exec(h);
+    // 生产环境：严格使用白名单
+    if (serverConfig.isProduction) {
+      if (corsConfig.allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        secureLogger.warn('[CORS] 生产环境拒绝跨域请求', { origin, allowedOrigins: corsConfig.allowedOrigins });
+        callback(new Error('不允许的跨域请求'));
+      }
+      return;
+    }
+
+    // 开发环境：允许特定端口和 IP，但记录日志
+    try {
+      const u = new URL(origin);
+      const h = u.hostname;
+      const p = u.port ? Number(u.port) : (u.protocol === 'https:' ? 443 : 80);
+
+      // 允许的前端开发端口：5173(Vite), 4000(后端API), 8000/8100(前端), 80(HTTP), 443(HTTPS), 5432(PostgreSQL)
+      const allowedDevPorts = new Set([5173, 4000, 8000, 8100, 80, 443, 5432]);
+      if (!allowedDevPorts.has(p)) {
+        secureLogger.warn('[CORS] 开发环境拒绝非允许端口', { origin, port: p });
+        callback(new Error('不允许的跨域请求'));
+        return;
+      }
+
+      // 允许的主机名
+      const isLocalhost = h === 'localhost' || h === '127.0.0.1';
+      const isPrivateIP = 
+        /^192\.168\.\d{1,3}\.\d{1,3}$/.test(h) ||
+        /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(h);
+      
+      // 检查 172.16-31.x.x 私有网段
+      const is172Private = (() => {
+        const m = /^172\.(\d{1,3})\.\d{1,3}\.\d{1,3}$/.exec(h);
         if (m) {
           const n = Number(m[1]);
-          if (n >= 16 && n <= 31) {return true;}
+          return n >= 16 && n <= 31;
         }
         return false;
-      } catch {
-        return false;
-      }
-    })();
+      })();
 
-    if (corsConfig.allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else if (allowDev) {
-      callback(null, true);
-    } else {
-      secureLogger.warn('CORS拒绝跨域请求', { origin });
-      callback(new Error('不允许的跨域请求'));
+      // 检查白名单
+      if (corsConfig.allowedOrigins.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      if (isLocalhost || isPrivateIP || is172Private) {
+        // 记录开发环境的跨域请求
+        secureLogger.debug('[CORS] 开发环境允许跨域请求', { origin });
+        callback(null, true);
+      } else {
+        secureLogger.warn('[CORS] 开发环境拒绝跨域请求', { origin });
+        callback(new Error('不允许的跨域请求'));
+      }
+    } catch (error) {
+      secureLogger.warn('[CORS] URL解析失败', { origin, error: String(error) });
+      callback(new Error('无效的来源URL'));
     }
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],

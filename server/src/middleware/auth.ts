@@ -130,11 +130,35 @@ export function parseOperatorToken(req: Request): string | null {
   return parseAccessTokenFromCookie(req) || parseBearerToken(req) || parseTokenFromQuery(req);
 }
 
+/**
+ * 检查是否允许使用开发测试 Token
+ * 必须同时满足以下条件：
+ * 1. NODE_ENV=development
+ * 2. ENABLE_DEV_TOKENS=true（显式启用）
+ * 3. 不在生产环境
+ */
+function isDevTokenAllowed(): boolean {
+  if (serverConfig.isProduction) {
+    return false;
+  }
+  const devTokenEnabled = String(process.env.ENABLE_DEV_TOKENS || '').trim().toLowerCase();
+  return serverConfig.isDevelopment && devTokenEnabled === 'true';
+}
+
+/**
+ * 预定义的开发测试 Token 列表
+ * 仅在开发环境且 ENABLE_DEV_TOKENS=true 时生效
+ */
+const DEV_TOKENS: Record<string, { operatorId: number; role: OperatorRole }> = {
+  'dev-admin': { operatorId: 0, role: 'admin' },
+  'dev-doctor': { operatorId: 0, role: 'doctor' },
+};
+
 export function loadOperatorFromToken(token: string): OperatorIdentity | null {
   const t = String(token || '').trim();
   if (!t) {return null;}
 
-  // 1. 尝试验证 JWT
+  // 1. 尝试验证 JWT（优先级最高）
   const jwtPayload = verifyToken(t);
   if (jwtPayload) {
     return {
@@ -144,11 +168,14 @@ export function loadOperatorFromToken(token: string): OperatorIdentity | null {
     };
   }
 
-  if (serverConfig.isDevelopment && t === 'dev-admin') {
-    secureLogger.warn('[auth] 开发环境使用 dev-admin 作为管理员 token');
-    return { token: t, operatorId: 0, role: 'admin' };
+  // 2. 检查开发测试 Token（仅开发环境且显式启用时生效）
+  if (isDevTokenAllowed() && t in DEV_TOKENS) {
+    const devToken = DEV_TOKENS[t];
+    secureLogger.warn('[auth] 开发环境使用测试 Token', { token: t, role: devToken.role });
+    return { token: t, operatorId: devToken.operatorId, role: devToken.role };
   }
 
+  // 3. 检查环境变量配置的 Token 映射（JSON 格式）
   const json = process.env.OPERATOR_TOKENS_JSON || '';
   if (json.trim()) {
     try {
@@ -174,6 +201,7 @@ export function loadOperatorFromToken(token: string): OperatorIdentity | null {
     }
   }
 
+  // 4. 检查单一环境变量 Token（生产环境禁止使用默认值）
   const single = (() => {
     const raw = String(process.env.OPERATOR_TOKEN || '').trim();
     if (!raw) {return '';}
@@ -181,11 +209,6 @@ export function loadOperatorFromToken(token: string): OperatorIdentity | null {
     return raw;
   })();
   if (single && t === single) {
-    return { token: t, operatorId: 0, role: 'admin' };
-  }
-  
-  // 开发环境默认token
-  if (serverConfig.isDevelopment && t === 'dev-token') {
     return { token: t, operatorId: 0, role: 'admin' };
   }
 
