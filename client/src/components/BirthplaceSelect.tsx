@@ -14,7 +14,7 @@
  */
 
 import React, { useState, useMemo, useRef } from 'react';
-import { AutoComplete, Empty, Tag, Space, Typography, Input } from 'antd';
+import { AutoComplete, Empty, Tag, Typography, Input } from 'antd';
 import type { TextAreaRef } from 'antd/es/input/TextArea';
 import { EnvironmentOutlined, InfoCircleOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { searchBirthplaceByFirstLetter, isValidFirstLetterInput } from '../utils/chinaRegions';
@@ -254,40 +254,22 @@ const BirthplaceSelect: React.FC<BirthplaceSelectProps> = ({
         />
       </AutoComplete>
       
-      {selectedRegion && (
-        <div style={{ 
-          marginTop: 4, 
-          padding: '4px 8px', 
-          backgroundColor: '#f6ffed', 
-          borderRadius: 4,
-          border: '1px solid #b7eb8f'
+      {!selectedRegion && (
+        <div className="birthplace-info-hint" style={{ 
+          marginTop: 8,
+          padding: '6px 10px',
+          backgroundColor: 'var(--msia-bg-secondary, #F1F5F9)',
+          borderRadius: 6,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8
         }}>
-          <Space size={4}>
-            <CheckCircleOutlined style={{ color: '#52c41a', fontSize: 12 }} />
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              {detailAddress 
-                ? `完整地址: ${selectedRegion} ${detailAddress}` 
-                : `已选择: ${selectedRegion}`
-              }
-            </Text>
-          </Space>
+          <InfoCircleOutlined style={{ color: 'var(--msia-primary, #0066CC)', fontSize: 14 }} />
+          <Text style={{ fontSize: 12, color: 'var(--msia-text-secondary, #4B5563)' }}>
+            请输入首字母检索地区（如"hbssysmjq"），区县级必须通过检索选择
+          </Text>
         </div>
       )}
-      
-      <div style={{ 
-        marginTop: 4,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 4
-      }}>
-        <InfoCircleOutlined style={{ color: '#999', fontSize: 12 }} />
-        <Text type="secondary" style={{ fontSize: 11 }}>
-          {selectedRegion 
-            ? '地区已确认，可继续输入详细地址（乡镇/街道/村/社区）'
-            : '请输入首字母检索地区（如"hbssysmjq"），区县级必须通过检索选择'
-          }
-        </Text>
-      </div>
     </div>
   );
 };

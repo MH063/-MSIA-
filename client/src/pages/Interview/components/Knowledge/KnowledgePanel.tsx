@@ -60,7 +60,11 @@ const KnowledgePanel: React.FC<KnowledgePanelProps> = ({
     queryFn: async () => {
       const res = await api.get('/mapping/symptoms') as ApiResponse<{ synonyms: Record<string, string>; nameToKey: Record<string, string> }>;
       return res;
-    }
+    },
+    staleTime: 5 * 60 * 1000, // 5分钟内数据保持新鲜，不会重新请求
+    gcTime: 10 * 60 * 1000, // 缓存保留10分钟
+    refetchOnWindowFocus: false, // 窗口重新聚焦时不自动刷新
+    refetchOnReconnect: false // 网络重连时不自动刷新
   });
   const { nameToKey, synonyms } = React.useMemo(() => {
     const payload = unwrapData<{ synonyms: Record<string, string>; nameToKey: Record<string, string> }>(mappingQuery.data as ApiResponse<{ synonyms: Record<string, string>; nameToKey: Record<string, string> }>);
@@ -198,9 +202,9 @@ const KnowledgePanel: React.FC<KnowledgePanelProps> = ({
      };
      const icon = iconMap[currentSymptomKey] || { emoji: '🩺', bg: token.colorFillQuaternary, ring: token.colorBorder };
 
-     const relatedSource = symptomContext.relatedSymptoms || [];
-     const physicalDisplay = (symptomContext.physicalSigns || []).map(mapToName);
-     const redFlagsDisplay = (symptomContext.redFlags || []).map(mapToName);
+     const relatedSource = [...new Set(symptomContext.relatedSymptoms || [])];
+     const physicalDisplay = [...new Set((symptomContext.physicalSigns || []).map(mapToName))];
+     const redFlagsDisplay = [...new Set((symptomContext.redFlags || []).map(mapToName))];
      
      const items = [
        {

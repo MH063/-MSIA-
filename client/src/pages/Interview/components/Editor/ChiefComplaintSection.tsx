@@ -37,7 +37,11 @@ const ChiefComplaintSection: React.FC<ChiefComplaintSectionProps> = ({ form }) =
     queryFn: async () => {
       const res = await api.get('/mapping/symptoms') as ApiResponse<{ synonyms: Record<string, string>; nameToKey: Record<string, string> }>;
       return res;
-    }
+    },
+    staleTime: 5 * 60 * 1000, // 5分钟内数据保持新鲜，不会重新请求
+    gcTime: 10 * 60 * 1000, // 缓存保留10分钟
+    refetchOnWindowFocus: false, // 窗口重新聚焦时不自动刷新
+    refetchOnReconnect: false // 网络重连时不自动刷新
   });
   const mappingPayload = unwrapData<{ synonyms: Record<string, string>; nameToKey: Record<string, string> }>(mappingQuery.data as ApiResponse<{ synonyms: Record<string, string>; nameToKey: Record<string, string> }>);
   const mappingNames = mappingPayload ? Object.keys(mappingPayload.nameToKey || {}) : [];
@@ -289,8 +293,24 @@ const ChiefComplaintSection: React.FC<ChiefComplaintSectionProps> = ({ form }) =
                       </Form.Item>
                   </Space.Compact>
               </Form.Item>
-              <div style={{ lineHeight: '1.5', minHeight: '22px', margin: '0 0 24px', clear: 'both', color: 'rgba(0, 0, 0, 0.45)', fontSize: '14px' }}>
-                {ccDurationRaw ? `识别片段：${ccDurationRaw}` : '精确的时间，如：3天、2-3周'}
+              <div className="chief-complaint-hint" style={{ 
+                lineHeight: '1.5', 
+                minHeight: '22px', 
+                margin: '0 0 24px', 
+                clear: 'both', 
+                color: 'var(--msia-text-tertiary, #9CA3AF)', 
+                fontSize: '13px',
+                padding: '6px 10px',
+                backgroundColor: 'var(--msia-bg-secondary, #F1F5F9)',
+                borderRadius: 6,
+                border: '1px solid var(--msia-border, #E5E7EB)'
+              }}>
+                {ccDurationRaw ? (
+                  <>
+                    <span style={{ color: 'var(--msia-primary, #0066CC)', fontWeight: 500 }}>识别片段：</span>
+                    <span style={{ color: 'var(--msia-text-secondary, #4B5563)' }}>{ccDurationRaw}</span>
+                  </>
+                ) : '精确的时间，如：3天、2-3周'}
               </div>
           </Col>
         </Row>

@@ -13,6 +13,7 @@ import authRoutes from './routes/auth.routes';
 import captchaRoutes from './routes/captcha.routes';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { securityHeaders, sqlInjectionProtection, xssProtection } from './utils/security';
+import { csrfProtection, attachCsrfToken, getCsrfToken } from './middleware/csrf';
 import { serverConfig, corsConfig, fileConfig } from './config';
 import { validateConfig, preventInformationLeakage, setupSecureConsole, securityConfig } from './config/security';
 import { secureLogger } from './utils/secureLogger';
@@ -83,7 +84,7 @@ app.use(cors({
     }
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID', 'X-CSRF-Token', 'X-Session-Id', 'x-csrf-token', 'x-session-id'],
   credentials: true,
   maxAge: corsConfig.maxAge,
 }));
@@ -202,6 +203,15 @@ app.use(sqlInjectionProtection);
 
 // XSS防护
 app.use(xssProtection);
+
+// CSRF令牌附加
+app.use(attachCsrfToken);
+
+// CSRF保护（对修改操作）
+app.use(csrfProtection);
+
+// CSRF令牌获取端点
+app.get('/api/csrf-token', getCsrfToken);
 
 // API限流 - 全局标准限流
 app.use(rateLimitStrategies.standard);

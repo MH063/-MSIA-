@@ -482,7 +482,7 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
                               status={getConfidenceProgressStatus(diagnosis.confidence)}
                               showInfo={true}
                               strokeColor={diagnosis.confidence > 0.7 ? token.colorSuccess : diagnosis.confidence > 0.4 ? token.colorWarning : token.colorBorder}
-                              trailColor={token.colorFillSecondary}
+                              railColor={token.colorFillSecondary}
                             />
                             <div style={{ marginTop: 6, fontSize: 12, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                               <Text type="secondary">

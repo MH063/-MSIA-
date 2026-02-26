@@ -295,6 +295,7 @@ const Session: React.FC = () => {
   const linkageCheckDebounceRef = useRef<number | null>(null);
   const basicCheckDebounceRef = useRef<number | null>(null);
   const panelUpdateDebounceRef = useRef<number | null>(null);
+  const refreshKnowledgeDebounceRef = useRef<number | null>(null);
   const isHydratingRef = useRef(false);
   
   const labelBySectionKey = React.useMemo<Record<string, string>>(
@@ -343,6 +344,7 @@ const Session: React.FC = () => {
       if (linkageCheckDebounceRef.current) window.clearTimeout(linkageCheckDebounceRef.current);
       if (basicCheckDebounceRef.current) window.clearTimeout(basicCheckDebounceRef.current);
       if (panelUpdateDebounceRef.current) window.clearTimeout(panelUpdateDebounceRef.current);
+      if (refreshKnowledgeDebounceRef.current) window.clearTimeout(refreshKnowledgeDebounceRef.current);
     };
   }, []);
 
@@ -939,8 +941,19 @@ const Session: React.FC = () => {
     return () => window.clearTimeout(t);
   }, [analyzeChiefComplaint, currentSection, watchedCcText]);
 
+  // 使用防抖处理症状知识刷新，避免频繁请求
   useEffect(() => {
-    refreshKnowledgeFromAllSymptoms();
+    if (refreshKnowledgeDebounceRef.current) {
+      window.clearTimeout(refreshKnowledgeDebounceRef.current);
+    }
+    refreshKnowledgeDebounceRef.current = window.setTimeout(() => {
+      refreshKnowledgeFromAllSymptoms();
+    }, 1000); // 1秒防抖
+    return () => {
+      if (refreshKnowledgeDebounceRef.current) {
+        window.clearTimeout(refreshKnowledgeDebounceRef.current);
+      }
+    };
   }, [refreshKnowledgeFromAllSymptoms]);
 
   const assistantImproveChiefComplaint = useCallback(async () => {
@@ -3428,8 +3441,19 @@ const Session: React.FC = () => {
             <div className="interview-editor-header" style={{ position: 'sticky', top: 0, zIndex: 19 }}>
               <div className="interview-editor-header-inner">
                 <div>
-                  <div className="interview-editor-header-title">当前编辑：{currentSectionLabel}</div>
-                  <div className="interview-editor-header-subtitle">
+                  <div className="interview-editor-header-title">
+                    <span style={{ 
+                      display: 'inline-block',
+                      width: 4,
+                      height: 18,
+                      borderRadius: 2,
+                      background: 'var(--msia-primary-gradient)',
+                      marginRight: 10,
+                      verticalAlign: 'middle'
+                    }}/>
+                    当前编辑：{currentSectionLabel}
+                  </div>
+                  <div className="interview-editor-header-subtitle" style={{ marginLeft: 14 }}>
                     {isSaving ? (
                       <span style={{ color: token.colorWarning }}>正在保存...</span>
                     ) : (
@@ -3437,12 +3461,22 @@ const Session: React.FC = () => {
                     )}
                   </div>
                 </div>
-                <Space size={8}>
+                <Space size={10}>
                   <Tooltip title="上一模块">
-                    <Button icon={<ArrowLeftOutlined />} onClick={handleGoPrev} disabled={!canGoPrev} />
+                    <Button 
+                      icon={<ArrowLeftOutlined />} 
+                      onClick={handleGoPrev} 
+                      disabled={!canGoPrev}
+                      style={{ borderRadius: 8 }}
+                    />
                   </Tooltip>
                   <Tooltip title="下一模块">
-                    <Button icon={<ArrowRightOutlined />} onClick={handleGoNext} disabled={!canGoNext} />
+                    <Button 
+                      icon={<ArrowRightOutlined />} 
+                      onClick={handleGoNext} 
+                      disabled={!canGoNext}
+                      style={{ borderRadius: 8 }}
+                    />
                   </Tooltip>
                 </Space>
               </div>
@@ -3502,12 +3536,19 @@ const Session: React.FC = () => {
                   />
                 </Form>
 
-                <div className="assistant-fab">
+                <div className="assistant-fab" style={{ position: 'fixed', right: 28, bottom: 100, zIndex: 40 }}>
                   <Tooltip title={hasNewMessage ? '问诊助手有新提示' : '打开问诊助手'}>
                     <Button
                       type="primary"
                       shape="round"
                       icon={<RobotOutlined />}
+                      size="large"
+                      style={{
+                        boxShadow: 'var(--msia-shadow-float), var(--msia-shadow-glow)',
+                        border: 'none',
+                        background: 'var(--msia-primary-gradient)',
+                        fontWeight: 500,
+                      }}
                       onClick={() => {
                         setShowAssistant(true);
                         setNewMessage(false);
@@ -3572,20 +3613,32 @@ const Session: React.FC = () => {
               </div>
             </div>
 
-            <div className="interview-editor-footer-spacer" />
-          </div>
-
-          <div className="interview-editor-footer">
-            <div className="interview-editor-footer-inner">
-              <Space size={12}>
-                <Button type="primary" icon={<EyeOutlined />} onClick={handlePreview}>预览病历</Button>
+            {/* 底部按钮区域 - 无背景，居中显示 */}
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'center', 
+              padding: '24px 0 40px',
+              marginTop: 24,
+            }}>
+              <Space size={14}>
+                <Button 
+                  type="primary" 
+                  icon={<EyeOutlined />} 
+                  onClick={handlePreview}
+                  style={{ borderRadius: 8, fontWeight: 500 }}
+                >
+                  预览病历
+                </Button>
                 <Popconfirm
                   title="确定将该问诊记录归档吗？"
                   okText="归档"
                   cancelText="取消"
                   onConfirm={() => void handleArchive()}
                 >
-                  <Button disabled={!isValidId || !id || id === 'new' || String(sessionStatus || '').toLowerCase() === 'archived'}>
+                  <Button 
+                    disabled={!isValidId || !id || id === 'new' || String(sessionStatus || '').toLowerCase() === 'archived'}
+                    style={{ borderRadius: 8 }}
+                  >
                     归档记录
                   </Button>
                 </Popconfirm>
@@ -3595,7 +3648,13 @@ const Session: React.FC = () => {
                   cancelText="取消"
                   onConfirm={handleResetCurrentSection}
                 >
-                  <Button danger icon={<UndoOutlined />}>重置本板块</Button>
+                  <Button 
+                    danger 
+                    icon={<UndoOutlined />}
+                    style={{ borderRadius: 8 }}
+                  >
+                    重置本板块
+                  </Button>
                 </Popconfirm>
               </Space>
             </div>

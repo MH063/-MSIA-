@@ -93,9 +93,22 @@ export async function createCaptcha(): Promise<{ id: string; svg: string; ttlMs:
   const redis = await getRedisQuick();
   if (redis) {
     const key = `captcha:${id}`;
+    // 开发环境: 将验证码作为 key 的一部分存入 Redis (仅供调试)
+    if (process.env.NODE_ENV === 'development') {
+      await redis.set(`debug:captcha:${code}`, id, { EX: 60 });
+      // 同时在控制台打印，便于本地调试
+      // 注意：仅开发环境打印，生产环境不会输出验证码
+      // eslint-disable-next-line no-console
+      console.log(`[DEV] Captcha generated (redis) - ID: ${id}, Code: ${code}`);
+    }
     await redis.set(key, hash, { EX: Math.ceil(ttlMs / 1000) });
   } else {
     FALLBACK_STORE.set(id, { hash, expireAt: Date.now() + ttlMs, used: false });
+    // 开发环境: 打印验证码到控制台
+    if (process.env.NODE_ENV === 'development') {
+      // eslint-disable-next-line no-console
+      console.log(`[DEV] Captcha generated (fallback) - ID: ${id}, Code: ${code}`);
+    }
     // 清理过期
     for (const [k, v] of FALLBACK_STORE.entries()) {
       if (Date.now() > v.expireAt) {FALLBACK_STORE.delete(k);}

@@ -19,9 +19,9 @@ export const SYMPTOM_SYNONYMS: Record<string, string> = {
   "尿憋不住": "尿失禁",
   "皮肤黏膜出血": "皮肤黏膜出血",
   "黏膜出血": "皮肤黏膜出血",
-  "少尿": "少尿无尿多尿",
-  "无尿": "少尿无尿多尿",
-  "多尿": "少尿无尿多尿",
+  "少尿": "oliguria",
+  "无尿": "anuria",
+  "多尿": "polyuria",
   "排尿困难": "排尿困难尿潴留",
   "尿潴留": "排尿困难尿潴留",
   "偏头痛": "头痛",
@@ -58,5 +58,7 @@ export const SYMPTOM_NAME_TO_KEY: Record<string, string> = {
   "发绀": "cyanosis",
   "肥胖": "obesity",
   "皮肤黏膜出血": "cutaneous_mucosal_hemorrhage",
-  "少尿无尿多尿": "oliguria_anuria_polyuria"
+  "少尿": "oliguria",
+  "无尿": "anuria",
+  "多尿": "polyuria",
 };

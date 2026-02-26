@@ -79,7 +79,7 @@ const MainLayout: React.FC = () => {
         await new Promise(r => setTimeout(r, 100));
         
         setLoadingProgress(30);
-        const res = (await api.get('/auth/me')) as ApiResponse<
+        const res = (await api.get('/auth/me', { _skipAuthRefresh: true })) as ApiResponse<
           { operatorId: number; role: 'admin' | 'doctor'; name?: string } | { data: { operatorId: number; role: 'admin' | 'doctor'; name?: string } }
         >;
         

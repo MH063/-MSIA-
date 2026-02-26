@@ -146,10 +146,17 @@ const GeneralSection: React.FC = () => {
 
   return (
     <div className="section-container">
-      <Title level={4} style={{ marginBottom: isMobile ? 14 : 24 }}>一般项目 (General Information)</Title>
+      <Title level={4} style={{ 
+        marginBottom: isMobile ? 16 : 28, 
+        fontWeight: 600,
+        color: 'var(--msia-text-primary)',
+        letterSpacing: 0.5,
+        paddingBottom: 12,
+        borderBottom: '2px solid var(--msia-primary)',
+        display: 'inline-block',
+      }}>一般项目 <span style={{ fontSize: 14, fontWeight: 400, color: 'var(--msia-text-tertiary)', marginLeft: 8 }}>General Information</span></Title>
       
-      {/* 1. 基本信息 */}
-      <Card type="inner" title="【基本信息】" size="small" style={{ marginBottom: 24 }}>
+      <Card type="inner" title={<span style={{ fontWeight: 600, color: 'var(--msia-text-secondary)' }}>【基本信息】</span>} size="small" style={{ marginBottom: 24, borderRadius: 12 }}>
         <Row gutter={[12, 12]}>
           <Col xs={12} sm={12} md={6}>
             <Form.Item name="name" label="姓名" rules={[{ required: true, message: '请输入姓名' }]}>
@@ -396,8 +403,7 @@ const GeneralSection: React.FC = () => {
         </Row>
       </Card>
 
-      {/* 2. 记录信息 */}
-      <Card type="inner" title="【记录信息】" size="small" style={{ marginBottom: 24 }}>
+      <Card type="inner" title={<span style={{ fontWeight: 600, color: 'var(--msia-text-secondary)' }}>【记录信息】</span>} size="small" style={{ marginBottom: 24, borderRadius: 12 }}>
         <Row gutter={[12, 12]}>
           <Col xs={24} sm={12} md={8}>
               <Form.Item name={['generalInfo', 'admissionTime']} label="入院时间">
@@ -468,8 +474,7 @@ const GeneralSection: React.FC = () => {
         </Row>
       </Card>
 
-      {/* 3. 联系信息 */}
-      <Card type="inner" title="【联系信息】" size="small">
+      <Card type="inner" title={<span style={{ fontWeight: 600, color: 'var(--msia-text-secondary)' }}>【联系信息】</span>} size="small" style={{ borderRadius: 12 }}>
         <Row gutter={[12, 12]}>
           <Col xs={24} sm={12} md={8}>
                <Form.Item

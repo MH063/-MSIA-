@@ -342,7 +342,7 @@ const EnhancedDiagnosisPanel: React.FC<EnhancedDiagnosisPanelProps> = ({
                   percent={diagnosis.confidence * 100} 
                   strokeColor={confidenceConfig.color}
                   showInfo={false}
-                  trailColor={token.colorFillSecondary}
+                  railColor={token.colorFillSecondary}
                   strokeLinecap="round"
                   style={{ marginBottom: 16 }}
                 />
@@ -548,7 +548,7 @@ const EnhancedDiagnosisPanel: React.FC<EnhancedDiagnosisPanelProps> = ({
                     size="small" 
                     showInfo={false}
                     strokeColor={token.colorPrimary}
-                    trailColor={token.colorFillSecondary}
+                    railColor={token.colorFillSecondary}
                   />
                 </div>
 

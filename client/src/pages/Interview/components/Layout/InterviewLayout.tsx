@@ -1,6 +1,7 @@
 /**
  * 问诊页面布局组件
  * 支持响应式布局，桌面端和移动端自适应
+ * 左侧固定导航 + 右侧可滚动内容
  */
 
 import React, { useState, useCallback } from 'react';
@@ -8,7 +9,7 @@ import { Button, Grid, Layout, theme } from 'antd';
 import LazyDrawer from '../../../../components/lazy/LazyDrawer';
 import { MenuOutlined } from '@ant-design/icons';
 
-const { Sider, Content, Header } = Layout;
+const { Content, Header } = Layout;
 const { useBreakpoint } = Grid;
 
 interface InterviewLayoutProps {
@@ -36,52 +37,71 @@ const InterviewLayout: React.FC<InterviewLayoutProps> = ({
     }
   }, [onMobileNavigationChange]);
 
-  // 桌面端布局
+  // 桌面端布局 - 左侧固定导航 + 右侧可滚动内容 (Admin Dashboard Layout Pattern)
   if (isDesktop) {
     return (
-      <Layout className="interview-layout" style={{ minHeight: '100vh', background: token.colorBgLayout }}>
-        {/* Left Navigation Panel */}
-        <Sider
-          width={220}
-          theme="light"
+      <div 
+        className="interview-layout" 
+        style={{ 
+          display: 'flex',
+          height: '100vh', // 视口高度
+          overflow: 'hidden', // 防止body滚动
+          background: token.colorBgLayout 
+        }}
+      >
+        {/* 左侧固定导航面板 */}
+
+        <aside
+          className="interview-sider"
           style={{
-            height: '100vh',
-            position: 'fixed',
-            left: 0,
-            top: 0,
-            bottom: 0,
+            width: 280, // 稍微加宽一点，更美观
+            flexShrink: 0,
+            height: '100%',
             borderRight: `1px solid ${token.colorSplit}`,
             zIndex: 10,
+            background: token.colorBgContainer,
+            boxShadow: '4px 0 24px rgba(0,0,0,0.08)', // 更柔和的阴影
+            display: 'flex',
+            flexDirection: 'column',
             overflow: 'hidden',
+            position: 'relative', // 相对定位，不需要 fixed，因为父容器是 flex
           }}
         >
           {navigation}
-        </Sider>
+        </aside>
 
-        {/* Main Content Area */}
-        <Layout style={{ marginLeft: 220, minHeight: '100vh' }}>
-          {/* Editor Panel */}
-          <Content
+        {/* 右侧内容区域 - 独立滚动 */}
+        <main
+          style={{
+            flex: 1,
+            height: '100%',
+            overflowY: 'auto', // 独立滚动
+            overflowX: 'hidden',
+            position: 'relative',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          <div
             style={{
               flex: 1,
-              margin: 0,
-              padding: 20,
-              background: token.colorBgLayout,
-              overflowY: 'auto',
-              height: '100vh',
+              padding: '24px 32px', // 增加内边距
+              maxWidth: 1200, // 限制最大宽度，提升阅读体验
+              margin: '0 auto', // 居中
+              width: '100%',
+              boxSizing: 'border-box',
             }}
           >
             {editor}
-          </Content>
-        </Layout>
-      </Layout>
+          </div>
+        </main>
+      </div>
     );
   }
 
   // 移动端布局
   return (
     <Layout className="interview-layout" style={{ minHeight: '100vh', background: token.colorBgLayout }}>
-      {/* Mobile Header */}
       <Header
         style={{
           position: 'sticky',
@@ -90,40 +110,42 @@ const InterviewLayout: React.FC<InterviewLayoutProps> = ({
           display: 'flex',
           alignItems: 'center',
           gap: 12,
-          padding: '0 12px',
+          padding: '0 16px',
           background: token.colorBgContainer,
           borderBottom: `1px solid ${token.colorSplit}`,
           height: 56,
+          boxShadow: 'var(--msia-shadow-sm)',
         }}
       >
         <Button 
           type="text" 
           icon={<MenuOutlined />} 
           onClick={() => setDrawerOpen(true)}
-          style={{ fontSize: 18 }}
+          style={{ fontSize: 18, borderRadius: 8 }}
         />
-        <div style={{ fontWeight: 700, color: token.colorText, fontSize: 16, flex: 1 }}>
+        <div style={{ fontWeight: 600, color: token.colorText, fontSize: 16, flex: 1, letterSpacing: 0.3 }}>
           问诊
         </div>
       </Header>
 
-      {/* Mobile Content */}
       <Content style={{ 
         margin: 0, 
-        padding: 12, 
+        padding: 16, 
         background: token.colorBgLayout, 
         minHeight: 'calc(100vh - 56px)',
       }}>
         {editor}
       </Content>
 
-      {/* Navigation Drawer */}
       <LazyDrawer
         open={drawerOpen}
         placement="left"
         onClose={handleDrawerClose}
         size={280}
-        styles={{ body: { padding: 0 } }}
+        styles={{ 
+          body: { padding: 0 },
+          header: { display: 'none' },
+        }}
         title={null}
         afterOpenChange={(open) => {
           if (!open && onMobileNavigationChange) {
@@ -131,7 +153,7 @@ const InterviewLayout: React.FC<InterviewLayoutProps> = ({
           }
         }}
       >
-        <div>{navigation}</div>
+        <div style={{ height: '100%' }}>{navigation}</div>
       </LazyDrawer>
     </Layout>
   );

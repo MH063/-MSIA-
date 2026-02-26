@@ -297,10 +297,7 @@ const Login: React.FC = () => {
     return next;
   }, [location.search]);
 
-  const shouldAutoRedirect = useMemo(() => {
-    const sp = new URLSearchParams(location.search);
-    return !sp.has('redirect');
-  }, [location.search]);
+  const shouldAutoRedirect = false;
 
   useEffect(() => {
     if (!shouldAutoRedirect) {
@@ -309,7 +306,7 @@ const Login: React.FC = () => {
     let alive = true;
     (async () => {
       try {
-        const res = (await api.get('/auth/me')) as ApiResponse<LoginResult | { data: LoginResult }>;
+        const res = (await api.get('/auth/me', { _skipAuthRefresh: true })) as ApiResponse<LoginResult | { data: LoginResult }>;
         const payload = unwrapData<LoginResult>(res);
         if (!alive) return;
         if (res?.success && payload) {

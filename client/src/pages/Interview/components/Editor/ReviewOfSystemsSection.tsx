@@ -1,64 +1,104 @@
-import React, { useEffect, useMemo } from 'react';
-import { Form, Input, Checkbox, Typography, Collapse } from 'antd';
-import api, { unwrapData } from '../../../../utils/api';
-import type { ApiResponse } from '../../../../utils/api';
-import { useQuery } from '@tanstack/react-query';
+import React, { useEffect, useMemo, useRef, useCallback } from 'react';
+import { Form, Input, Checkbox, Typography, Collapse, message } from 'antd';
+import {
+  ROS_SYSTEMS_CONFIG,
+  MAX_DETAILS_LENGTH,
+  validateSymptomsArray,
+  validateRosData,
+  containsMaliciousContent,
+  sanitizeInput,
+  generateChecksum,
+} from '../../../../utils/rosSecurity';
 
 const { Title } = Typography;
+
+ 
+
+/**
+ * 安全的详情输入组件
+ * 带有XSS防护和输入验证
+ */
+const SecureDetailsInput: React.FC<{
+  value?: string;
+  onChange?: (value: string) => void;
+  placeholder?: string;
+}> = ({ value, onChange, placeholder }) => {
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const inputValue = e.target.value;
+    
+    if (inputValue.length > MAX_DETAILS_LENGTH) {
+      message.warning(`详情长度不能超过${MAX_DETAILS_LENGTH}个字符`);
+      return;
+    }
+    
+    if (containsMaliciousContent(inputValue)) {
+      message.warning('输入包含不允许的内容，已自动清理');
+      const sanitized = sanitizeInput(inputValue);
+      onChange?.(sanitized);
+      return;
+    }
+    
+    onChange?.(inputValue);
+  }, [onChange]);
+
+  return (
+    <Input
+      value={value}
+      onChange={handleChange}
+      placeholder={placeholder}
+      maxLength={MAX_DETAILS_LENGTH}
+      showCount
+    />
+  );
+};
+
+/**
+ * 安全的症状复选框组件
+ * 带有输入验证
+ */
+const SecureSymptomCheckbox: React.FC<{
+  systemKey: string;
+  value?: string[];
+  onChange?: (value: string[]) => void;
+}> = ({ systemKey, value, onChange }) => {
+  const options = useMemo(() => {
+    const system = ROS_SYSTEMS_CONFIG.find(s => s.key === systemKey);
+    if (!system) return [];
+    
+    return system.symptoms.map(sym => ({
+      label: sym.name,
+      value: sym.key
+    }));
+  }, [systemKey]);
+
+  const handleChange = useCallback((checkedValues: string[]) => {
+    const result = validateSymptomsArray(systemKey, checkedValues);
+    if (result.validSymptoms) {
+      onChange?.(result.validSymptoms);
+    }
+  }, [systemKey, onChange]);
+
+  return (
+    <Checkbox.Group
+      options={options}
+      value={value}
+      onChange={handleChange}
+    />
+  );
+};
 
 /**
  * ReviewOfSystemsSection
  * 系统回顾分节：按系统列出常见症状，支持勾选与详情补充
+ * 使用硬编码数据，不依赖数据库
  */
-const systemsConfig = [
-  {
-    key: 'respiratory',
-    label: '1. 呼吸系统',
-    symptoms: ['咳嗽', '咳痰', '咯血', '胸痛', '呼吸困难', '哮喘']
-  },
-  {
-    key: 'cardiovascular',
-    label: '2. 循环系统',
-    symptoms: ['心悸', '胸闷', '胸痛', '水肿', '晕厥', '气短', '夜间阵发性呼吸困难']
-  },
-  {
-    key: 'digestive',
-    label: '3. 消化系统',
-    symptoms: ['食欲不振', '恶心', '呕吐', '腹痛', '腹胀', '腹泻', '便秘', '呕血', '黑便', '黄疸']
-  },
-  {
-    key: 'urinary',
-    label: '4. 泌尿系统',
-    symptoms: ['尿频', '尿急', '尿痛', '血尿', '排尿困难', '尿量改变', '颜面水肿', '腰痛']
-  },
-  {
-    key: 'hematologic',
-    label: '5. 血液系统',
-    symptoms: ['乏力', '头晕', '皮肤出血点', '瘀斑', '牙龈出血', '鼻出血']
-  },
-  {
-    key: 'endocrine',
-    label: '6. 内分泌及代谢',
-    symptoms: ['多饮', '多食', '多尿', '体重改变', '怕热', '怕冷', '多汗', '乏力', '毛发改变']
-  },
-  {
-    key: 'neurological',
-    label: '7. 神经精神',
-    symptoms: ['头痛', '头晕', '晕厥', '抽搐', '意识障碍', '失眠', '记忆力下降', '肢体麻木', '瘫痪']
-  },
-  {
-    key: 'musculoskeletal',
-    label: '8. 肌肉骨骼',
-    symptoms: ['关节痛', '关节肿胀', '关节僵硬', '肌肉痛', '肌肉萎缩', '运动受限']
-  }
-];
-
 const ReviewOfSystemsSection: React.FC = () => {
   const form = Form.useFormInstance();
   const rosNone = Form.useWatch(['reviewOfSystems', 'none'], form);
-
-  // 监听所有系统的症状和详情字段
   const systemsData = Form.useWatch('reviewOfSystems', form);
+  
+  const lastRosSymptomsRef = useRef<Set<string>>(new Set());
+  const lastChecksumRef = useRef<string>('');
 
   /**
    * 检查是否存在任何症状勾选或详情填写
@@ -67,17 +107,15 @@ const ReviewOfSystemsSection: React.FC = () => {
     if (!systemsData || typeof systemsData !== 'object') return false;
     const data = systemsData as Record<string, unknown>;
     
-    for (const system of systemsConfig) {
+    for (const system of ROS_SYSTEMS_CONFIG) {
       const systemData = data[system.key] as Record<string, unknown> | undefined;
       if (!systemData) continue;
       
-      // 检查是否有症状被勾选
       const symptoms = systemData.symptoms;
       if (Array.isArray(symptoms) && symptoms.length > 0) {
         return true;
       }
       
-      // 检查是否有详情填写
       const details = systemData.details;
       if (typeof details === 'string' && details.trim().length > 0) {
         return true;
@@ -86,53 +124,93 @@ const ReviewOfSystemsSection: React.FC = () => {
     return false;
   }, [systemsData]);
 
-  // 监听"无系统回顾异常"勾选状态变化
+  /**
+   * 收集系统回顾中当前所有已勾选的症状
+   */
+  const currentRosSymptoms = useMemo(() => {
+    const symptoms = new Set<string>();
+    if (!systemsData || typeof systemsData !== 'object') return symptoms;
+    const data = systemsData as Record<string, unknown>;
+    
+    for (const system of ROS_SYSTEMS_CONFIG) {
+      const systemData = data[system.key] as Record<string, unknown> | undefined;
+      if (!systemData) continue;
+      
+      const systemSymptoms = systemData.symptoms;
+      if (Array.isArray(systemSymptoms)) {
+        systemSymptoms.forEach((s: string) => symptoms.add(s));
+      }
+    }
+    return symptoms;
+  }, [systemsData]);
+
+  /**
+   * 反向同步：当系统回顾中取消勾选症状时，同步移除现病史中的对应伴随症状
+   */
+  useEffect(() => {
+    const lastSymptoms = lastRosSymptomsRef.current;
+    const currentSymptoms = currentRosSymptoms;
+    
+    const removedSymptoms: string[] = [];
+    lastSymptoms.forEach(symptomKey => {
+      if (!currentSymptoms.has(symptomKey)) {
+        removedSymptoms.push(symptomKey);
+      }
+    });
+    
+    if (removedSymptoms.length > 0) {
+      const associatedSymptoms: string[] = form.getFieldValue(['presentIllness', 'associatedSymptoms']) || [];
+      const symptomsToRemove = removedSymptoms.filter(s => associatedSymptoms.includes(s));
+      
+      if (symptomsToRemove.length > 0) {
+        const updatedAssociatedSymptoms = associatedSymptoms.filter(s => !symptomsToRemove.includes(s));
+        form.setFieldValue(['presentIllness', 'associatedSymptoms'], updatedAssociatedSymptoms);
+        console.log('[反向同步] 从现病史伴随症状中移除:', symptomsToRemove);
+      }
+    }
+    
+    lastRosSymptomsRef.current = new Set(currentSymptoms);
+  }, [currentRosSymptoms, form]);
+
+  /**
+   * 数据完整性校验
+   */
+  useEffect(() => {
+    if (!systemsData || typeof systemsData !== 'object') return;
+    
+    const data = systemsData as Record<string, unknown>;
+    const currentChecksum = generateChecksum(data);
+    
+    if (lastChecksumRef.current && lastChecksumRef.current !== currentChecksum) {
+      const validation = validateRosData(data);
+      if (!validation.valid) {
+        console.warn('[数据完整性] 验证失败:', validation.errors);
+      }
+    }
+    
+    lastChecksumRef.current = currentChecksum;
+  }, [systemsData]);
+
+  /**
+   * 监听"无系统回顾异常"勾选状态变化
+   */
   useEffect(() => {
     if (!rosNone) return;
     const curr = form.getFieldValue('reviewOfSystems') as Record<string, unknown> | undefined;
     if (!curr || typeof curr !== 'object') return;
     const isOnlyNone = (v: Record<string, unknown>) => Object.keys(v).length === 1 && v.none === true;
     if (isOnlyNone(curr)) return;
-    // 清空所有系统数据，只保留 none: true
     form.setFieldValue('reviewOfSystems', { none: true });
   }, [form, rosNone]);
 
-  // 监听症状/详情变化，当存在数据时自动取消"无系统回顾异常"勾选
+  /**
+   * 监听症状/详情变化，当存在数据时自动取消"无系统回顾异常"勾选
+   */
   useEffect(() => {
     if (hasAnySymptomsOrDetails && rosNone) {
       form.setFieldValue(['reviewOfSystems', 'none'], false);
     }
   }, [form, hasAnySymptomsOrDetails, rosNone]);
-
-  /**
-   * 使用后端映射将系统症状的勾选值统一为键（key），显示为中文名称（label）
-   * 这样保证表单存储与知识库/接口一致性，同时叙述生成中可通过 key→name 还原中文
-   */
-  const mappingQuery = useQuery({
-    queryKey: ['mapping', 'symptoms'],
-    queryFn: async () => {
-      const res = await api.get('/mapping/symptoms') as ApiResponse<{ synonyms: Record<string, string>; nameToKey: Record<string, string> }>;
-      return res;
-    }
-  });
-  const payload = unwrapData<{ synonyms: Record<string, string>; nameToKey: Record<string, string> }>(mappingQuery.data as ApiResponse<{ synonyms: Record<string, string>; nameToKey: Record<string, string> }>);
-  const nameToKey = payload?.nameToKey || {};
-  const normalize = (name: string) => {
-    const key = nameToKey[name];
-    if (key) return { label: name, value: key };
-    // 回退：未映射时使用名称的简易key
-    return { label: name, value: name.toLowerCase().replace(/\s+/g, '_') };
-  };
-  const optionsBySystem: Record<string, { label: string; value: string }[]> = (() => {
-    const out: Record<string, { label: string; value: string }[]> = {};
-    // 只有在成功获取到后端映射数据时才显示症状选项
-    if (mappingQuery.data && (mappingQuery.data as ApiResponse<unknown>).success && nameToKey && Object.keys(nameToKey).length > 0) {
-      for (const sys of systemsConfig) {
-        out[sys.key] = sys.symptoms.map(normalize);
-      }
-    }
-    return out;
-  })();
 
   return (
     <div>
@@ -147,8 +225,8 @@ const ReviewOfSystemsSection: React.FC = () => {
 
       {!rosNone && (
         <Collapse
-          defaultActiveKey={systemsConfig.map(s => s.key)}
-          items={systemsConfig.map(system => ({
+          defaultActiveKey={ROS_SYSTEMS_CONFIG.map(s => s.key)}
+          items={ROS_SYSTEMS_CONFIG.map(system => ({
             key: system.key,
             label: system.label,
             children: (
@@ -157,17 +235,13 @@ const ReviewOfSystemsSection: React.FC = () => {
                     name={['reviewOfSystems', system.key, 'symptoms']} 
                     label="常见症状"
                 >
-                  <Checkbox.Group
-                    options={optionsBySystem[system.key] || system.symptoms.map(name => ({ label: name, value: name }))}
-                  />
+                  <SecureSymptomCheckbox systemKey={system.key} />
                 </Form.Item>
                 <Form.Item 
                     name={['reviewOfSystems', system.key, 'details']} 
                     label="详情补充"
                 >
-                  <Input
-                    placeholder="如有其他症状或具体描述，请在此补充"
-                  />
+                  <SecureDetailsInput placeholder="如有其他症状或具体描述，请在此补充" />
                 </Form.Item>
               </div>
             )

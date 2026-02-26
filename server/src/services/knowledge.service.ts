@@ -63,6 +63,16 @@ export const getKnowledgeSince = async (since: Date): Promise<Prisma.SymptomKnow
 };
 
 /**
+ * 症状 key 别名映射
+ * 用于将拆分后的症状 key 映射到统一的知识库
+ */
+const SYMPTOM_KEY_ALIASES: Record<string, string> = {
+  'oliguria': 'oliguria_anuria_polyuria',
+  'anuria': 'oliguria_anuria_polyuria',
+  'polyuria': 'oliguria_anuria_polyuria',
+};
+
+/**
  * 根据 Key 或 DisplayName 获取症状知识（带缓存）
  * 支持通过 symptomKey、displayName 或模糊匹配查询
  */
@@ -76,9 +86,12 @@ export const getKnowledgeByKey = async (key: string): Promise<Prisma.SymptomKnow
     return cached;
   }
 
+  // 检查是否有别名映射
+  const actualKey = SYMPTOM_KEY_ALIASES[key] || key;
+
   // 首先尝试通过 symptomKey 查询
   let knowledge = await prisma.symptomKnowledge.findUnique({
-    where: { symptomKey: key },
+    where: { symptomKey: actualKey },
   });
 
   // 如果没找到，尝试通过 displayName 精确查询

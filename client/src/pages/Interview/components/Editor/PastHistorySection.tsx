@@ -173,8 +173,14 @@ const PastHistorySection: React.FC<PastHistorySectionProps> = ({ form }) => {
          )}
          {/* 选中的疾病显示详情输入 */}
          {selectedDiseases.map((d: string) => (
-             <div key={d} style={{ marginBottom: 12, background: '#f5f5f5', padding: 8, borderRadius: 4 }}>
-                 <Text strong>{d}详情：</Text>
+             <div key={d} className="disease-detail-box" style={{ 
+               marginBottom: 16, 
+               background: 'var(--msia-bg-secondary, #F1F5F9)', 
+               padding: 16, 
+               borderRadius: 8,
+               border: '1px solid var(--msia-border, #E5E7EB)'
+             }}>
+                 <Text strong style={{ color: 'var(--msia-text-primary, #111827)', display: 'block', marginBottom: 12 }}>{d}详情</Text>
                  {isMobile ? (
                    <Row gutter={[8, 8]} style={{ marginTop: 8 }}>
                      <Col xs={24}>

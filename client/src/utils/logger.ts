@@ -15,7 +15,7 @@ const currentLevel = envLogLevel === 'ERROR' ? LOG_LEVEL.ERROR :
                      envLogLevel === 'WARN' ? LOG_LEVEL.WARN :
                      envLogLevel === 'INFO' ? LOG_LEVEL.INFO :
                      envLogLevel === 'DEBUG' ? LOG_LEVEL.DEBUG :
-                     isProduction ? LOG_LEVEL.WARN : LOG_LEVEL.DEBUG;
+                     isProduction ? LOG_LEVEL.ERROR : LOG_LEVEL.WARN;
 
 /**
  * 检查是否应该记录该级别的日志

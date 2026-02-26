@@ -40,7 +40,9 @@ const symptomKeyToSystemMap: Record<string, string | string[]> = {
   // 血液系统
   'cutaneous_mucosal_hemorrhage': 'hematologic', // 皮肤出血点、瘀斑、牙龈出血、鼻出血
   // 内分泌及代谢
-  'oliguria_anuria_polyuria': 'endocrine', // 多尿
+  'oliguria': 'endocrine', // 少尿
+  'anuria': 'endocrine', // 无尿
+  'polyuria': 'endocrine', // 多尿
   'emaciation': 'endocrine', // 消瘦
   // 神经精神
   'headache': 'neurological', // 头痛
@@ -97,7 +99,11 @@ const HPISection: React.FC = () => {
       type MappingPayload = { synonyms: Record<string, string>; nameToKey: Record<string, string> };
       const res = await api.get('/mapping/symptoms') as ApiResponse<MappingPayload | { data: MappingPayload }>;
       return res;
-    }
+    },
+    staleTime: 5 * 60 * 1000, // 5分钟内数据保持新鲜，不会重新请求
+    gcTime: 10 * 60 * 1000, // 缓存保留10分钟
+    refetchOnWindowFocus: false, // 窗口重新聚焦时不自动刷新
+    refetchOnReconnect: false // 网络重连时不自动刷新
   });
   const mappingPayload = unwrapData<{ synonyms: Record<string, string>; nameToKey: Record<string, string> }>(mappingQuery.data as ApiResponse<{ synonyms: Record<string, string>; nameToKey: Record<string, string> }>);
   const symptomOptions = React.useMemo<{ label: string; value: string }[]>(() => {

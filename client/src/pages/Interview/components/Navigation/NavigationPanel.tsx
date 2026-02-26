@@ -40,83 +40,6 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
   const { token } = theme.useToken();
   const screens = useBreakpoint();
   const isMobile = !screens.md;
-  const menuWrapRef = React.useRef<HTMLDivElement | null>(null);
-  const hideScrollbarTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [isScrollable, setIsScrollable] = React.useState(false);
-  const [scrollbarVisible, setScrollbarVisible] = React.useState(false);
-  const [thumbStyle, setThumbStyle] = React.useState<{ height: number; y: number }>({ height: 0, y: 0 });
-
-  const updateScrollable = React.useCallback(() => {
-    const el = menuWrapRef.current;
-    if (!el) return;
-    const next = el.scrollHeight - el.clientHeight > 2;
-    setIsScrollable(prev => (prev === next ? prev : next));
-    if (!next) setScrollbarVisible(false);
-  }, []);
-
-  const updateThumb = React.useCallback(() => {
-    const el = menuWrapRef.current;
-    if (!el) return;
-    const { scrollHeight, clientHeight, scrollTop } = el;
-    const maxScrollTop = Math.max(0, scrollHeight - clientHeight);
-    if (maxScrollTop <= 0 || clientHeight <= 0) {
-      setThumbStyle({ height: 0, y: 0 });
-      return;
-    }
-    const ratio = clientHeight / scrollHeight;
-    const minHeight = 24;
-    const height = Math.max(minHeight, Math.floor(clientHeight * ratio));
-    const track = Math.max(1, clientHeight - height);
-    const y = Math.floor((scrollTop / maxScrollTop) * track);
-    setThumbStyle(prev => (prev.height === height && prev.y === y ? prev : { height, y }));
-  }, []);
-
-  const showScrollbarTemporarily = React.useCallback((delayMs: number) => {
-    if (!isScrollable) return;
-    setScrollbarVisible(true);
-    if (hideScrollbarTimerRef.current) clearTimeout(hideScrollbarTimerRef.current);
-    hideScrollbarTimerRef.current = setTimeout(() => {
-      setScrollbarVisible(false);
-    }, delayMs);
-  }, [isScrollable]);
-
-  React.useLayoutEffect(() => {
-    updateScrollable();
-    updateThumb();
-  }, [updateScrollable, updateThumb, sections]);
-
-  React.useEffect(() => {
-    updateScrollable();
-    updateThumb();
-  }, [updateScrollable, updateThumb, currentSection, sections, progress]);
-
-  React.useEffect(() => {
-    const el = menuWrapRef.current;
-    if (!el) return;
-
-    if (typeof ResizeObserver !== 'undefined') {
-      const ro = new ResizeObserver(() => {
-        updateScrollable();
-        updateThumb();
-      });
-      ro.observe(el);
-      const menu = el.querySelector('.ant-menu');
-      if (menu) ro.observe(menu);
-      return () => ro.disconnect();
-    }
-
-    const t = setInterval(() => {
-      updateScrollable();
-      updateThumb();
-    }, 500);
-    return () => clearInterval(t);
-  }, [updateScrollable, updateThumb]);
-
-  React.useEffect(() => {
-    return () => {
-      if (hideScrollbarTimerRef.current) clearTimeout(hideScrollbarTimerRef.current);
-    };
-  }, []);
 
   const getStatusMark = (sectionKey: string, section: SectionStatus) => {
     const status = section.status || (section.isCompleted ? 'completed' : 'not_started');
@@ -158,7 +81,10 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
 
     const labelNode = (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '4px 0' }}>
-        <span style={{ fontWeight: section.key === currentSection ? 500 : 400 }}>
+        <span style={{ 
+          fontWeight: section.key === currentSection ? 600 : 400,
+          color: section.key === currentSection ? token.colorPrimary : token.colorText
+        }}>
           {section.label}
         </span>
         {!isMobile && typeof section.progress === 'number' && (
@@ -179,7 +105,6 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
       label: (
         tooltipTitle && !isMobile ? <Tooltip title={tooltipTitle} placement="right">{labelNode}</Tooltip> : labelNode
       ),
-      // 手机端和桌面端都显示状态标记（✓、•、○等）
       icon: statusIcon
     };
   });
@@ -187,102 +112,162 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
   const completedCount = sections.filter(s => (s.status ? s.status === 'completed' : s.isCompleted)).length;
 
   return (
-    <div className="interview-nav-panel" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* Header Area */}
-      <div style={{ padding: isMobile ? '14px 14px' : '24px 20px', borderBottom: `1px solid ${token.colorBorderSecondary}` }}>
-        <Title level={isMobile ? 5 : 4} style={{ margin: isMobile ? '0 0 10px 0' : '0 0 16px 0', fontSize: isMobile ? '16px' : '18px' }}>
+    <div 
+      className="interview-nav-panel" 
+      style={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        height: '100%',
+        overflow: 'hidden'
+      }}
+    >
+      {/* Header - 固定高度 */}
+      <div style={{ 
+        padding: isMobile ? '16px 16px' : '20px 16px 16px', 
+        borderBottom: `1px solid ${token.colorBorderSecondary}`,
+        background: token.colorBgContainer,
+        flexShrink: 0,
+      }}>
+        <Title 
+          level={isMobile ? 5 : 4} 
+          style={{ 
+            margin: isMobile ? '0 0 10px 0' : '0 0 12px 0', 
+            fontSize: isMobile ? '16px' : '18px', 
+            fontWeight: 600, 
+            color: token.colorText 
+          }}
+        >
           问诊导航
         </Title>
         
-        <div style={{ marginBottom: 8 }}>
+        <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
             {isMobile ? null : (
-              <Text type="secondary" style={{ fontSize: '12px' }}>
+              <Text type="secondary" style={{ fontSize: '12px', fontWeight: 500 }}>
                 完成度 ({completedCount}/{sections.length})
               </Text>
             )}
-            <Text strong style={{ fontSize: '14px' }}>{Math.round(progress)}%</Text>
+            <Text strong style={{ fontSize: '14px', color: token.colorPrimary }}>
+              {Math.round(progress)}%
+            </Text>
           </div>
           <Progress 
             percent={progress} 
             showInfo={false} 
             size="small" 
-            strokeColor={{ '0%': token.colorError, '50%': token.colorWarning, '100%': token.colorSuccess }}
+            strokeColor={{ '0%': '#EF4444', '30%': '#F59E0B', '70%': '#3B82F6', '100%': '#10B981' }}
             railColor={token.colorFillSecondary}
+            style={{ borderRadius: 8 }}
           />
         </div>
       </div>
 
-      {/* Menu Area */}
+      {/* Menu Area - 自适应高度，可滚动 */}
       <div
-        ref={menuWrapRef}
-        className={[
-          'interview-nav-menu-area',
-          isScrollable ? 'is-scrollable' : 'not-scrollable',
-          scrollbarVisible ? 'scrollbar-visible' : 'scrollbar-hidden',
-        ].join(' ')}
-        onMouseEnter={() => {
-          if (!isScrollable) return;
-          if (hideScrollbarTimerRef.current) clearTimeout(hideScrollbarTimerRef.current);
-          setScrollbarVisible(true);
+        className="interview-nav-menu-area"
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          padding: '8px 0',
+          minHeight: 0,
         }}
-        onMouseLeave={() => showScrollbarTemporarily(240)}
-        onScroll={() => {
-          updateThumb();
-          showScrollbarTemporarily(900);
-        }}
-        onWheel={() => showScrollbarTemporarily(900)}
-        onKeyDown={() => showScrollbarTemporarily(900)}
-        onFocusCapture={() => showScrollbarTemporarily(900)}
       >
         <Menu
           mode="inline"
           selectedKeys={[currentSection]}
           onClick={({ key }) => onSectionChange(key)}
-          style={{ borderRight: 0 }}
+          style={{ 
+            borderRight: 0,
+            height: 'auto',
+            minHeight: '100%',
+          }}
           items={menuItems}
         />
-        {isScrollable && (
-          <div className="nav-scrollbar-overlay" aria-hidden>
-            <div
-              className="nav-scrollbar-thumb"
-              style={{
-                height: thumbStyle.height ? `${thumbStyle.height}px` : undefined,
-                transform: `translateY(${thumbStyle.y}px)`,
-              }}
-            />
-          </div>
-        )}
       </div>
       
-      {/* Footer Area */}
-      <div style={{ padding: isMobile ? '12px 14px' : '16px 20px', borderTop: `1px solid ${token.colorBorderSecondary}`, background: token.colorFillAlter }}>
-         {isMobile ? null : (
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginBottom: 16, fontSize: '12px', color: token.colorTextSecondary }}>
+      {/* Footer - 固定高度 */}
+      <div style={{ 
+        padding: isMobile ? '12px 16px' : '16px', 
+        borderTop: `1px solid ${token.colorBorderSecondary}`, 
+        background: token.colorFillAlter,
+        flexShrink: 0,
+      }}>
+        {isMobile ? null : (
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            gap: 16, 
+            marginBottom: 12, 
+            fontSize: '11px', 
+            color: token.colorTextSecondary 
+          }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ color: token.colorSuccess }}>✓</span> 已完成
+              <span style={{ 
+                color: token.colorSuccess, 
+                width: 16, 
+                height: 16, 
+                borderRadius: '50%', 
+                background: `${token.colorSuccess}20`, 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                fontSize: 9,
+              }}>✓</span> 已完成
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ color: token.colorWarning }}>•</span> 进行中
+              <span style={{ 
+                color: token.colorWarning, 
+                width: 16, 
+                height: 16, 
+                borderRadius: '50%', 
+                background: `${token.colorWarning}20`, 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                fontSize: 9,
+              }}>•</span> 进行中
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ color: token.colorTextDisabled }}>○</span> 未开始
+              <span style={{ 
+                color: token.colorTextDisabled, 
+                width: 16, 
+                height: 16, 
+                borderRadius: '50%', 
+                border: `1px solid ${token.colorBorder}`, 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                fontSize: 9,
+              }}>○</span> 未开始
             </div>
           </div>
-         )}
-         
-         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: isMobile ? 10 : 12 }}>
-            <Tooltip title="返回首页">
-              <Button icon={<HomeOutlined />} onClick={onGoHome} block>
-                {isMobile ? null : '首页'}
-              </Button>
-            </Tooltip>
-            <Tooltip title="返回列表">
-              <Button icon={<ArrowLeftOutlined />} onClick={onGoInterviewStart} block>
-                {isMobile ? null : '列表'}
-              </Button>
-            </Tooltip>
-         </div>
+        )}
+        
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: isMobile ? 8 : 12 }}>
+          <Tooltip title="返回首页">
+            <Button 
+              icon={<HomeOutlined />} 
+              onClick={onGoHome} 
+              block
+              size="small"
+              style={{ borderRadius: 6 }}
+            >
+              {isMobile ? null : '首页'}
+            </Button>
+          </Tooltip>
+          <Tooltip title="返回列表">
+            <Button 
+              icon={<ArrowLeftOutlined />} 
+              onClick={onGoInterviewStart} 
+              block
+              size="small"
+              style={{ borderRadius: 6 }}
+            >
+              {isMobile ? null : '列表'}
+            </Button>
+          </Tooltip>
+        </div>
       </div>
     </div>
   );

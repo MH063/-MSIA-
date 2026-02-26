@@ -526,14 +526,14 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
             <Col>
               <Space>
                 <Text type="secondary" style={{ fontSize: 12 }}>相关症状:</Text>
-                {displayMapping.relatedSymptoms.slice(0, 3).map(symptom => (
+                {[...new Set(displayMapping.relatedSymptoms)].slice(0, 3).map(symptom => (
                   <Tag key={symptom} style={{ fontSize: 11 }}>{symptom}</Tag>
                 ))}
                 {displayMapping.relatedSymptoms.length > 3 && (
                   <Popover 
                     content={
                       <div style={{ maxWidth: 200 }}>
-                        {displayMapping.relatedSymptoms.slice(3).map(s => (
+                        {[...new Set(displayMapping.relatedSymptoms)].slice(3).map(s => (
                           <Tag key={s} style={{ marginBottom: 4 }}>{s}</Tag>
                         ))}
                       </div>
@@ -541,7 +541,7 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
                     title="更多相关症状"
                   >
                     <Tag style={{ fontSize: 11, cursor: 'pointer' }}>
-                      +{displayMapping.relatedSymptoms.length - 3}
+                      +{[...new Set(displayMapping.relatedSymptoms)].length - 3}
                     </Tag>
                   </Popover>
                 )}

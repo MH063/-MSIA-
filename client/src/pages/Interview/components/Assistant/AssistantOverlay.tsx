@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { Drawer, Tabs } from 'antd';
+import { Drawer, Tabs, theme } from 'antd';
 import { BookOutlined, CheckCircleOutlined, BulbOutlined } from '@ant-design/icons';
 import KnowledgeTab from './KnowledgeTab';
 import ValidationTab from './ValidationTab';
@@ -21,15 +21,15 @@ const AssistantOverlay: React.FC<AssistantOverlayProps> = ({
   open,
   onClose,
 }) => {
+  const { token } = theme.useToken();
   const [activeTab, setActiveTab] = useState<TabKey>('knowledge');
-  // 统一使用 large 尺寸，确保展开页面大小一致
   const drawerSize = 'large';
 
   const tabItems = [
     {
       key: 'knowledge' as TabKey,
       label: (
-        <span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 500 }}>
           <BookOutlined />
           知识库
         </span>
@@ -39,7 +39,7 @@ const AssistantOverlay: React.FC<AssistantOverlayProps> = ({
     {
       key: 'validation' as TabKey,
       label: (
-        <span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 500 }}>
           <CheckCircleOutlined />
           验证
         </span>
@@ -49,7 +49,7 @@ const AssistantOverlay: React.FC<AssistantOverlayProps> = ({
     {
       key: 'teaching' as TabKey,
       label: (
-        <span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 500 }}>
           <BulbOutlined />
           教学
         </span>
@@ -60,12 +60,40 @@ const AssistantOverlay: React.FC<AssistantOverlayProps> = ({
 
   return (
     <Drawer
-      title="智能助手"
+      title={
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: 10, 
+          fontSize: 16, 
+          fontWeight: 600,
+          color: token.colorText,
+        }}>
+          <span style={{ 
+            background: 'var(--msia-primary-gradient)', 
+            width: 28, 
+            height: 28, 
+            borderRadius: 8, 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            color: '#fff',
+            fontSize: 14,
+          }}>
+            <BulbOutlined />
+          </span>
+          智能助手
+        </div>
+      }
       placement="right"
       onClose={onClose}
       open={open}
       size={drawerSize}
       styles={{
+        header: {
+          padding: '16px 20px',
+          borderBottom: `1px solid ${token.colorBorderSecondary}`,
+        },
         body: {
           padding: 0,
         },
@@ -76,6 +104,10 @@ const AssistantOverlay: React.FC<AssistantOverlayProps> = ({
         onChange={(key) => setActiveTab(key as TabKey)}
         items={tabItems}
         style={{ padding: '0 16px' }}
+        tabBarStyle={{
+          marginBottom: 16,
+          fontWeight: 500,
+        }}
       />
     </Drawer>
   );

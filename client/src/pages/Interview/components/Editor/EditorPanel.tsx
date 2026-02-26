@@ -120,12 +120,17 @@ const EditorPanel: React.FC<EditorPanelProps> = ({
   ) : null;
 
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto' }}>
+    <div style={{ maxWidth: 920, margin: '0 auto' }}>
       <Card
         className="interview-section-card"
         title={null}
         extra={resetButton}
         variant="borderless"
+        styles={{
+          body: {
+            padding: '24px 28px',
+          }
+        }}
       >
         {currentSection === 'general' && <GeneralSection />}
         {currentSection === 'chief_complaint' && <ChiefComplaintSection form={form} />}

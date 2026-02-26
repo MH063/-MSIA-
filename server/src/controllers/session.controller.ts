@@ -6,6 +6,18 @@ import fs from 'fs';
 import PDFDocument from 'pdfkit';
 import { Document, Packer, Paragraph, TextRun } from 'docx';
 import { secureLogger } from '../utils/secureLogger';
+import { validateRosData } from '../utils/rosSecurity';
+import {
+  validateSessionData,
+  validateChiefComplaint,
+  validatePresentIllness,
+  validatePastHistory,
+  validatePersonalHistory,
+  validateFamilyHistory,
+  validatePhysicalExam,
+  validatePatientInfo,
+  sanitizeObject,
+} from '../utils/formSecurity';
 import type { Patient, PhysicalExam, MenstrualHistory, FertilityHistory, FamilyHistory, MaritalHistory } from '../types';
 
 // 统一类型别名 - 用于动态 JSON 数据
@@ -175,7 +187,99 @@ export const updateSession = async (req: Request, res: Response) => {
 
     secureLogger.debug('[updateSession] 分离后的sessionData', { sessionDataKeys: Object.keys(sessionData) });
 
-    // 2. Update Session
+    // 2. 全面验证所有板块数据安全性
+    const allValidationErrors: string[] = [];
+
+    // 验证患者基本信息
+    if (Object.keys(patientData).length > 0) {
+      const patientValidation = validatePatientInfo(patientData);
+      if (!patientValidation.valid) {
+        allValidationErrors.push(...patientValidation.errors);
+        secureLogger.warn('[updateSession] 患者信息验证失败', { errors: patientValidation.errors });
+      }
+      Object.assign(patientData, patientValidation.sanitized);
+    }
+
+    // 验证主诉
+    if (sessionData.chiefComplaint) {
+      const ccValidation = validateChiefComplaint(sessionData.chiefComplaint);
+      if (!ccValidation.valid) {
+        allValidationErrors.push(...ccValidation.errors);
+        secureLogger.warn('[updateSession] 主诉验证失败', { errors: ccValidation.errors });
+      }
+      sessionData.chiefComplaint = ccValidation.sanitized;
+    }
+
+    // 验证现病史
+    if (sessionData.presentIllness) {
+      const piValidation = validatePresentIllness(sessionData.presentIllness);
+      if (!piValidation.valid) {
+        allValidationErrors.push(...piValidation.errors);
+        secureLogger.warn('[updateSession] 现病史验证失败', { errors: piValidation.errors });
+      }
+      sessionData.presentIllness = piValidation.sanitized;
+    }
+
+    // 验证既往史
+    if (sessionData.pastHistory) {
+      const phValidation = validatePastHistory(sessionData.pastHistory);
+      if (!phValidation.valid) {
+        allValidationErrors.push(...phValidation.errors);
+        secureLogger.warn('[updateSession] 既往史验证失败', { errors: phValidation.errors });
+      }
+      sessionData.pastHistory = phValidation.sanitized;
+    }
+
+    // 验证个人史
+    if (sessionData.personalHistory) {
+      const persValidation = validatePersonalHistory(sessionData.personalHistory);
+      if (!persValidation.valid) {
+        allValidationErrors.push(...persValidation.errors);
+        secureLogger.warn('[updateSession] 个人史验证失败', { errors: persValidation.errors });
+      }
+      sessionData.personalHistory = persValidation.sanitized;
+    }
+
+    // 验证家族史
+    if (sessionData.familyHistory) {
+      const fhValidation = validateFamilyHistory(sessionData.familyHistory);
+      if (!fhValidation.valid) {
+        allValidationErrors.push(...fhValidation.errors);
+        secureLogger.warn('[updateSession] 家族史验证失败', { errors: fhValidation.errors });
+      }
+      sessionData.familyHistory = fhValidation.sanitized;
+    }
+
+    // 验证体格检查
+    if (sessionData.physicalExam) {
+      const peValidation = validatePhysicalExam(sessionData.physicalExam);
+      if (!peValidation.valid) {
+        allValidationErrors.push(...peValidation.errors);
+        secureLogger.warn('[updateSession] 体格检查验证失败', { errors: peValidation.errors });
+      }
+      sessionData.physicalExam = peValidation.sanitized as unknown as PhysicalExam;
+    }
+
+    // 验证系统回顾
+    if (sessionData.reviewOfSystems) {
+      const rosValidation = validateRosData(sessionData.reviewOfSystems);
+      if (!rosValidation.valid) {
+        allValidationErrors.push(...rosValidation.errors);
+        secureLogger.warn('[updateSession] 系统回顾验证失败', { errors: rosValidation.errors });
+      }
+      sessionData.reviewOfSystems = rosValidation.sanitized;
+    }
+
+    // 验证其他字段（婚育史、月经史、辅助检查等）
+    const otherFields = ['maritalHistory', 'menstrualHistory', 'fertilityHistory', 'specialistExam', 'auxiliaryExams', 'generalInfo'];
+    for (const field of otherFields) {
+      if (sessionData[field as keyof SessionData]) {
+        const sanitized = sanitizeObject(sessionData[field as keyof SessionData] as Record<string, unknown>);
+        sessionData[field as keyof SessionData] = sanitized as any;
+      }
+    }
+
+    // 3. Update Session
     const session = await sessionService.updateSession(Number(id), sessionData as Record<string, unknown>);
 
     secureLogger.debug('[updateSession] 更新后的session', { sessionId: session.id });
