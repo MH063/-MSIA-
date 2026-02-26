@@ -46,7 +46,7 @@ cp .env.docker .env
 
 # 编辑 .env 文件，修改以下关键配置：
 # - DB_PASSWORD: 数据库密码（生产环境务必修改）
-# - OPERATOR_TOKEN: API 认证令牌
+# - JWT_SECRET: JWT 密钥（生产环境必须配置）
 # - ALLOWED_ORIGINS: 允许的跨域来源
 ```
 
@@ -106,7 +106,34 @@ docker-compose exec server npx prisma migrate deploy
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## 五、常用命令
+## 五、环境变量
+
+### 必需变量
+
+| 变量名 | 说明 | 示例 |
+|--------|------|------|
+| `DATABASE_URL` | PostgreSQL 连接字符串 | `postgresql://postgres:pass@db:5432/MSIA` |
+| `JWT_SECRET` | JWT 密钥（生产环境必须） | 64 位随机字符串 |
+
+### 安全相关变量
+
+| 变量名 | 说明 | 默认值 |
+|--------|------|--------|
+| `DB_PASSWORD` | 数据库密码 | postgres |
+| `ENABLE_DEV_TOKENS` | 开发测试 Token | false |
+| `ALLOWED_ORIGINS` | CORS 白名单 | http://localhost |
+| `ENCRYPTION_KEY` | 数据加密密钥（32 位） | - |
+
+### 登录安全变量
+
+| 变量名 | 说明 | 默认值 |
+|--------|------|--------|
+| `LOGIN_MAX_FAILS_DOCTOR` | 医生登录失败锁定次数 | 5 |
+| `LOGIN_MAX_FAILS_ADMIN` | 管理员登录失败锁定次数 | 3 |
+| `LOGIN_LOCK_MS_DOCTOR` | 医生锁定时间（毫秒） | 300000 |
+| `LOGIN_LOCK_MS_ADMIN` | 管理员锁定时间（毫秒） | 600000 |
+
+## 六、常用命令
 
 ### 服务管理
 
@@ -140,19 +167,6 @@ docker-compose exec db pg_dump -U postgres MSIA > backup.sql
 docker-compose exec -T db psql -U postgres -d MSIA < backup.sql
 ```
 
-## 六、环境变量
-
-| 变量名 | 默认值 | 说明 |
-|--------|--------|------|
-| `DB_USER` | postgres | 数据库用户名 |
-| `DB_PASSWORD` | postgres | 数据库密码（**务必修改**） |
-| `DB_NAME` | MSIA | 数据库名称 |
-| `DB_PORT` | 5432 | 数据库端口 |
-| `SERVER_PORT` | 4000 | 后端服务端口 |
-| `CLIENT_PORT` | 80 | 前端服务端口 |
-| `ALLOWED_ORIGINS` | http://localhost | 允许的跨域来源 |
-| `OPERATOR_TOKEN` | dev-admin | API 认证令牌（**务必修改**） |
-
 ## 七、生产环境部署
 
 ### 1. 安全加固
@@ -161,13 +175,16 @@ docker-compose exec -T db psql -U postgres -d MSIA < backup.sql
 # 1. 修改默认密码
 # 编辑 .env 文件
 DB_PASSWORD=your_strong_password_here
-OPERATOR_TOKEN=your_secure_random_token
+JWT_SECRET=your_64_char_random_secret_key_here
 
-# 2. 使用 HTTPS
+# 2. 禁用开发测试 Token
+ENABLE_DEV_TOKENS=false
+
+# 3. 配置 CORS 白名单
+ALLOWED_ORIGINS=https://your-domain.com
+
+# 4. 使用 HTTPS
 # 配置反向代理（Nginx/Traefik）处理 SSL
-
-# 3. 限制端口暴露
-# 数据库端口默认只暴露给容器网络，不要映射到主机
 ```
 
 ### 2. 数据持久化
@@ -245,6 +262,18 @@ docker exec msia_client which nginx
 # 应该输出 /usr/sbin/nginx，如果不是，说明使用了开发镜像
 ```
 
+### 问题4：认证失败
+
+```bash
+# 检查 JWT_SECRET 是否配置
+docker-compose exec server env | grep JWT_SECRET
+
+# 检查开发测试 Token 是否启用
+docker-compose exec server env | grep ENABLE_DEV_TOKENS
+
+# 生产环境确保 ENABLE_DEV_TOKENS 未设置或为 false
+```
+
 ## 九、更新部署
 
 ```bash
@@ -284,12 +313,57 @@ docker rmi msia-client-prod:latest msia-server-prod:latest
 docker system prune -f
 ```
 
-## 十一、相关文档
+## 十一、安全最佳实践
+
+### 认证安全
+
+1. **生产环境必须配置 JWT_SECRET**
+   - 使用 64 位以上随机字符串
+   - 生成方式: `node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"`
+
+2. **禁用开发测试 Token**
+   - 生产环境不设置 `ENABLE_DEV_TOKENS` 或设置为 `false`
+
+3. **使用强密码**
+   - 数据库密码
+   - JWT 密钥
+   - 加密密钥
+
+### 网络安全
+
+1. **配置 CORS 白名单**
+   - 仅允许可信域名
+   - 生产环境使用 HTTPS 域名
+
+2. **限制端口暴露**
+   - 数据库端口默认只暴露给容器网络
+   - 不要将 5432 端口映射到主机
+
+3. **使用 HTTPS**
+   - 配置 Nginx 反向代理
+   - 申请 SSL 证书
+
+### 数据安全
+
+1. **定期备份**
+   - 数据库每日备份
+   - 配置文件备份
+
+2. **监控日志**
+   - 检查异常登录
+   - 监控 API 调用
+
+## 十二、相关文档
 
 - [项目术语表](./docs/TERMINOLOGY.md) - 统一术语和命名规范
 - [生产部署指南](./deploy/README.md) - 手动部署到生产服务器
 - [项目主文档](./README.md) - 项目介绍和快速开始
+- [后端开发文档](./server/README.md) - 后端 API 说明
+- [前端开发文档](./client/README.md) - 前端开发说明
 
 ---
 
-**注意**：首次部署前请务必修改 `.env` 文件中的默认密码和令牌！
+**注意**：首次部署前请务必修改 `.env` 文件中的默认密码和密钥！
+
+**版本**: v2.1  
+**最后更新**: 2026年2月

@@ -134,16 +134,13 @@ PORT=4000
 HOST=0.0.0.0
 NODE_ENV=production
 
-# JWT 安全配置（必填）
-JWT_SECRET=your_strong_jwt_secret_key_min_32_characters
+# JWT 安全配置（必填，建议 64 位以上）
+JWT_SECRET=your_strong_jwt_secret_key_min_64_characters
 
-# 静态 Token 配置（可选，用于系统初始化）
-OPERATOR_TOKEN=your_secure_random_token
+# 禁用开发测试 Token
+ENABLE_DEV_TOKENS=false
 
-# 多 Token JSON 配置（可选）
-# OPERATOR_TOKENS_JSON={"token1":{"operatorId":1,"role":"admin"}}
-
-# 跨域配置
+# 跨域配置（生产域名）
 ALLOWED_ORIGINS=https://your-domain.com
 
 # 登录安全配置
@@ -152,15 +149,19 @@ LOGIN_MAX_FAILS_ADMIN=3
 LOGIN_LOCK_MS_DOCTOR=300000
 LOGIN_LOCK_MS_ADMIN=600000
 
+# 加密密钥（32 位）
+ENCRYPTION_KEY=your_32_char_encryption_key
+
 # 其他配置
 LOG_LEVEL=info
 MAX_FILE_SIZE=10485760
 ```
 
 **安全提示：**
-- `JWT_SECRET` 必须使用强密码，建议 32 位以上随机字符串
+- `JWT_SECRET` 必须使用强密码，建议 64 位以上随机字符串
 - 生产环境禁止使用默认的 JWT 密钥
-- `OPERATOR_TOKEN` 仅用于系统初始化，创建正式用户后建议移除
+- `ENABLE_DEV_TOKENS` 必须为 `false` 或不设置
+- `ALLOWED_ORIGINS` 必须配置为生产域名
 
 ### 步骤 5: 构建应用
 
@@ -453,36 +454,65 @@ curl http://localhost:4000/health
 sudo tail -f /var/log/nginx/error.log
 ```
 
+### 认证失败
+
+```bash
+# 检查 JWT_SECRET 是否配置
+grep JWT_SECRET /opt/msia/server/.env
+
+# 检查 ENABLE_DEV_TOKENS 是否禁用
+grep ENABLE_DEV_TOKENS /opt/msia/server/.env
+
+# 生产环境必须确保 ENABLE_DEV_TOKENS=false 或不设置
+```
+
 ## 八、安全建议
 
-1. **修改默认密码**
-   - 数据库密码
-   - API 认证令牌
-   - 服务器 root 密码
+### 1. 修改默认密码
 
-2. **配置防火墙**
-   ```bash
-   sudo ufw allow 80/tcp
-   sudo ufw allow 443/tcp
-   sudo ufw allow 22/tcp
-   sudo ufw enable
-   ```
+- 数据库密码
+- JWT 密钥
+- 服务器 root 密码
 
-3. **定期更新**
-   ```bash
-   sudo apt update && sudo apt upgrade -y
-   ```
+### 2. 配置防火墙
 
-4. **配置自动备份**
-   - 数据库每日备份
-   - 配置文件备份
+```bash
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+sudo ufw allow 22/tcp
+sudo ufw enable
+```
+
+### 3. 定期更新
+
+```bash
+sudo apt update && sudo apt upgrade -y
+```
+
+### 4. 配置自动备份
+
+- 数据库每日备份
+- 配置文件备份
+
+### 5. 安全配置检查
+
+- [ ] JWT_SECRET 已配置强密钥
+- [ ] ENABLE_DEV_TOKENS 已禁用
+- [ ] ALLOWED_ORIGINS 已配置生产域名
+- [ ] 数据库密码已修改
+- [ ] HTTPS 已启用
 
 ## 九、相关文档
 
 - [项目主文档](../README.md) - 项目介绍和快速开始
 - [Docker 部署指南](../DOCKER_DEPLOY.md) - Docker 部署说明
+- [后端开发文档](../server/README.md) - 后端 API 说明
+- [前端开发文档](../client/README.md) - 前端开发说明
 - [术语表](../docs/TERMINOLOGY.md) - 统一术语规范
 
 ---
 
 **部署完成后访问**: https://your-domain.com
+
+**版本**: v2.1  
+**最后更新**: 2026年2月

@@ -1,7 +1,7 @@
 # 医学生智能问诊辅助系统 (MSIA)
 
 [![React](https://img.shields.io/badge/React-19-blue)](https://reactjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue)](https://www.typescriptlang.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-20-green)](https://nodejs.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue)](https://www.postgresql.org/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue)](https://www.docker.com/)
@@ -37,17 +37,17 @@
 ### 技术栈
 
 **前端 (Frontend)**
-- React 19 + TypeScript 5
+- React 19 + TypeScript 5.9
 - Vite 7 构建工具
 - Ant Design 6 UI组件库
 - Zustand 状态管理
 - Axios + React Query 网络请求
-- Vitest 测试框架
+- Vitest 3 测试框架
 
 **后端 (Backend)**
 - Node.js 20 + Express 5
 - TypeScript 5
-- Prisma 7 ORM
+- Prisma 6 ORM
 - PostgreSQL 16 数据库
 - Redis 7 缓存
 
@@ -72,7 +72,7 @@ cd 医学生智能问诊辅助系统（MSIA）
 
 # 2. 配置环境变量
 cp .env.docker .env
-# 编辑 .env 文件，修改 DB_PASSWORD 和 OPERATOR_TOKEN
+# 编辑 .env 文件，修改 DB_PASSWORD 和 JWT_SECRET
 
 # 3. 执行部署脚本
 chmod +x deploy.sh
@@ -123,7 +123,11 @@ npm run build
 │   │   ├── controllers/   # 控制器
 │   │   ├── services/      # 业务逻辑
 │   │   ├── routes/        # 路由定义
-│   │   └── middleware/    # 中间件
+│   │   ├── middleware/    # 中间件
+│   │   ├── utils/         # 工具函数
+│   │   │   ├── secureLogger.ts  # 安全日志
+│   │   │   └── security.ts      # 安全工具
+│   │   └── config/        # 配置文件
 │   ├── prisma/            # 数据库模型和迁移
 │   ├── knowledge_base/    # 42种症状知识库(JSON)
 │   └── Dockerfile         # 后端容器配置
@@ -157,6 +161,32 @@ npm run build
 ### 诊断表 (diagnoses)
 存储诊断信息：诊断名称、分类、关联症状、警示征象
 
+## 安全特性
+
+### 认证与授权
+
+| 特性 | 说明 |
+|------|------|
+| JWT 认证 | 使用 JWT Token 进行身份验证，支持自动刷新 |
+| 密码加密 | 密码使用 bcrypt 加密存储 |
+| 角色权限 | 基于角色的权限管理（admin/doctor） |
+| 登录保护 | 登录失败锁定、IP 限流、登录审计日志 |
+
+### 安全防护
+
+| 特性 | 说明 |
+|------|------|
+| CSRF 防护 | Cookie + CSRF Token 双重验证 |
+| XSS 防护 | 输入过滤 + 输出编码 |
+| SQL 注入防护 | Prisma 参数化查询 + 输入过滤 |
+| 限流保护 | Redis + 内存双重限流机制 |
+| 安全日志 | 敏感信息自动脱敏的统一日志系统 |
+
+### 环境隔离
+
+- **开发环境**：支持测试 Token（需显式启用 `ENABLE_DEV_TOKENS=true`）
+- **生产环境**：强制 HTTPS Cookie，严格 CORS 白名单
+
 ## 开发路线图
 
 ### Phase 1: MVP ✅ 已完成
@@ -171,62 +201,37 @@ npm run build
 - [x] 用户认证系统（Token/密码登录）
 - [x] 数据统计 Dashboard
 
-#### 用户认证系统说明
-
-**功能特性：**
-| 功能 | 说明 |
-|------|------|
-| 账号密码登录 | 支持用户名/密码登录，密码使用 bcrypt 加密存储 |
-| Token 登录 | 开发环境支持静态 Token 快速登录（生产环境隐藏） |
-| 用户注册 | 支持医生/管理员角色注册 |
-| JWT 认证 | 使用 JWT Token 进行身份验证，支持自动刷新 |
-| 权限控制 | 基于角色的权限管理（admin/doctor） |
-| 安全防护 | 登录失败锁定、IP 限流、登录审计日志 |
-
-**登录方式：**
-
-1. **账号密码登录**（推荐）
-   - 使用注册的用户名和密码登录
-   - 登录成功后自动获取 JWT Token
-
-2. **Token 登录**（仅开发环境）
-   - 开发环境显示令牌登录选项卡
-   - 支持环境变量配置的静态 Token
-   - 开发环境快捷 Token: `dev-admin`
-
-**环境标识：**
-- 登录页面显示当前环境标签（开发环境/生产环境）
-- 开发环境令牌登录选项带有"开发"标识
-- 生产环境自动隐藏令牌登录功能
-
-**环境变量配置：**
-```bash
-# JWT 密钥（生产环境必须配置）
-JWT_SECRET=your-secret-key
-
-# 静态 Token 配置（可选）
-OPERATOR_TOKEN=your-static-token
-
-# 多 Token JSON 配置（可选）
-OPERATOR_TOKENS_JSON={"token1":{"operatorId":1,"role":"admin"}}
-```
-
 ### Phase 3: 优化与集成 ✅ 已完成
 - [x] 病历导出 Word/PDF
 - [x] 移动端 UI 优化（响应式布局）
 
+### Phase 4: 安全加固 ✅ 已完成
+- [x] 开发 Token 绕过认证修复
+- [x] Cookie secure 配置优化
+- [x] SQL 注入防护增强
+- [x] localStorage 敏感信息移除
+- [x] 环境变量验证增强
+- [x] CORS 配置优化
+- [x] 依赖安全漏洞修复
+
 ## 最近更新
 
 ### 2026年2月
+- ✅ 安全加固更新
+  - 修复开发 Token 绕过认证漏洞
+  - 生产环境强制 HTTPS Cookie
+  - 增强 SQL 注入防护检测
+  - 移除 localStorage 敏感信息存储
+  - 增强环境变量验证
+  - 优化 CORS 配置
+- ✅ 依赖安全更新
+  - 修复 qs DoS 漏洞
+  - 修复 esbuild 开发服务器漏洞
+  - 升级 vitest 到 3.0.5
 - ✅ 完成 Docker 部署配置优化
 - ✅ 添加生产环境部署脚本
 - ✅ 统一项目文档和术语规范
-- ✅ 修复前端生产构建问题
 - ✅ 完善用户认证系统
-  - 修复登录后 Token 存储问题
-  - 添加请求拦截器自动携带 Token
-  - 实现开发/生产环境差异化显示
-  - 添加环境标识标签
 
 ## 常用命令
 
@@ -240,6 +245,10 @@ docker-compose logs -f # 查看日志
 # 开发模式
 cd client && npm run dev      # 前端开发服务器
 cd server && npm run dev      # 后端开发服务器
+
+# 测试
+cd client && npm test         # 前端测试
+cd server && npm test         # 后端测试
 ```
 
 ## 端口配置
@@ -251,12 +260,31 @@ cd server && npm run dev      # 后端开发服务器
 | 数据库 (Database) | 5432 | PostgreSQL |
 | 缓存 (Cache) | 6379 | Redis |
 
+## 环境变量
+
+### 必需变量
+
+| 变量名 | 说明 |
+|--------|------|
+| `DATABASE_URL` | PostgreSQL 连接字符串 |
+| `JWT_SECRET` | JWT 密钥（生产环境必须，建议 32 位以上） |
+
+### 可选变量
+
+| 变量名 | 说明 |
+|--------|------|
+| `REDIS_URL` | Redis 连接字符串 |
+| `ENCRYPTION_KEY` | 数据加密密钥（32 位） |
+| `ENABLE_DEV_TOKENS` | 开发环境测试 Token（true/false） |
+| `ALLOWED_ORIGINS` | CORS 白名单 |
+
 ## 文档
 
 - [项目术语表](./docs/TERMINOLOGY.md) - 统一术语和命名规范
 - [Docker 部署指南](./DOCKER_DEPLOY.md) - Docker 部署详细说明
 - [生产部署指南](./deploy/README.md) - 生产环境部署指南
-- [Docker部署说明](./deploy/docker-deploy.md) - Docker部署快速参考
+- [前端开发文档](./client/README.md) - 前端开发说明
+- [后端开发文档](./server/README.md) - 后端开发说明
 
 ## 贡献
 
@@ -268,5 +296,5 @@ ISC License
 
 ---
 
-**版本**: v2.0  
+**版本**: v2.1  
 **最后更新**: 2026年2月

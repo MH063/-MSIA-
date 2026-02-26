@@ -24,7 +24,7 @@ cd 医学生智能问诊辅助系统（MSIA）
 cp .env.docker .env
 
 # 编辑 .env 文件，修改必要配置
-# 特别是 DB_PASSWORD 和 OPERATOR_TOKEN
+# 特别是 DB_PASSWORD 和 JWT_SECRET
 ```
 
 #### 3. 启动服务
@@ -101,9 +101,12 @@ docker-compose -f docker-compose.yml -f docker-compose.override.yml up -d
 编辑 `.env` 文件：
 
 ```env
-# 强密码
+# 强密码（必须修改）
 DB_PASSWORD=your_strong_password_here
-OPERATOR_TOKEN=your_secure_token_here
+JWT_SECRET=your_64_char_random_secret_key_here
+
+# 禁用开发测试 Token
+ENABLE_DEV_TOKENS=false
 
 # 生产域名
 ALLOWED_ORIGINS=https://your-domain.com
@@ -146,6 +149,18 @@ netstat -tlnp | grep 4000
 netstat -tlnp | grep 80
 ```
 
+#### 认证失败
+
+```bash
+# 检查 JWT_SECRET 是否配置
+docker-compose exec server env | grep JWT_SECRET
+
+# 检查开发测试 Token 是否禁用
+docker-compose exec server env | grep ENABLE_DEV_TOKENS
+
+# 生产环境必须确保 ENABLE_DEV_TOKENS=false 或未设置
+```
+
 #### 重置环境
 
 ```bash
@@ -156,11 +171,12 @@ docker-compose up -d
 
 ### 七、安全建议
 
-1. **修改默认密码**: 务必修改 `DB_PASSWORD` 和 `OPERATOR_TOKEN`
-2. **使用 HTTPS**: 生产环境必须使用 HTTPS
-3. **限制端口暴露**: 数据库端口默认只暴露给容器网络
-4. **定期备份**: 设置定时任务备份数据库
-5. **更新镜像**: 定期更新基础镜像以获取安全补丁
+1. **修改默认密码**: 务必修改 `DB_PASSWORD` 和 `JWT_SECRET`
+2. **禁用测试 Token**: 生产环境设置 `ENABLE_DEV_TOKENS=false`
+3. **使用 HTTPS**: 生产环境必须使用 HTTPS
+4. **限制端口暴露**: 数据库端口默认只暴露给容器网络
+5. **定期备份**: 设置定时任务备份数据库
+6. **更新镜像**: 定期更新基础镜像以获取安全补丁
 
 ### 八、服务架构
 
@@ -183,6 +199,25 @@ docker-compose up -d
 └─────────────┘
 ```
 
-### 九、更新记录
+### 九、环境变量
 
-- 2024-02-02: 初始版本，支持完整 Docker 部署
+| 变量名 | 说明 | 必需 |
+|--------|------|------|
+| `DATABASE_URL` | PostgreSQL 连接字符串 | ✅ |
+| `JWT_SECRET` | JWT 密钥（64 位以上） | ✅ |
+| `DB_PASSWORD` | 数据库密码 | ✅ |
+| `ENABLE_DEV_TOKENS` | 开发测试 Token | ❌ |
+| `ALLOWED_ORIGINS` | CORS 白名单 | ❌ |
+| `ENCRYPTION_KEY` | 加密密钥（32 位） | ❌ |
+
+### 十、相关文档
+
+- [项目主文档](../README.md) - 项目介绍和快速开始
+- [Docker 部署详细指南](../DOCKER_DEPLOY.md) - 完整 Docker 部署文档
+- [生产部署指南](./README.md) - 生产环境部署
+- [后端开发文档](../server/README.md) - 后端 API 说明
+
+---
+
+**版本**: v2.1  
+**最后更新**: 2026年2月
