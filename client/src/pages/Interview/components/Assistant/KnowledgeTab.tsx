@@ -1,9 +1,8 @@
 import React from 'react';
-import { App as AntdApp, Typography, Collapse, Tag, Empty, theme } from 'antd';
+import { App as AntdApp, Typography, Collapse, Tag, Empty, theme, Spin } from 'antd';
 import { BulbOutlined, QuestionCircleOutlined, MedicineBoxOutlined, RobotOutlined } from '@ant-design/icons';
 import { useAssistantStore } from '../../../../store/assistant.store';
 import { useThemeStore } from '../../../../store/theme.store';
-import Loading from '../../../../components/common/Loading';
 import logger from '../../../../utils/logger';
 
 const { Title, Text } = Typography;
@@ -84,8 +83,8 @@ const KnowledgeTab: React.FC = () => {
 
   if (loading) {
     return (
-      <div style={{ padding: '0 16px 16px' }}>
-        <Loading height={200} />
+      <div style={{ padding: '0 16px 16px', display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200 }}>
+        <Spin size="large" />
       </div>
     );
   }
@@ -129,7 +128,9 @@ const KnowledgeTab: React.FC = () => {
       children: (
         <div>
           {loading ? (
-            <Loading height={100} />
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 100 }}>
+              <Spin />
+            </div>
           ) : diagnosisSuggestions.length > 0 ? (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {diagnosisSuggestions.map((d) => (

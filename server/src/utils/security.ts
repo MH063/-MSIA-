@@ -3,6 +3,7 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
+import { secureLogger } from './secureLogger';
 
 /**
  * 安全响应头中间件
@@ -353,10 +354,13 @@ export function safeLog(message: string, ...args: unknown[]): void {
   // 过滤消息
   const filteredMessage = filterString(message, config);
   
-  // 过滤参数
+  // 过滤参数并转换为metadata对象
   const filteredArgs = args.map(arg => filterSensitiveData(arg, config));
+  const metadata: Record<string, unknown> = filteredArgs.length > 0 
+    ? { args: filteredArgs } 
+    : {};
   
-  console.log(filteredMessage, ...filteredArgs);
+  secureLogger.info(filteredMessage, metadata);
 }
 
 /**
@@ -371,10 +375,13 @@ export function safeError(message: string, error: Error, ...args: unknown[]): vo
   // 脱敏错误
   const sanitizedError = sanitizeError(error, config);
   
-  // 过滤其他参数
+  // 过滤其他参数并转换为metadata对象
   const filteredArgs = args.map(arg => filterSensitiveData(arg, config));
+  const metadata: Record<string, unknown> = filteredArgs.length > 0 
+    ? { args: filteredArgs } 
+    : {};
   
-  console.error(filteredMessage, sanitizedError, ...filteredArgs);
+  secureLogger.error(filteredMessage, sanitizedError, metadata);
 }
 
 /**

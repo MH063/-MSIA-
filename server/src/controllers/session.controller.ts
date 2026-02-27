@@ -270,11 +270,12 @@ export const updateSession = async (req: Request, res: Response) => {
     }
 
     // 验证其他字段（婚育史、月经史、辅助检查等）
-    const otherFields = ['maritalHistory', 'menstrualHistory', 'fertilityHistory', 'specialistExam', 'auxiliaryExams', 'generalInfo'];
+    const otherFields: (keyof SessionData)[] = ['maritalHistory', 'menstrualHistory', 'fertilityHistory', 'specialistExam', 'auxiliaryExams', 'generalInfo'];
     for (const field of otherFields) {
-      if (sessionData[field as keyof SessionData]) {
-        const sanitized = sanitizeObject(sessionData[field as keyof SessionData] as Record<string, unknown>);
-        sessionData[field as keyof SessionData] = sanitized as any;
+      const fieldValue = sessionData[field];
+      if (fieldValue) {
+        const sanitized = sanitizeObject(fieldValue as Record<string, unknown>);
+        sessionData[field] = sanitized as JsonData;
       }
     }
 

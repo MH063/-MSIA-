@@ -12,10 +12,10 @@ import {
   Badge, 
   Progress,
   Empty,
-  Skeleton,
   Alert,
   Tooltip,
-  theme
+  theme,
+  Skeleton
 } from 'antd';
 import logger from '../../../../utils/logger';
 import { 
@@ -218,7 +218,7 @@ const EnhancedDiagnosisPanel: React.FC<EnhancedDiagnosisPanelProps> = ({
 
   const renderLoadingSkeleton = () => (
     <div style={{ padding: 16 }}>
-      <Skeleton active paragraph={{ rows: 6 }} />
+      <Skeleton paragraph={{ rows: 6 }} />
     </div>
   );
 

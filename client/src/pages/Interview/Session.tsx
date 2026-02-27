@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { App as AntdApp, Form, Button, Space, Tooltip, Popconfirm, Alert, theme } from 'antd';
-import Loader from '../../components/common/Loader';
+import { App as AntdApp, Form, Button, Space, Tooltip, Popconfirm, Alert, theme, Spin } from 'antd';
 import LazyModal from '../../components/lazy/LazyModal';
 import { ArrowLeftOutlined, ArrowRightOutlined, EyeOutlined, FilePdfOutlined, FileWordOutlined, UndoOutlined, RobotOutlined } from '@ant-design/icons';
 import dayjs, { type Dayjs } from 'dayjs';
@@ -263,11 +262,7 @@ const Session: React.FC = () => {
   const setKnowledgeLoading = useAssistantStore(s => s.knowledge.setKnowledgeLoading);
   const setKnowledgeError = useAssistantStore(s => s.knowledge.setKnowledgeError);
 
-  // Fetch Mappings
-  // Mappings are loaded in the main loading effect below
-  
   const [loading, setLoading] = useState(false);
-  const [loadingProgress, setLoadingProgress] = useState(0);
   const [isValidId, setIsValidId] = useState<boolean | null>(null);
   const [sessionStatus, setSessionStatus] = useState<string>('draft');
   const [currentSection, setCurrentSection] = useState('general');
@@ -2883,11 +2878,8 @@ const Session: React.FC = () => {
     const load = async () => {
       const isNew = !id || id === 'new';
       setLoading(!isNew);
-      setLoadingProgress(isNew ? 100 : 0);
 
       try {
-        // Phase 1: Load Mappings (0-40%)
-        if (!isNew) setLoadingProgress(10);
         type MappingPayload = { nameToKey: Record<string, string>; synonyms: Record<string, string> };
         const mapRes = await api.get('/mapping/symptoms') as ApiResponse<MappingPayload>;
         const mapPayload = unwrapData<MappingPayload>(mapRes);
@@ -2910,25 +2902,14 @@ const Session: React.FC = () => {
          setKnowledgeMappings({ nameToKey: {}, keyToName: {} });
       }
 
-      if (!isNew) setLoadingProgress(40);
-
-      // Phase 2: Load Session (40-100%)
       if (isNew) {
         setLoading(false);
         return;
       }
-
-      setLoadingProgress(50);
       
       try {
         const res = await api.get(`/sessions/${id}`) as ApiResponse<SessionRes>;
         const data = unwrapData<SessionRes>(res);
-        
-        setLoadingProgress(90);
-        
-        // Wait a bit to show 100%
-        setLoadingProgress(100);
-        await new Promise(resolve => setTimeout(resolve, 500));
         
         if (data) {
           const normalizeMaybeGarbledString = (v: unknown): string | undefined => {
@@ -3414,11 +3395,16 @@ const Session: React.FC = () => {
   }
 
   if (loading && !isValidId) {
-    return <Loader fullscreen percent={loadingProgress} />;
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <Spin size="large" />
+      </div>
+    );
   }
 
   return (
-    <InterviewLayout
+    <>
+      <InterviewLayout
         navigation={
           <NavigationPanel
             currentSection={currentSection}
@@ -3662,6 +3648,7 @@ const Session: React.FC = () => {
         </>
       }
     />
+    </>
   );
 };
 

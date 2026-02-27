@@ -2,6 +2,8 @@
  * 安全配置 - 环境相关安全设置
  */
 
+import { secureLogger } from '../utils/secureLogger';
+
 export interface SecurityEnvironmentConfig {
   isProduction: boolean;
   isDevelopment: boolean;
@@ -153,7 +155,7 @@ export function validateConfig(): void {
     if (securityConfig.isProduction) {
       throw new Error(`生产环境缺少必要的环境变量: ${missingVars.join(', ')}`);
     } else {
-      console.warn(`警告: 缺少环境变量: ${missingVars.join(', ')}`);
+      secureLogger.warn('警告: 缺少环境变量', { missingVars });
     }
   }
 
@@ -164,7 +166,7 @@ export function validateConfig(): void {
       if (securityConfig.isProduction) {
         throw new Error('生产环境JWT_SECRET长度至少32位');
       } else {
-        console.warn('警告: JWT_SECRET长度建议至少32位');
+        secureLogger.warn('警告: JWT_SECRET长度建议至少32位');
       }
     }
     // 检查是否使用默认值
@@ -173,7 +175,7 @@ export function validateConfig(): void {
       if (securityConfig.isProduction) {
         throw new Error('生产环境JWT_SECRET不能使用默认值或弱密钥');
       } else {
-        console.warn('警告: JWT_SECRET使用了弱密钥，生产环境请使用强密钥');
+        secureLogger.warn('警告: JWT_SECRET使用了弱密钥，生产环境请使用强密钥');
       }
     }
   }
@@ -185,7 +187,7 @@ export function validateConfig(): void {
       if (securityConfig.isProduction) {
         throw new Error('生产环境ENCRYPTION_KEY必须为32位');
       } else {
-        console.warn('警告: ENCRYPTION_KEY应为32位');
+        secureLogger.warn('警告: ENCRYPTION_KEY应为32位');
       }
     }
   }
@@ -198,7 +200,7 @@ export function validateConfig(): void {
       if (securityConfig.isProduction) {
         throw new Error('生产环境DATABASE_URL不能使用默认密码');
       } else {
-        console.warn('警告: DATABASE_URL使用了默认密码，生产环境请更换');
+        secureLogger.warn('警告: DATABASE_URL使用了默认密码，生产环境请更换');
       }
     }
   }
@@ -211,7 +213,7 @@ export function validateConfig(): void {
       if (securityConfig.isProduction) {
         throw new Error('生产环境REDIS_URL格式无效');
       } else {
-        console.warn('警告: REDIS_URL格式可能无效');
+        secureLogger.warn('警告: REDIS_URL格式可能无效');
       }
     }
   }

@@ -1,7 +1,8 @@
 import React from 'react';
-import { Form, Input, Card, Row, Col, theme, Select } from 'antd';
+import { Form, Input, Card, Row, Col, theme, Select, Typography } from 'antd';
 
 const { TextArea } = Input;
+const { Title } = Typography;
 
 // 健康状况选项
 const healthStatusOptions = [
@@ -126,7 +127,17 @@ const FamilyHistorySection: React.FC = () => {
 
   return (
     <div className="section-container">
-      <Card type="inner" title="家族史 (Family History)" size="small">
+      <Title level={4} style={{ 
+        marginBottom: 24, 
+        fontWeight: 600,
+        color: 'var(--msia-text-primary)',
+        letterSpacing: 0.5,
+        paddingBottom: 12,
+        borderBottom: '2px solid var(--msia-primary)',
+        display: 'inline-block',
+      }}>家族史 <span style={{ fontSize: 14, fontWeight: 400, color: 'var(--msia-text-tertiary)', marginLeft: 8 }}>Family History</span></Title>
+      
+      <Card type="inner" title={<span style={{ fontWeight: 600, color: 'var(--msia-text-secondary)' }}>【家族史】</span>} size="small">
         <Row gutter={24}>
           <Col span={12}>
             <Form.Item name={['familyHistory', 'father']} label="父亲健康状况">

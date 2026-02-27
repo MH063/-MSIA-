@@ -71,29 +71,23 @@ class SecureLogger {
   private outputToConsole(entry: LogEntry): void {
     const prefix = `[${entry.timestamp}] [${entry.level.toUpperCase()}]`;
     const message = `${prefix} ${entry.message}`;
+    const output: string[] = [message];
 
-    // 根据级别选择输出方法
-    switch (entry.level) {
-      case LogLevel.ERROR:
-        console.error(message);
-        if (entry.stack) {
-          console.error(entry.stack);
-        }
-        break;
-      case LogLevel.WARN:
-        console.warn(message);
-        break;
-      case LogLevel.INFO:
-        console.info(message);
-        break;
-      case LogLevel.DEBUG:
-        console.debug(message);
-        break;
+    if (entry.stack) {
+      output.push(entry.stack);
     }
 
-    // 输出元数据（已过滤）
     if (entry.metadata && Object.keys(entry.metadata).length > 0) {
-      console.log(prefix, 'Metadata:', entry.metadata);
+      output.push(`${prefix} Metadata: ${JSON.stringify(entry.metadata)}`);
+    }
+
+    const fullOutput = output.join('\n') + '\n';
+
+    // 根据级别选择输出流
+    if (entry.level === LogLevel.ERROR || entry.level === LogLevel.WARN) {
+      process.stderr.write(fullOutput);
+    } else {
+      process.stdout.write(fullOutput);
     }
   }
 

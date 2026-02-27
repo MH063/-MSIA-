@@ -13,13 +13,13 @@ import {
   Empty,
   Spin,
   Divider,
-  Skeleton,
   Alert,
   Tooltip,
   Popover,
   Row,
   Col,
-  theme
+  theme,
+  Skeleton
 } from 'antd';
 import logger from '../../../../utils/logger';
 import { 
@@ -279,7 +279,7 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
     if (loading.symptomMap) {
       return (
         <div style={{ padding: 24 }}>
-          <Skeleton active paragraph={{ rows: 6 }} />
+          <Skeleton paragraph={{ rows: 6 }} />
         </div>
       );
     }
@@ -565,9 +565,9 @@ const IntelligentKnowledgeBase: React.FC<IntelligentKnowledgeBaseProps> = ({
     if (loading.diseases) {
       return (
         <div style={{ padding: 24 }}>
-          <Skeleton active paragraph={{ rows: 3 }} />
+          <Skeleton paragraph={{ rows: 3 }} />
           <Divider />
-          <Skeleton active paragraph={{ rows: 3 }} />
+          <Skeleton paragraph={{ rows: 3 }} />
         </div>
       );
     }

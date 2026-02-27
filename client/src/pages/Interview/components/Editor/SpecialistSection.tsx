@@ -8,9 +8,17 @@ const { Option } = Select;
 const SpecialistSection: React.FC = () => {
   return (
     <div className="section-container">
-      <Title level={4} style={{ marginBottom: 24 }}>专科情况 (Specialist Examination)</Title>
+      <Title level={4} style={{ 
+        marginBottom: 24, 
+        fontWeight: 600,
+        color: 'var(--msia-text-primary)',
+        letterSpacing: 0.5,
+        paddingBottom: 12,
+        borderBottom: '2px solid var(--msia-primary)',
+        display: 'inline-block',
+      }}>专科情况 <span style={{ fontSize: 14, fontWeight: 400, color: 'var(--msia-text-tertiary)', marginLeft: 8 }}>Specialist Examination</span></Title>
       
-      <Card type="inner" title="专科检查" size="small">
+      <Card type="inner" title={<span style={{ fontWeight: 600, color: 'var(--msia-text-secondary)' }}>【专科检查】</span>} size="small">
         <div style={{ marginBottom: 16 }}>
             <Text type="secondary">请根据具体科室要求记录专科检查情况。</Text>
         </div>

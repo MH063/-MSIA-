@@ -1,14 +1,12 @@
 import React from 'react';
 import { App as AntdApp, Button, Grid, Layout, Menu, Space, theme } from 'antd';
-import Loader from '../components/common/Loader';
 import LazyDrawer from '../components/lazy/LazyDrawer';
 import { MenuOutlined, SunOutlined, MoonOutlined } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import api, { unwrapData } from '../utils/api';
-import type { ApiResponse } from '../utils/api';
 import Logo from '../components/Logo';
 import { useThemeStore } from '../store/theme.store';
 import logger from '../utils/logger';
+import api from '../utils/api';
 
 const { Header, Content, Footer } = Layout;
 const { useBreakpoint } = Grid;
@@ -23,21 +21,9 @@ const MainLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const isMobile = !screens.md;
-  const [appLoading, setAppLoading] = React.useState(() => {
-    const p = location.pathname || '/';
-    const noLoader = p === '/'
-      || p.startsWith('/login')
-      || p.startsWith('/register')
-      || p === '/home'
-      || p === '/dashboard'
-      || p === '/interview'
-      || p === '/sessions'
-      || p === '/knowledge'
-      || p === '/interview/new';
-    return !noLoader;
-  });
-  const [loadingProgress, setLoadingProgress] = React.useState(() => (appLoading ? 0 : 100));
+
   const [authChecking, setAuthChecking] = React.useState(false);
+  const hasCheckedAuth = React.useRef(false);
 
   const items = [
     { key: '/home', label: '首页' },
@@ -48,8 +34,10 @@ const MainLayout: React.FC = () => {
   ];
 
   React.useEffect(() => {
+    if (hasCheckedAuth.current) return;
+
     const p = location.pathname || '/';
-    const noLoader = p === '/'
+    const noAuthCheck = p === '/'
       || p.startsWith('/login')
       || p.startsWith('/register')
       || p === '/home'
@@ -58,62 +46,44 @@ const MainLayout: React.FC = () => {
       || p === '/sessions'
       || p === '/knowledge'
       || p === '/interview/new';
-    if (noLoader) {
-      setAppLoading(false);
-      setLoadingProgress(100);
+    if (noAuthCheck) {
       setAuthChecking(false);
+      hasCheckedAuth.current = true;
       return;
     }
-    
-    // Initial progress
-    setAppLoading(true);
-    setLoadingProgress(0);
-    
-    let alive = true;
+
+    hasCheckedAuth.current = true;
     setAuthChecking(true);
-    
+
     (async () => {
       try {
-        setLoadingProgress(10);
-        // Wait for a small delay to simulate initial connection
-        await new Promise(r => setTimeout(r, 100));
-        
-        setLoadingProgress(30);
-        const res = (await api.get('/auth/me', { _skipAuthRefresh: true })) as ApiResponse<
-          { operatorId: number; role: 'admin' | 'doctor'; name?: string } | { data: { operatorId: number; role: 'admin' | 'doctor'; name?: string } }
-        >;
-        
-        if (!alive) return;
-        setLoadingProgress(70);
-        
-        const payload = unwrapData<{ operatorId: number; role: 'admin' | 'doctor'; name?: string }>(res);
-        
-        setLoadingProgress(90);
-        
-        if (!res?.success || !payload) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+        const response = await fetch(`${import.meta.env.PROD ? '' : `http://${window.location.hostname}:4000`}/api/auth/me`, {
+          method: 'GET',
+          credentials: 'include',
+          signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+
+        if (response.status === 401) {
           navigate(`/login?redirect=${encodeURIComponent(p)}`, { replace: true });
+        } else if (response.ok) {
+          const data = await response.json();
+          if (!data?.success || !data?.data) {
+            navigate(`/login?redirect=${encodeURIComponent(p)}`, { replace: true });
+          }
         } else {
-          // Success
-          setLoadingProgress(100);
-          // Wait a bit to show 100%
-          setTimeout(() => {
-            if (alive) setAppLoading(false);
-          }, 500);
+          navigate(`/login?redirect=${encodeURIComponent(p)}`, { replace: true });
         }
       } catch {
-        if (!alive) return;
-        setLoadingProgress(100);
-        setTimeout(() => {
-           navigate(`/login?redirect=${encodeURIComponent(p)}`, { replace: true });
-           if (alive) setAppLoading(false);
-        }, 500);
+        navigate(`/login?redirect=${encodeURIComponent(p)}`, { replace: true });
       } finally {
-        if (alive) setAuthChecking(false);
+        setAuthChecking(false);
       }
     })();
-    return () => {
-      alive = false;
-    };
   }, [location.pathname, navigate]);
 
   const selectedKey = React.useMemo(() => {
@@ -134,10 +104,6 @@ const MainLayout: React.FC = () => {
 
   const isInterviewSession = location.pathname.startsWith('/interview/') && location.pathname !== '/interview';
   const isLogin = React.useMemo(() => selectedKey === '/login', [selectedKey]);
-
-  if (appLoading) {
-    return <Loader fullscreen percent={loadingProgress} />;
-  }
 
   if (isInterviewSession) {
     return (
@@ -218,7 +184,6 @@ const MainLayout: React.FC = () => {
               } catch (e) {
                 logger.warn('[MainLayout] 退出登录接口调用失败', e);
               }
-              // 认证信息通过 Cookie 传递，服务端已清除 Cookie
               message.success('已退出登录');
               navigate('/login', { replace: true });
             }}

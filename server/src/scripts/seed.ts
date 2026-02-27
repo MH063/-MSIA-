@@ -5,27 +5,39 @@ import path from 'path';
 
 dotenv.config();
 
-// 知识库文件目录
 const KNOWLEDGE_BASE_DIR = path.join(__dirname, '../../knowledge_base');
 
-// 读取知识库JSON文件
-function loadKnowledgeFromFile(filename: string): any | null {
+interface KnowledgeData {
+  symptomKey: string;
+  displayName: string;
+  requiredQuestions?: string[];
+  associatedSymptoms?: string[];
+  redFlags?: string[];
+  physicalSigns?: string[];
+}
+
+interface TransformResult extends KnowledgeData {
+  requiredQuestions: string[];
+  associatedSymptoms: string[];
+  redFlags: string[];
+  physicalSigns: string[];
+}
+
+function loadKnowledgeFromFile(filename: string): KnowledgeData | null {
   const filePath = path.join(KNOWLEDGE_BASE_DIR, filename);
   try {
     const content = fs.readFileSync(filePath, 'utf-8');
-    return JSON.parse(content);
+    return JSON.parse(content) as KnowledgeData;
   } catch (error) {
-    console.warn(`[Seed] 无法读取文件 ${filename}:`, error);
+    process.stderr.write(`[Seed] 无法读取文件 ${filename}: ${error}\n`);
     return null;
   }
 }
 
-// 将知识库数据转换为数据库格式
-function transformKnowledge(data: any): any {
+function transformKnowledge(data: KnowledgeData): TransformResult {
   return {
     symptomKey: data.symptomKey,
     displayName: data.displayName,
-    // 保持原始格式，不进行转换
     requiredQuestions: data.requiredQuestions || [],
     associatedSymptoms: data.associatedSymptoms || [],
     redFlags: data.redFlags || [],
@@ -33,15 +45,14 @@ function transformKnowledge(data: any): any {
   };
 }
 
-async function main() {
-  console.log('Start seeding from knowledge_base files...');
-  console.log(`Knowledge base directory: ${KNOWLEDGE_BASE_DIR}`);
+async function main(): Promise<void> {
+  process.stdout.write('Start seeding from knowledge_base files...\n');
+  process.stdout.write(`Knowledge base directory: ${KNOWLEDGE_BASE_DIR}\n`);
 
-  // 获取所有JSON文件
   const files = fs.readdirSync(KNOWLEDGE_BASE_DIR)
     .filter(f => f.endsWith('.json'));
   
-  console.log(`Found ${files.length} knowledge base files`);
+  process.stdout.write(`Found ${files.length} knowledge base files\n`);
 
   let successCount = 0;
   let failCount = 0;
@@ -62,24 +73,24 @@ async function main() {
         create: transformedData,
       });
       
-      console.log(`✓ Upserted: ${knowledge.displayName} (${knowledge.symptomKey})`);
+      process.stdout.write(`✓ Upserted: ${knowledge.displayName} (${knowledge.symptomKey})\n`);
       successCount++;
     } catch (error) {
-      console.error(`✗ Failed to upsert ${file}:`, error);
+      process.stderr.write(`✗ Failed to upsert ${file}: ${error}\n`);
       failCount++;
     }
   }
 
-  console.log('\n========================================');
-  console.log(`Seeding finished.`);
-  console.log(`Success: ${successCount}`);
-  console.log(`Failed: ${failCount}`);
-  console.log('========================================');
+  process.stdout.write('\n========================================\n');
+  process.stdout.write('Seeding finished.\n');
+  process.stdout.write(`Success: ${successCount}\n`);
+  process.stdout.write(`Failed: ${failCount}\n`);
+  process.stdout.write('========================================\n');
 }
 
 main()
-  .catch((e) => {
-    console.error(e);
+  .catch((e: Error) => {
+    process.stderr.write(`${e}\n`);
     process.exit(1);
   })
   .finally(async () => {

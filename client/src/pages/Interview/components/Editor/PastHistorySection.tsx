@@ -144,7 +144,15 @@ const PastHistorySection: React.FC<PastHistorySectionProps> = ({ form }) => {
 
   return (
     <div className="section-container">
-      <Title level={4} style={{ marginBottom: 24 }}>既往史 (Past History)</Title>
+      <Title level={4} style={{ 
+        marginBottom: 24, 
+        fontWeight: 600,
+        color: 'var(--msia-text-primary)',
+        letterSpacing: 0.5,
+        paddingBottom: 12,
+        borderBottom: '2px solid var(--msia-primary)',
+        display: 'inline-block',
+      }}>既往史 <span style={{ fontSize: 14, fontWeight: 400, color: 'var(--msia-text-tertiary)', marginLeft: 8 }}>Past History</span></Title>
 
       {/* 1. 一般健康状况 */}
       <Card type="inner" title="【既往一般健康状况】" size="small" style={{ marginBottom: 24 }}>   

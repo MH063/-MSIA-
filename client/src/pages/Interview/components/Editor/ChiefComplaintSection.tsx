@@ -197,7 +197,15 @@ const ChiefComplaintSection: React.FC<ChiefComplaintSectionProps> = ({ form }) =
 
   return (
     <div className="section-container">
-      <Title level={4} style={{ marginBottom: 24 }}>主诉 (Chief Complaint)</Title>
+      <Title level={4} style={{ 
+        marginBottom: 24, 
+        fontWeight: 600,
+        color: 'var(--msia-text-primary)',
+        letterSpacing: 0.5,
+        paddingBottom: 12,
+        borderBottom: '2px solid var(--msia-primary)',
+        display: 'inline-block',
+      }}>主诉 <span style={{ fontSize: 14, fontWeight: 400, color: 'var(--msia-text-tertiary)', marginLeft: 8 }}>Chief Complaint</span></Title>
 
       {/* 1. 智能识别区 */}
       <Card type="inner" title="【智能识别区】" size="small" style={{ marginBottom: 24 }}>

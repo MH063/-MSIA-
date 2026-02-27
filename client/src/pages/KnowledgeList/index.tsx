@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { Layout, Typography, Tabs, Space, Empty, Input, Tree, Breadcrumb, Button, Tag, theme, Grid, Drawer, FloatButton, message } from 'antd';
+import { Layout, Typography, Tabs, Space, Empty, Input, Tree, Breadcrumb, Button, Tag, theme, Grid, Drawer, FloatButton, message, Spin } from 'antd';
 import { BookOutlined, ShareAltOutlined, FileTextOutlined, DeploymentUnitOutlined, MenuOutlined } from '@ant-design/icons';
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
@@ -8,7 +8,6 @@ import { useSearchParams } from 'react-router-dom';
 import api, { unwrapData } from '../../utils/api';
 import type { ApiResponse } from '../../utils/api';
 import KnowledgeGraph from './components/KnowledgeGraph';
-import Loading from '../../components/common/Loading';
 import { useThemeStore } from '../../store/theme.store';
 import logger from '../../utils/logger';
 import './index.css';
@@ -407,7 +406,7 @@ ${selectedItem.questions?.map((q: string) => `- ${q}`).join('\n') || '暂无'}
           ) : (
             <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
               {loading ? (
-                <Loading />
+                <Spin size="large" />
               ) : (
                 <div style={{ width: '100%' }}>
                   {searchTerm ? (
@@ -418,7 +417,9 @@ ${selectedItem.questions?.map((q: string) => `- ${q}`).join('\n') || '暂无'}
                       <div style={{ marginBottom: 24 }}>
                         <Title level={5} style={{ marginBottom: 8 }}>病历匹配</Title>
                         {sessionsLoading ? (
-                          <Loading height={200} />
+                          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200 }}>
+                            <Spin />
+                          </div>
                         ) : sessionResults.length > 0 ? (
                           <div style={{ display: 'grid', gap: 12 }}>
                             {sessionResults.map((s) => (

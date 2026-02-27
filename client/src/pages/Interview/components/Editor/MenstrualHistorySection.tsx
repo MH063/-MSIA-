@@ -19,7 +19,7 @@ const MenstrualHistorySection: React.FC = () => {
 
   return (
     <div className="section-container">
-      <Card type="inner" title="月经史 (Menstrual History)" size="small">
+      <Card type="inner" title={<span style={{ fontWeight: 600, color: 'var(--msia-text-secondary)' }}>【月经史】</span>} size="small" style={{ marginBottom: 24 }}>
         <Row gutter={[12, 12]}>
           <Col xs={24} sm={12} md={6}>
             <Form.Item name={['menstrualHistory', 'age']} label="初潮年龄(岁)">

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import * as d3 from 'd3';
-import { Tag, Tooltip, Button, Space, Typography, Progress, Skeleton, Empty, theme } from 'antd';
+import { Tag, Tooltip, Button, Space, Typography, Progress, Empty, theme, Skeleton } from 'antd';
 import { 
   BranchesOutlined, 
   ZoomInOutlined, 
@@ -345,7 +345,7 @@ const SymptomGraph: React.FC<SymptomGraphProps> = ({
     if (loading) {
       return (
         <div style={{ padding: 24 }}>
-          <Skeleton active paragraph={{ rows: 8 }} />
+          <Skeleton paragraph={{ rows: 8 }} />
         </div>
       );
     }

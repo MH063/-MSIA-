@@ -24,7 +24,7 @@ type EvalSummary = {
   latency_ms: { avg: number; p50: number; p90: number; p95: number; p99: number; max: number };
 };
 
-function percent(n: number, d: number) {
+function percent(n: number, d: number): number {
   if (!d) {return 0;}
   return (n / d) * 100;
 }
@@ -33,7 +33,7 @@ function isRange(v: DurationValue | null): v is { min: number; max: number } {
   return Boolean(v && typeof v === 'object');
 }
 
-function equalDurationValue(a: DurationValue | null, b: DurationValue | null) {
+function equalDurationValue(a: DurationValue | null, b: DurationValue | null): boolean {
   if (a === null && b === null) {return true;}
   if (a === null || b === null) {return false;}
   if (typeof a === 'number' && typeof b === 'number') {return a === b;}
@@ -41,11 +41,11 @@ function equalDurationValue(a: DurationValue | null, b: DurationValue | null) {
   return false;
 }
 
-function makeId(prefix: string, n: number) {
+function makeId(prefix: string, n: number): string {
   return `${prefix}_${String(n).padStart(4, '0')}`;
 }
 
-function roman(n: number) {
+function roman(n: number): string {
   const map: Array<[number, string]> = [
     [1000, 'M'],
     [900, 'CM'],
@@ -72,7 +72,7 @@ function roman(n: number) {
   return out;
 }
 
-function chinese(n: number) {
+function chinese(n: number): string {
   const digit = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
   if (n < 10) {return digit[n] || String(n);}
   if (n === 10) {return '十';}
@@ -82,14 +82,13 @@ function chinese(n: number) {
   return `${digit[tens]}十${ones ? digit[ones] : ''}`;
 }
 
-function percentile(sorted: number[], p: number) {
+function percentile(sorted: number[], p: number): number {
   if (sorted.length === 0) {return 0;}
   const idx = Math.min(sorted.length - 1, Math.max(0, Math.floor((p / 100) * sorted.length)));
   return sorted[idx];
 }
 
 function makeCases(): TestCase[] {
-  const knownSymptoms = Object.keys(SYMPTOM_NAME_TO_KEY);
   const symptomVariants: Array<{ canonical: string; phrases: string[] }> = [
     { canonical: '胸痛', phrases: ['胸痛', '胸口疼', '胸部疼痛', '胸口痛'] },
     { canonical: '腹痛', phrases: ['腹痛', '肚子疼', '胃痛', '上腹痛', '右下腹痛'] },
@@ -186,6 +185,7 @@ function makeCases(): TestCase[] {
   out.push(...edge);
 
   const cap = 240;
+  const knownSymptoms = Object.keys(SYMPTOM_NAME_TO_KEY);
   const truncated = out.slice(0, cap);
   for (let i = 0; i < truncated.length; i += 1) {
     const c = truncated[i];
@@ -207,7 +207,7 @@ function loadFromJson(filePath: string): TestCase[] {
   return parsed as TestCase[];
 }
 
-function main() {
+function main(): void {
   const args = process.argv.slice(2);
   const jsonPath = args.find((a) => a.startsWith('--cases='))?.slice('--cases='.length);
   const outPath = args.find((a) => a.startsWith('--out='))?.slice('--out='.length);
@@ -278,11 +278,10 @@ function main() {
     fs.writeFileSync(outPath, outText, 'utf-8');
   }
 
-  console.log(outText);
+  process.stdout.write(`${outText}\n`);
   if (failures.length > 0) {
     process.exitCode = 1;
   }
 }
 
 main();
-

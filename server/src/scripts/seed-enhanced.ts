@@ -5,17 +5,14 @@ import path from 'path';
 
 dotenv.config();
 
-// 知识库文件目录
 const KNOWLEDGE_BASE_DIR = path.join(__dirname, '../../knowledge_base');
 
-// 数据校验结果类型
 interface ValidationResult {
   isValid: boolean;
   errors: string[];
   warnings: string[];
 }
 
-// 同步结果类型
 interface SyncResult {
   file: string;
   symptomKey: string;
@@ -25,36 +22,59 @@ interface SyncResult {
   error?: string;
 }
 
-/**
- * 读取知识库JSON文件
- */
-function loadKnowledgeFromFile(filename: string): any | null {
+interface SymptomData {
+  symptomKey: string;
+  displayName: string;
+  requiredQuestions?: string[];
+  associatedSymptoms?: string[];
+  redFlags?: string[];
+  physicalSigns?: string[];
+  category?: string;
+  priority?: string;
+  questions?: unknown[];
+  physicalExamination?: unknown[];
+}
+
+interface DbSymptomData extends SymptomData {
+  updatedAt: Date;
+}
+
+const FIELDS_TO_COMPARE = [
+  'displayName',
+  'requiredQuestions',
+  'associatedSymptoms',
+  'redFlags',
+  'physicalSigns'
+] as const;
+
+function loadKnowledgeFromFile(filename: string): SymptomData | null {
   const filePath = path.join(KNOWLEDGE_BASE_DIR, filename);
   try {
     const content = fs.readFileSync(filePath, 'utf-8');
-    const data = JSON.parse(content);
+    const data = JSON.parse(content) as unknown;
     
-    // 验证必要字段
-    if (!data.symptomKey || !data.displayName) {
-      console.warn(`[Seed] 文件 ${filename} 缺少必要字段 (symptomKey 或 displayName)`);
+    if (!data || typeof data !== 'object') {
+      process.stderr.write(`[Seed] 文件 ${filename} 内容无效\n`);
       return null;
     }
     
-    return data;
+    const typedData = data as Record<string, unknown>;
+    if (!typedData.symptomKey || !typedData.displayName) {
+      process.stderr.write(`[Seed] 文件 ${filename} 缺少必要字段 (symptomKey 或 displayName)\n`);
+      return null;
+    }
+    
+    return typedData as SymptomData;
   } catch (error) {
-    console.warn(`[Seed] 无法读取文件 ${filename}:`, error);
+    process.stderr.write(`[Seed] 无法读取文件 ${filename}: ${error}\n`);
     return null;
   }
 }
 
-/**
- * 验证症状数据
- */
-function validateSymptomData(data: any, _filename: string): ValidationResult {
+function validateSymptomData(data: SymptomData): ValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
   
-  // 检查必要字段
   if (!data.symptomKey || typeof data.symptomKey !== 'string') {
     errors.push('缺少或无效的 symptomKey');
   }
@@ -63,20 +83,18 @@ function validateSymptomData(data: any, _filename: string): ValidationResult {
     errors.push('缺少或无效的 displayName');
   }
   
-  // 检查 symptomKey 格式（只允许小写字母、数字和下划线）
   if (data.symptomKey && !/^[a-z][a-z0-9_]*$/.test(data.symptomKey)) {
     warnings.push(`symptomKey '${data.symptomKey}' 建议使用小写字母、数字和下划线，且以小写字母开头`);
   }
   
-  // 检查数组字段
-  const arrayFields = ['requiredQuestions', 'associatedSymptoms', 'redFlags', 'physicalSigns'];
+  const arrayFields = ['requiredQuestions', 'associatedSymptoms', 'redFlags', 'physicalSigns'] as const;
   for (const field of arrayFields) {
-    if (data[field] && !Array.isArray(data[field])) {
+    const value = data[field];
+    if (value !== undefined && !Array.isArray(value)) {
       errors.push(`${field} 必须是数组类型`);
     }
   }
   
-  // 检查重复项
   if (data.requiredQuestions && Array.isArray(data.requiredQuestions)) {
     const uniqueQuestions = new Set(data.requiredQuestions);
     if (uniqueQuestions.size !== data.requiredQuestions.length) {
@@ -84,28 +102,13 @@ function validateSymptomData(data: any, _filename: string): ValidationResult {
     }
   }
   
-  return {
-    isValid: errors.length === 0,
-    errors,
-    warnings
-  };
+  return { isValid: errors.length === 0, errors, warnings };
 }
 
-/**
- * 比较两个症状数据，找出差异
- */
-function findDifferences(oldData: any, newData: any): string[] {
+function findDifferences(oldData: SymptomData, newData: SymptomData): string[] {
   const changes: string[] = [];
   
-  const fieldsToCompare = [
-    'displayName',
-    'requiredQuestions',
-    'associatedSymptoms',
-    'redFlags',
-    'physicalSigns'
-  ];
-  
-  for (const field of fieldsToCompare) {
+  for (const field of FIELDS_TO_COMPARE) {
     const oldValue = JSON.stringify(oldData[field]);
     const newValue = JSON.stringify(newData[field]);
     
@@ -125,28 +128,19 @@ function findDifferences(oldData: any, newData: any): string[] {
   return changes;
 }
 
-/**
- * 智能合并数据
- * 保留数据库中可能存在的额外字段，同时更新核心字段
- */
-function mergeSymptomData(dbData: any, fileData: any): any {
+function mergeSymptomData(dbData: SymptomData, fileData: SymptomData): DbSymptomData {
   return {
-    ...dbData,  // 保留数据库中的所有字段
-    // 更新核心字段
+    ...dbData,
     displayName: fileData.displayName,
     requiredQuestions: fileData.requiredQuestions || [],
     associatedSymptoms: fileData.associatedSymptoms || [],
     redFlags: fileData.redFlags || [],
     physicalSigns: fileData.physicalSigns || [],
-    // 更新时间戳
     updatedAt: new Date()
   };
 }
 
-/**
- * 同步单个症状数据
- */
-async function syncSymptom(data: any, filename: string): Promise<SyncResult> {
+async function syncSymptom(data: SymptomData, filename: string): Promise<SyncResult> {
   const result: SyncResult = {
     file: filename,
     symptomKey: data.symptomKey,
@@ -155,22 +149,18 @@ async function syncSymptom(data: any, filename: string): Promise<SyncResult> {
   };
   
   try {
-    // 检查是否已存在
     const existing = await prisma.symptomKnowledge.findUnique({
       where: { symptomKey: data.symptomKey }
     });
     
     if (existing) {
-      // 检查是否有变化
-      const changes = findDifferences(existing, data);
+      const changes = findDifferences(existing as unknown as SymptomData, data);
       
       if (changes.length === 0) {
-        // 数据未变化
         result.status = 'unchanged';
-        console.log(`  ⏸ ${data.displayName} (${data.symptomKey}) - 无变化`);
+        process.stdout.write(`  ⏸ ${data.displayName} (${data.symptomKey}) - 无变化\n`);
       } else {
-        // 数据有变化，执行更新
-        const mergedData = mergeSymptomData(existing, data);
+        const mergedData = mergeSymptomData(existing as unknown as SymptomData, data);
         
         await prisma.symptomKnowledge.update({
           where: { symptomKey: data.symptomKey },
@@ -179,11 +169,10 @@ async function syncSymptom(data: any, filename: string): Promise<SyncResult> {
         
         result.status = 'updated';
         result.changes = changes;
-        console.log(`  📝 ${data.displayName} (${data.symptomKey}) - 已更新`);
-        changes.forEach(change => console.log(`     - ${change}`));
+        process.stdout.write(`  📝 ${data.displayName} (${data.symptomKey}) - 已更新\n`);
+        changes.forEach(change => process.stdout.write(`     - ${change}\n`));
       }
     } else {
-      // 新建记录
       await prisma.symptomKnowledge.create({
         data: {
           symptomKey: data.symptomKey,
@@ -200,21 +189,19 @@ async function syncSymptom(data: any, filename: string): Promise<SyncResult> {
       });
       
       result.status = 'created';
-      console.log(`  ✓ ${data.displayName} (${data.symptomKey}) - 新建`);
+      process.stdout.write(`  ✓ ${data.displayName} (${data.symptomKey}) - 新建\n`);
     }
     
     return result;
-  } catch (error: any) {
+  } catch (error) {
+    const err = error as Error;
     result.status = 'failed';
-    result.error = error.message;
-    console.error(`  ✗ ${data.displayName} (${data.symptomKey}) - 失败:`, error.message);
+    result.error = err.message;
+    process.stderr.write(`  ✗ ${data.displayName} (${data.symptomKey}) - 失败: ${err.message}\n`);
     return result;
   }
 }
 
-/**
- * 检查 symptomKey 重复
- */
 function checkDuplicateKeys(files: string[]): Map<string, string[]> {
   const keyToFiles = new Map<string, string[]>();
   
@@ -227,7 +214,6 @@ function checkDuplicateKeys(files: string[]): Map<string, string[]> {
     }
   }
   
-  // 只返回有重复的记录
   const duplicates = new Map<string, string[]>();
   for (const [key, fileList] of keyToFiles.entries()) {
     if (fileList.length > 1) {
@@ -238,38 +224,32 @@ function checkDuplicateKeys(files: string[]): Map<string, string[]> {
   return duplicates;
 }
 
-/**
- * 主函数
- */
-async function main() {
-  console.log('========================================');
-  console.log('Enhanced Knowledge Base Seeding');
-  console.log('========================================\n');
+async function main(): Promise<void> {
+  process.stdout.write('========================================\n');
+  process.stdout.write('Enhanced Knowledge Base Seeding\n');
+  process.stdout.write('========================================\n\n');
   
-  console.log(`Knowledge base directory: ${KNOWLEDGE_BASE_DIR}\n`);
+  process.stdout.write(`Knowledge base directory: ${KNOWLEDGE_BASE_DIR}\n\n`);
   
-  // 获取所有JSON文件
   const files = fs.readdirSync(KNOWLEDGE_BASE_DIR)
     .filter(f => f.endsWith('.json'))
     .sort();
   
-  console.log(`Found ${files.length} knowledge base files\n`);
+  process.stdout.write(`Found ${files.length} knowledge base files\n\n`);
   
-  // 检查重复的 symptomKey
-  console.log('Step 1: Checking for duplicate symptom keys...');
+  process.stdout.write('Step 1: Checking for duplicate symptom keys...\n');
   const duplicates = checkDuplicateKeys(files);
   if (duplicates.size > 0) {
-    console.warn('  ⚠️ 发现重复的 symptomKey:');
+    process.stderr.write('  ⚠️ 发现重复的 symptomKey:\n');
     for (const [key, fileList] of duplicates.entries()) {
-      console.warn(`     - ${key}: ${fileList.join(', ')}`);
+      process.stderr.write(`     - ${key}: ${fileList.join(', ')}\n`);
     }
-    console.warn('');
+    process.stderr.write('\n');
   } else {
-    console.log('  ✓ 未发现重复的 symptomKey\n');
+    process.stdout.write('  ✓ 未发现重复的 symptomKey\n\n');
   }
   
-  // 验证和同步数据
-  console.log('Step 2: Validating and syncing data...\n');
+  process.stdout.write('Step 2: Validating and syncing data...\n\n');
   
   const results: SyncResult[] = [];
   let validCount = 0;
@@ -282,70 +262,65 @@ async function main() {
       continue;
     }
     
-    // 验证数据
-    const validation = validateSymptomData(data, file);
+    const validation = validateSymptomData(data);
     
     if (!validation.isValid) {
-      console.error(`\n✗ ${file}:`);
-      validation.errors.forEach(err => console.error(`   错误: ${err}`));
-      validation.warnings.forEach(warn => console.warn(`   警告: ${warn}`));
+      process.stderr.write(`\n✗ ${file}:\n`);
+      validation.errors.forEach(err => process.stderr.write(`   错误: ${err}\n`));
+      validation.warnings.forEach(warn => process.stderr.write(`   警告: ${warn}\n`));
       invalidCount++;
       continue;
     }
     
     if (validation.warnings.length > 0) {
-      console.warn(`\n⚠️  ${file}:`);
-      validation.warnings.forEach(warn => console.warn(`   警告: ${warn}`));
+      process.stderr.write(`\n⚠️  ${file}:\n`);
+      validation.warnings.forEach(warn => process.stderr.write(`   警告: ${warn}\n`));
     }
     
-    // 同步数据
     const result = await syncSymptom(data, file);
     results.push(result);
     validCount++;
   }
   
-  // 统计结果
-  console.log('\n========================================');
-  console.log('Sync Summary');
-  console.log('========================================');
+  process.stdout.write('\n========================================\n');
+  process.stdout.write('Sync Summary\n');
+  process.stdout.write('========================================\n');
   
   const created = results.filter(r => r.status === 'created').length;
   const updated = results.filter(r => r.status === 'updated').length;
   const unchanged = results.filter(r => r.status === 'unchanged').length;
   const failed = results.filter(r => r.status === 'failed').length;
   
-  console.log(`Total files:     ${files.length}`);
-  console.log(`Valid:           ${validCount}`);
-  console.log(`Invalid:         ${invalidCount}`);
-  console.log(`Created:         ${created}`);
-  console.log(`Updated:         ${updated}`);
-  console.log(`Unchanged:       ${unchanged}`);
-  console.log(`Failed:          ${failed}`);
-  console.log('========================================');
+  process.stdout.write(`Total files:     ${files.length}\n`);
+  process.stdout.write(`Valid:           ${validCount}\n`);
+  process.stdout.write(`Invalid:         ${invalidCount}\n`);
+  process.stdout.write(`Created:         ${created}\n`);
+  process.stdout.write(`Updated:         ${updated}\n`);
+  process.stdout.write(`Unchanged:       ${unchanged}\n`);
+  process.stdout.write(`Failed:          ${failed}\n`);
+  process.stdout.write('========================================\n');
   
-  // 如果有失败的，显示详细信息
   if (failed > 0) {
-    console.log('\nFailed items:');
+    process.stdout.write('\nFailed items:\n');
     results
       .filter(r => r.status === 'failed')
-      .forEach(r => console.log(`  - ${r.file}: ${r.error}`));
+      .forEach(r => process.stdout.write(`  - ${r.file}: ${r.error}\n`));
   }
   
-  // 如果有更新的，显示详细信息
   if (updated > 0) {
-    console.log('\nUpdated items:');
+    process.stdout.write('\nUpdated items:\n');
     results
       .filter(r => r.status === 'updated')
       .forEach(r => {
-        console.log(`  - ${r.displayName} (${r.symptomKey})`);
-        r.changes?.forEach(change => console.log(`     ${change}`));
+        process.stdout.write(`  - ${r.displayName} (${r.symptomKey})\n`);
+        r.changes?.forEach(change => process.stdout.write(`     ${change}\n`));
       });
   }
 }
 
 main()
-  .catch((e) => {
-    console.error('Fatal error:', e);
+  .catch((e: Error) => {
+    process.stderr.write(`Fatal error: ${e}\n`);
     process.exit(1);
   })
   .finally(async () => {

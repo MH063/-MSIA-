@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { App as AntdApp, Typography, Collapse, Tag, Empty, theme } from 'antd';
+import { App as AntdApp, Typography, Collapse, Tag, Empty, theme, Spin } from 'antd';
 import { BulbOutlined, QuestionCircleOutlined, MedicineBoxOutlined, RobotOutlined } from '@ant-design/icons';
 import api, { unwrapData } from '../../../../utils/api';
 import type { ApiResponse } from '../../../../utils/api';
 import { useQuery } from '@tanstack/react-query';
-import Loading from '../../../../components/common/Loading';
 import { useThemeStore } from '../../../../store/theme.store';
 import logger from '../../../../utils/logger';
 
@@ -212,7 +211,7 @@ const KnowledgePanel: React.FC<KnowledgePanelProps> = ({
          label: <span style={{ fontWeight: 'bold', color: token.colorPrimary }}><RobotOutlined /> 疑似诊断建议</span>,
          children: (
             <div>
-               {diagnosisLoading ? <Loading /> : (
+               {diagnosisLoading ? <Spin /> : (
                     diagnosisSuggestions.length > 0 ? (
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                             {diagnosisSuggestions.map(d => <Tag className="msia-tag" color="purple" key={d}>{d}</Tag>)}
@@ -323,7 +322,7 @@ const KnowledgePanel: React.FC<KnowledgePanelProps> = ({
 
   const renderContent = () => {
     if (loading) {
-      return <Loading />;
+      return <Spin />;
     }
     
       switch (activeSection) {

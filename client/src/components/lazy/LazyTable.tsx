@@ -1,5 +1,6 @@
 import React, { Suspense } from 'react';
-import Loading from '../common/Loading';
+import { Spin } from 'antd';
+
 type AnyProps = Record<string, unknown>;
 
 const TableLazy = React.lazy(async () => {
@@ -9,7 +10,7 @@ const TableLazy = React.lazy(async () => {
 
 const LazyTable: React.FC<AnyProps> = (props) => {
   return (
-    <Suspense fallback={<Loading height={200} />}>
+    <Suspense fallback={<div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200 }}><Spin /></div>}>
       <TableLazy {...props} />
     </Suspense>
   );

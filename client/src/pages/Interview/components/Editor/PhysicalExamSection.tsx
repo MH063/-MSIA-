@@ -7,7 +7,15 @@ const { TextArea } = Input;
 const PhysicalExamSection: React.FC = () => {
   return (
     <div className="section-container">
-      <Title level={4} style={{ marginBottom: 24 }}>体格检查 (Physical Examination)</Title>
+      <Title level={4} style={{ 
+        marginBottom: 24, 
+        fontWeight: 600,
+        color: 'var(--msia-text-primary)',
+        letterSpacing: 0.5,
+        paddingBottom: 12,
+        borderBottom: '2px solid var(--msia-primary)',
+        display: 'inline-block',
+      }}>体格检查 <span style={{ fontSize: 14, fontWeight: 400, color: 'var(--msia-text-tertiary)', marginLeft: 8 }}>Physical Examination</span></Title>
       
       <div style={{ marginBottom: 16 }}>
         <Text type="secondary" style={{ fontSize: '12px' }}>

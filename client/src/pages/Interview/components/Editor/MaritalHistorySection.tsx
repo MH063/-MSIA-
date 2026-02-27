@@ -1,9 +1,10 @@
 import React, { useEffect } from 'react';
-import { Form, Input, InputNumber, Card, Row, Col, Select } from 'antd';
+import { Form, Input, InputNumber, Card, Row, Col, Select, Typography } from 'antd';
 import MenstrualHistorySection from './MenstrualHistorySection';
 import { logger } from '../../../../utils/logger';
 
 const { Option } = Select;
+const { Title } = Typography;
 
 const MaritalHistorySection: React.FC = () => {
   const form = Form.useFormInstance();
@@ -25,7 +26,17 @@ const MaritalHistorySection: React.FC = () => {
 
   return (
     <div className="section-container">
-      <Card type="inner" title="婚姻状况 (Marital Status)" size="small" style={{ marginBottom: 24 }}>
+      <Title level={4} style={{ 
+        marginBottom: 24, 
+        fontWeight: 600,
+        color: 'var(--msia-text-primary)',
+        letterSpacing: 0.5,
+        paddingBottom: 12,
+        borderBottom: '2px solid var(--msia-primary)',
+        display: 'inline-block',
+      }}>婚姻状况 <span style={{ fontSize: 14, fontWeight: 400, color: 'var(--msia-text-tertiary)', marginLeft: 8 }}>Marital Status</span></Title>
+      
+      <Card type="inner" title={<span style={{ fontWeight: 600, color: 'var(--msia-text-secondary)' }}>【婚姻状况】</span>} size="small" style={{ marginBottom: 24 }}>
         <Row gutter={24}>
           <Col span={8}>
             <Form.Item
@@ -77,7 +88,7 @@ const MaritalHistorySection: React.FC = () => {
         <>
           <MenstrualHistorySection />
 
-          <Card type="inner" title="生育史(Obstetric History)" size="small" style={{ marginTop: 24 }}>
+          <Card type="inner" title={<span style={{ fontWeight: 600, color: 'var(--msia-text-secondary)' }}>【生育史】</span>} size="small" style={{ marginTop: 24 }}>
             <Row gutter={24}>
               <Col span={6}>
                 <Form.Item name={['fertilityHistory', 'term']} label="足月产(次)">

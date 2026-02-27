@@ -80,7 +80,15 @@ const AuxiliaryExamSection: React.FC = () => {
   // 使用 Form.List 管理辅助检查数组
   return (
     <div className="section-container">
-      <Title level={4} style={{ marginBottom: 24 }}>辅助检查 (Auxiliary Examination)</Title>
+      <Title level={4} style={{ 
+        marginBottom: 24, 
+        fontWeight: 600,
+        color: 'var(--msia-text-primary)',
+        letterSpacing: 0.5,
+        paddingBottom: 12,
+        borderBottom: '2px solid var(--msia-primary)',
+        display: 'inline-block',
+      }}>辅助检查 <span style={{ fontSize: 14, fontWeight: 400, color: 'var(--msia-text-tertiary)', marginLeft: 8 }}>Auxiliary Examination</span></Title>
       
       <Form.Item name={['auxiliaryExams', 'none']} valuePropName="checked">
         <Checkbox disabled={hasExams}>无辅助检查</Checkbox>

@@ -187,7 +187,15 @@ const PersonalHistorySection: React.FC = () => {
 
   return (
     <div className="section-container">
-      <Title level={4} style={{ marginBottom: 24 }}>个人史 (Personal History)</Title>
+      <Title level={4} style={{ 
+        marginBottom: 24, 
+        fontWeight: 600,
+        color: 'var(--msia-text-primary)',
+        letterSpacing: 0.5,
+        paddingBottom: 12,
+        borderBottom: '2px solid var(--msia-primary)',
+        display: 'inline-block',
+      }}>个人史 <span style={{ fontSize: 14, fontWeight: 400, color: 'var(--msia-text-tertiary)', marginLeft: 8 }}>Personal History</span></Title>
       
       {/* 隐藏字段，存储最终生成的字符段 */}
       <Form.Item name={['personalHistory', 'smokingHistory']} hidden><Input /></Form.Item>

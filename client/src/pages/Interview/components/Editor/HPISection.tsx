@@ -6,6 +6,7 @@ import api, { unwrapData, type ApiResponse } from '../../../../utils/api';
 import { buildHpiNarrative } from '../../../../utils/narrative';
 import dayjs from 'dayjs';
 import { useQuery } from '@tanstack/react-query';
+import logger from '../../../../utils/logger';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -397,7 +398,7 @@ const HPISection: React.FC = () => {
       return;
     }
 
-    console.log('[症状同步] 新增:', addedKeys, '移除:', removedKeys);
+    logger.info('[症状同步] 新增:', { added: addedKeys, removed: removedKeys });
 
     // 处理新增的症状
     if (addedKeys.length > 0) {
@@ -412,7 +413,7 @@ const HPISection: React.FC = () => {
             if (!existingSymptoms.includes(symptomKey)) {
               form.setFieldValue(systemPath, [...existingSymptoms, symptomKey]);
               const symptomLabel = labelByKey[symptomKey] || symptomKey;
-              console.log(`[症状同步] 添加 "${symptomKey}"(${symptomLabel}) 到 ${systemKey}`);
+              logger.debug('[症状同步] 添加症状到系统', { symptomKey, symptomLabel, systemKey });
             }
           });
         }
@@ -432,7 +433,7 @@ const HPISection: React.FC = () => {
             if (existingSymptoms.length !== updatedSymptoms.length) {
               form.setFieldValue(systemPath, updatedSymptoms);
               const symptomLabel = labelByKey[symptomKey] || symptomKey;
-              console.log(`[症状同步] 从 ${systemKey} 移除 "${symptomKey}"(${symptomLabel})`);
+              logger.debug('[症状同步] 从系统移除症状', { symptomKey, symptomLabel, systemKey });
             }
           });
         }
@@ -594,7 +595,15 @@ const HPISection: React.FC = () => {
 
   return (
     <div className="section-container">
-      <Title level={4} style={{ marginBottom: 24 }}>现病史 (History of Present Illness)</Title>
+      <Title level={4} style={{ 
+        marginBottom: 24, 
+        fontWeight: 600,
+        color: 'var(--msia-text-primary)',
+        letterSpacing: 0.5,
+        paddingBottom: 12,
+        borderBottom: '2px solid var(--msia-primary)',
+        display: 'inline-block',
+      }}>现病史 <span style={{ fontSize: 14, fontWeight: 400, color: 'var(--msia-text-tertiary)', marginLeft: 8 }}>History of Present Illness</span></Title>
 
       <Form.Item name={['presentIllness', 'treatmentHistory']} hidden>
         <Input />

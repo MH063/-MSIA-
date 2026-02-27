@@ -147,28 +147,30 @@ function inferSessionId(config: AxiosRequestConfig): string | undefined {
  */
 api.interceptors.request.use(async (config) => {
   const method = String(config.method || 'get').toUpperCase();
+  const url = String(config.url || '');
+  logger.info(`[api] 发送请求: ${method} ${url}`);
+
   // 仅对会修改数据的请求附加 CSRF
   if (method === 'POST' || method === 'PUT' || method === 'PATCH' || method === 'DELETE') {
-    const url = String(config.url || '');
     const isCsrfExcluded =
       url.startsWith('/auth/login') ||
       url.startsWith('/auth/register') ||
       url.startsWith('/captcha');
     if (!isCsrfExcluded) {
-    // 推断并附加 X-Session-Id
-    const sid = inferSessionId(config);
-    if (sid) {
-      setHeader(config, SESSION_ID_HEADER, sid);
-    }
-    // 若调用方未显式带 CSRF，则自动补充
-    const hasCsrf =
-      !!(config.headers && (CSRF_HEADER in (config.headers as Record<string, unknown>)));
-    if (!hasCsrf) {
-      await ensureCsrf(sid);
-      if (csrfToken) {
-        setHeader(config, CSRF_HEADER, csrfToken);
+      // 推断并附加 X-Session-Id
+      const sid = inferSessionId(config);
+      if (sid) {
+        setHeader(config, SESSION_ID_HEADER, sid);
       }
-    }
+      // 若调用方未显式带 CSRF，则自动补充
+      const hasCsrf =
+        !!(config.headers && (CSRF_HEADER in (config.headers as Record<string, unknown>)));
+      if (!hasCsrf) {
+        await ensureCsrf(sid);
+        if (csrfToken) {
+          setHeader(config, CSRF_HEADER, csrfToken);
+        }
+      }
     }
   }
   return config;
@@ -259,6 +261,7 @@ async function tryRefresh(): Promise<boolean> {
 
 api.interceptors.response.use(
   (response) => {
+    logger.info(`[api] 收到响应: ${response.config.method?.toUpperCase()} ${response.config.url} - ${response.status}`);
     // 捕获可能下发的 CSRF 令牌
     captureCsrfFromHeaders(response);
     const rt = response.config.responseType;
@@ -272,6 +275,7 @@ api.interceptors.response.use(
     const original = axios.isAxiosError(error)
       ? ((error.config || undefined) as RetriableAxiosConfig | undefined)
       : undefined;
+    logger.error(`[api] 请求失败: ${original?.method?.toUpperCase()} ${original?.url} - ${status || error.message}`);
     const currentPath = typeof window !== 'undefined' ? String(window.location.pathname || '/') : '/';
     const isLoginPage = currentPath.startsWith('/login');
     const isAuthMe = String(original?.url || '').includes('/auth/me');
@@ -309,14 +313,17 @@ api.interceptors.response.use(
     }
 
     if (status === 401) {
-      try {
-        const p = typeof window !== 'undefined' ? String(window.location.pathname || '/') : '/';
-        if (!p.startsWith('/login')) {
-          logger.warn('[api] 认证失败(401)，即将跳转到登录页', { path: p });
-          window.location.assign(`/login?redirect=${encodeURIComponent(p)}`);
+      // 如果请求标记了 _skipAuthRefresh，不要自动跳转，让调用方处理
+      if (!original?._skipAuthRefresh) {
+        try {
+          const p = typeof window !== 'undefined' ? String(window.location.pathname || '/') : '/';
+          if (!p.startsWith('/login')) {
+            logger.warn('[api] 认证失败(401)，即将跳转到登录页', { path: p });
+            window.location.assign(`/login?redirect=${encodeURIComponent(p)}`);
+          }
+        } catch (e) {
+          logger.warn('[api] 401处理失败', e);
         }
-      } catch (e) {
-        logger.warn('[api] 401处理失败', e);
       }
     }
     return Promise.reject(error);

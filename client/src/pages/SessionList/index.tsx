@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { App as AntdApp, Button, Space, Typography, Card, Tag, Grid, Pagination, Empty, Timeline, Switch, Collapse, Row, Col, theme } from 'antd';
+import { App as AntdApp, Button, Space, Typography, Card, Tag, Grid, Pagination, Empty, Timeline, Switch, Collapse, Row, Col, theme, Spin } from 'antd';
 import { DeleteOutlined, EyeOutlined, ExclamationCircleOutlined, PlusOutlined, LockOutlined, UnlockOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import dayjs from 'dayjs';
@@ -7,8 +7,6 @@ import api, { getApiErrorMessage, unwrapData } from '../../utils/api';
 import type { ApiResponse } from '../../utils/api';
 import { logger } from '../../utils/logger';
 import MarkdownEditor from '../../components/MarkdownEditor';
-
-import Loading from '../../components/common/Loading';
 
 const { Title, Text } = Typography;
 const { useBreakpoint } = Grid;
@@ -157,7 +155,9 @@ const SessionList: React.FC = () => {
       </div>
 
       {loading && data.length === 0 ? (
-        <Loading height="60vh" />
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
+          <Spin size="large" />
+        </div>
       ) : data.length === 0 ? (
         <Empty description="暂无病历记录" image={Empty.PRESENTED_IMAGE_SIMPLE} />
       ) : (

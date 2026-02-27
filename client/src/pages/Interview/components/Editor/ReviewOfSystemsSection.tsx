@@ -9,6 +9,7 @@ import {
   sanitizeInput,
   generateChecksum,
 } from '../../../../utils/rosSecurity';
+import logger from '../../../../utils/logger';
 
 const { Title } = Typography;
 
@@ -165,7 +166,7 @@ const ReviewOfSystemsSection: React.FC = () => {
       if (symptomsToRemove.length > 0) {
         const updatedAssociatedSymptoms = associatedSymptoms.filter(s => !symptomsToRemove.includes(s));
         form.setFieldValue(['presentIllness', 'associatedSymptoms'], updatedAssociatedSymptoms);
-        console.log('[反向同步] 从现病史伴随症状中移除:', symptomsToRemove);
+        logger.info('[反向同步] 从现病史伴随症状中移除:', { symptomsToRemove });
       }
     }
     
@@ -184,7 +185,7 @@ const ReviewOfSystemsSection: React.FC = () => {
     if (lastChecksumRef.current && lastChecksumRef.current !== currentChecksum) {
       const validation = validateRosData(data);
       if (!validation.valid) {
-        console.warn('[数据完整性] 验证失败:', validation.errors);
+        logger.warn('[数据完整性] 验证失败:', { errors: validation.errors });
       }
     }
     
@@ -213,8 +214,16 @@ const ReviewOfSystemsSection: React.FC = () => {
   }, [form, hasAnySymptomsOrDetails, rosNone]);
 
   return (
-    <div>
-      <Title level={5}>系统回顾 (Review of Systems)</Title>
+    <div className="section-container">
+      <Title level={4} style={{ 
+        marginBottom: 24, 
+        fontWeight: 600,
+        color: 'var(--msia-text-primary)',
+        letterSpacing: 0.5,
+        paddingBottom: 12,
+        borderBottom: '2px solid var(--msia-primary)',
+        display: 'inline-block',
+      }}>系统回顾 <span style={{ fontSize: 14, fontWeight: 400, color: 'var(--msia-text-tertiary)', marginLeft: 8 }}>Review of Systems</span></Title>
       <Typography.Paragraph type="secondary">
         请询问患者是否有以下系统的相关症状，如有请勾选并补充详情。
       </Typography.Paragraph>
