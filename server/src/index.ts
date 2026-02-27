@@ -21,6 +21,8 @@ import { cache } from './utils/cache';
 import { dbMonitor } from './utils/db-monitor';
 import { rateLimitStrategies } from './middleware/rateLimiter';
 import { alert } from './utils/alert';
+import { initRedis, stopRedis } from './utils/redis-starter';
+import { closeRedisClient } from './utils/redis-client';
 
 dotenv.config();
 
@@ -363,20 +365,31 @@ app.use(errorHandler);
 /**
  * 启动服务器
  */
-app.listen(port, host, () => {
+async function startServer() {
+  // 初始化 Redis 服务
+  await initRedis();
+
   const tip = '请使用本机网卡IP访问，如 http://<本机IP>:' + port;
-  
-  secureLogger.info('服务器启动成功', {
-    port,
-    host,
-    environment: serverConfig.nodeEnv,
-    corsOrigins: corsConfig.allowedOrigins
+
+  app.listen(port, host, () => {
+    secureLogger.info('服务器启动成功', {
+      port,
+      host,
+      environment: serverConfig.nodeEnv,
+      corsOrigins: corsConfig.allowedOrigins
+    });
+
+    // 开发环境显示详细提示
+    if (!securityConfig.isProduction) {
+      secureLogger.info('开发环境提示', { message: tip });
+    }
   });
-  
-  // 开发环境显示详细提示
-  if (!securityConfig.isProduction) {
-    secureLogger.info('开发环境提示', { message: tip });
-  }
+}
+
+// 启动服务器
+startServer().catch((err) => {
+  secureLogger.error('服务器启动失败', err);
+  process.exit(1);
 });
 
 // 未捕获的异常处理 - 安全版本
@@ -397,6 +410,10 @@ process.on('uncaughtException', (error) => {
     }
   );
 
+  // 停止 Redis 服务和关闭连接
+  void closeRedisClient();
+  void stopRedis();
+
   // 生产环境优雅关闭
   if (securityConfig.isProduction) {
     secureLogger.error('生产环境发生未捕获异常，开始优雅关闭...');
@@ -406,6 +423,24 @@ process.on('uncaughtException', (error) => {
     secureLogger.error('[Development] 未捕获异常详情:', error instanceof Error ? error : undefined);
   }
 });
+
+// 优雅关闭处理
+async function gracefulShutdown(signal: string) {
+  secureLogger.info(`收到 ${signal} 信号，开始优雅关闭...`);
+  
+  // 关闭 Redis 客户端连接
+  await closeRedisClient();
+  
+  // 停止 Redis 服务
+  await stopRedis();
+  
+  secureLogger.info('优雅关闭完成');
+  process.exit(0);
+}
+
+// 注册优雅关闭事件
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 process.on('unhandledRejection', (reason, _promise) => {
   secureLogger.error('未处理的Promise拒绝', reason as Error, {
