@@ -1,7 +1,7 @@
 import React from 'react';
-import { App as AntdApp, Button, Grid, Layout, Menu, Space, theme } from 'antd';
+import { App as AntdApp, Button, Grid, Layout, Menu, Space, theme, Dropdown, Avatar } from 'antd';
 import LazyDrawer from '../components/lazy/LazyDrawer';
-import { MenuOutlined, SunOutlined, MoonOutlined } from '@ant-design/icons';
+import { MenuOutlined, SunOutlined, MoonOutlined, UserOutlined, SettingOutlined, LogoutOutlined } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import Logo from '../components/Logo';
 import { useThemeStore } from '../store/theme.store';
@@ -13,7 +13,7 @@ const { useBreakpoint } = Grid;
 
 const MainLayout: React.FC = () => {
   const {
-    token: { colorBgContainer, borderRadiusLG },
+    token: { colorBgContainer, borderRadiusLG, colorPrimary },
   } = theme.useToken();
   const { mode, toggleTheme } = useThemeStore();
   const screens = useBreakpoint();
@@ -23,7 +23,6 @@ const MainLayout: React.FC = () => {
   const isMobile = !screens.md;
 
   const [authChecking, setAuthChecking] = React.useState(false);
-  const hasCheckedAuth = React.useRef(false);
 
   const items = [
     { key: '/home', label: '首页' },
@@ -34,9 +33,8 @@ const MainLayout: React.FC = () => {
   ];
 
   React.useEffect(() => {
-    if (hasCheckedAuth.current) return;
-
     const p = location.pathname || '/';
+    
     const noAuthCheck = p === '/'
       || p.startsWith('/login')
       || p.startsWith('/register')
@@ -45,18 +43,20 @@ const MainLayout: React.FC = () => {
       || p === '/interview'
       || p === '/sessions'
       || p === '/knowledge'
-      || p === '/interview/new';
+      || p === '/interview/new'
+      || p === '/security-settings';
+    
     if (noAuthCheck) {
       setAuthChecking(false);
-      hasCheckedAuth.current = true;
       return;
     }
 
-    hasCheckedAuth.current = true;
     setAuthChecking(true);
 
     (async () => {
       try {
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 5000);
 
@@ -69,16 +69,22 @@ const MainLayout: React.FC = () => {
         clearTimeout(timeoutId);
 
         if (response.status === 401) {
+          logger.warn('[MainLayout] 认证检查失败: 401', { path: p });
           navigate(`/login?redirect=${encodeURIComponent(p)}`, { replace: true });
         } else if (response.ok) {
           const data = await response.json();
           if (!data?.success || !data?.data) {
+            logger.warn('[MainLayout] 认证检查失败: 响应数据无效', { data });
             navigate(`/login?redirect=${encodeURIComponent(p)}`, { replace: true });
+          } else {
+            logger.info('[MainLayout] 认证检查成功', { operatorId: data.data.operatorId });
           }
         } else {
+          logger.warn('[MainLayout] 认证检查失败: 非200响应', { status: response.status });
           navigate(`/login?redirect=${encodeURIComponent(p)}`, { replace: true });
         }
-      } catch {
+      } catch (err) {
+        logger.error('[MainLayout] 认证检查异常', err);
         navigate(`/login?redirect=${encodeURIComponent(p)}`, { replace: true });
       } finally {
         setAuthChecking(false);
@@ -176,20 +182,45 @@ const MainLayout: React.FC = () => {
             onClick={toggleTheme}
             style={{ color: '#fff' }}
           />
-          <Button
-            size="small"
-            onClick={async () => {
-              try {
-                await api.post('/auth/logout');
-              } catch (e) {
-                logger.warn('[MainLayout] 退出登录接口调用失败', e);
-              }
-              message.success('已退出登录');
-              navigate('/login', { replace: true });
+          <Dropdown
+            menu={{
+              items: [
+                {
+                  key: 'security',
+                  icon: <SettingOutlined />,
+                  label: '账户安全设置',
+                  onClick: () => navigate('/security-settings'),
+                },
+                {
+                  type: 'divider',
+                },
+                {
+                  key: 'logout',
+                  icon: <LogoutOutlined />,
+                  label: '退出登录',
+                  onClick: async () => {
+                    try {
+                      await api.post('/auth/logout');
+                    } catch (e) {
+                      logger.warn('[MainLayout] 退出登录接口调用失败', e);
+                    }
+                    message.success('已退出登录');
+                    navigate('/login', { replace: true });
+                  },
+                },
+              ],
             }}
+            placement="bottomRight"
           >
-            退出
-          </Button>
+            <Space style={{ cursor: 'pointer', color: '#fff' }}>
+              <Avatar
+                size="small"
+                icon={<UserOutlined />}
+                style={{ backgroundColor: colorPrimary }}
+              />
+              {!isMobile && <span style={{ fontSize: 14 }}>账户</span>}
+            </Space>
+          </Dropdown>
         </Space>
       </Header>
       <Content style={{ padding: screens.md ? '0 48px' : '0 10px', marginTop: isMobile ? 12 : 16 }}>

@@ -6,7 +6,6 @@ import {
 } from '../services/patient.service';
 import prisma from '../prisma';
 
-// Mock prisma
 vi.mock('../prisma', () => ({
   default: {
     patient: {
@@ -15,6 +14,8 @@ vi.mock('../prisma', () => ({
     },
   },
 }));
+
+const mockPrisma = prisma as unknown as Record<string, Record<string, ReturnType<typeof vi.fn>>>;
 
 describe('PatientService', () => {
   beforeEach(() => {
@@ -31,7 +32,7 @@ describe('PatientService', () => {
         { id: 1, name: '张三', gender: 'male' },
         { id: 2, name: '李四', gender: 'female' },
       ];
-      (prisma.patient.findMany as any).mockResolvedValue(mockData);
+      mockPrisma.patient.findMany.mockResolvedValue(mockData);
 
       const result = await getAllPatients();
 
@@ -40,7 +41,7 @@ describe('PatientService', () => {
     });
 
     it('当没有患者时，应该返回空数组', async () => {
-      (prisma.patient.findMany as any).mockResolvedValue([]);
+      mockPrisma.patient.findMany.mockResolvedValue([]);
 
       const result = await getAllPatients();
 
@@ -62,8 +63,8 @@ describe('PatientService', () => {
         employer: '某科技公司',
         contactInfo: { phone: '13800138000' },
       };
-      const mockResult = { id: 1, ...mockData };
-      (prisma.patient.create as any).mockResolvedValue(mockResult);
+      const mockResult = { id: 1, ...mockData, contactInfo: { phone: '13800138000' } };
+      mockPrisma.patient.create.mockResolvedValue(mockResult);
 
       const result = await createPatient(mockData);
 
@@ -90,7 +91,7 @@ describe('PatientService', () => {
         gender: 'female',
       };
       const mockResult = { id: 2, ...mockData };
-      (prisma.patient.create as any).mockResolvedValue(mockResult);
+      mockPrisma.patient.create.mockResolvedValue(mockResult);
 
       const result = await createPatient(mockData);
 
@@ -119,7 +120,7 @@ describe('PatientService', () => {
         birthDate: birthDate,
       };
       const mockResult = { id: 3, ...mockData };
-      (prisma.patient.create as any).mockResolvedValue(mockResult);
+      mockPrisma.patient.create.mockResolvedValue(mockResult);
 
       const result = await createPatient(mockData);
 
@@ -139,7 +140,7 @@ describe('PatientService', () => {
         gender: 'male',
       };
       const error = new Error('Database connection failed');
-      (prisma.patient.create as any).mockRejectedValue(error);
+      mockPrisma.patient.create.mockRejectedValue(error);
 
       await expect(createPatient(mockData)).rejects.toThrow('Database connection failed');
     });

@@ -3,18 +3,19 @@ import jwt from 'jsonwebtoken';
 
 const SALT_ROUNDS = 10;
 
-// 从环境变量获取 JWT 密钥，不提供默认值以确保安全
-const JWT_SECRET = process.env.JWT_SECRET || '';
-const REFRESH_JWT_SECRET = process.env.REFRESH_JWT_SECRET || process.env.JWT_SECRET || '';
+const JWT_SECRET_RAW = process.env.JWT_SECRET;
+const REFRESH_JWT_SECRET_RAW = process.env.REFRESH_JWT_SECRET || process.env.JWT_SECRET;
 
-// 验证 JWT 密钥是否已配置
-if (!JWT_SECRET) {
+if (!JWT_SECRET_RAW || JWT_SECRET_RAW.trim() === '') {
   throw new Error('JWT_SECRET 未配置：请在环境变量中设置 JWT_SECRET');
 }
 
-if (!REFRESH_JWT_SECRET) {
-  throw new Error('REFRESH_JWT_SECRET 未配置：请在环境变量中设置 REFRESH_JWT_SECRET');
+if (!REFRESH_JWT_SECRET_RAW || REFRESH_JWT_SECRET_RAW.trim() === '') {
+  throw new Error('REFRESH_JWT_SECRET 未配置：请在环境变量中设置 REFRESH_JWT_SECRET（或使用 JWT_SECRET 作为默认值）');
 }
+
+const JWT_SECRET: string = JWT_SECRET_RAW;
+const REFRESH_JWT_SECRET: string = REFRESH_JWT_SECRET_RAW;
 
 const JWT_EXPIRES_IN = '7d' as const;
 const ACCESS_JWT_EXPIRES_IN = (process.env.AUTH_ACCESS_EXPIRES_IN || '15m') as jwt.SignOptions['expiresIn'];

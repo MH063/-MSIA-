@@ -6,8 +6,7 @@ import {
   ExperimentOutlined,
   FileTextOutlined,
   BookOutlined,
-  MenuOutlined,
-  SearchOutlined
+  MenuOutlined
 } from '@ant-design/icons';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';

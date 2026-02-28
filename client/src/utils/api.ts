@@ -317,9 +317,14 @@ api.interceptors.response.use(
       if (!original?._skipAuthRefresh) {
         try {
           const p = typeof window !== 'undefined' ? String(window.location.pathname || '/') : '/';
-          if (!p.startsWith('/login')) {
+          // 登录页和白名单页面不跳转
+          const noRedirectPaths = ['/login', '/register', '/forgot-password', '/email-register', '/security-settings'];
+          const shouldRedirect = !noRedirectPaths.some(path => p.startsWith(path));
+          if (shouldRedirect) {
             logger.warn('[api] 认证失败(401)，即将跳转到登录页', { path: p });
             window.location.assign(`/login?redirect=${encodeURIComponent(p)}`);
+          } else {
+            logger.info('[api] 认证失败(401)，但当前页面在白名单中，不自动跳转', { path: p });
           }
         } catch (e) {
           logger.warn('[api] 401处理失败', e);

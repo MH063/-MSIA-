@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from 'express';
 import { authCookieConfig, serverConfig } from '../config';
 import { verifyToken } from '../utils/auth-helpers';
 import { secureLogger } from '../utils/secureLogger';
+import { parseCookieHeader } from '../utils/cookie';
 
 export type OperatorRole = 'admin' | 'doctor';
 
@@ -84,28 +85,6 @@ export function parseBearerToken(req: Request): string | null {
   if (!match) {return null;}
   const token = String(match[1] || '').trim();
   return token || null;
-}
-
-function parseCookieHeader(raw: string): Record<string, string> {
-  const out: Record<string, string> = {};
-  const s = String(raw || '').trim();
-  if (!s) {return out;}
-  const parts = s.split(';');
-  for (const part of parts) {
-    const p = part.trim();
-    if (!p) {continue;}
-    const idx = p.indexOf('=');
-    if (idx <= 0) {continue;}
-    const k = p.slice(0, idx).trim();
-    const v = p.slice(idx + 1).trim();
-    if (!k) {continue;}
-    try {
-      out[k] = decodeURIComponent(v);
-    } catch {
-      out[k] = v;
-    }
-  }
-  return out;
 }
 
 function parseAccessTokenFromCookie(req: Request): string | null {

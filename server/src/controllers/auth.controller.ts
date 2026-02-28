@@ -7,6 +7,7 @@ import { authCookieConfig, authGuardConfig, authSessionConfig } from '../config'
 import { getRedisClient, incrWithExpire, incrWithTtl } from '../utils/redis-client';
 import { createCaptcha, verifyCaptcha as verifyCaptchaPair } from '../services/captcha.service';
 import { secureLogger } from '../utils/secureLogger';
+import { parseCookieHeader, readCookieFromRequest } from '../utils/cookie';
 
 type LoginFailRecord = {
   count: number;
@@ -56,34 +57,8 @@ function getClientIp(req: Request): string {
   return raw.startsWith('::ffff:') ? raw.slice('::ffff:'.length) : raw;
 }
 
-function parseCookieHeader(raw: string): Record<string, string> {
-  const out: Record<string, string> = {};
-  const s = String(raw || '').trim();
-  if (!s) {return out;}
-  const parts = s.split(';');
-  for (const part of parts) {
-    const p = part.trim();
-    if (!p) {continue;}
-    const idx = p.indexOf('=');
-    if (idx <= 0) {continue;}
-    const k = p.slice(0, idx).trim();
-    const v = p.slice(idx + 1).trim();
-    if (!k) {continue;}
-    try {
-      out[k] = decodeURIComponent(v);
-    } catch {
-      out[k] = v;
-    }
-  }
-  return out;
-}
-
 function readCookie(req: Request, name: string): string | null {
-  const raw = String(req.header('cookie') || '').trim();
-  if (!raw) {return null;}
-  const jar = parseCookieHeader(raw);
-  const v = String(jar[name] || '').trim();
-  return v || null;
+  return readCookieFromRequest(req, name);
 }
 
 /**
@@ -598,7 +573,7 @@ export const login = async (req: Request, res: Response) => {
       if (operator.operatorId > 0) {
         try {
           const dbOp = await prisma.operator.findUnique({ where: { id: operator.operatorId } });
-          if (dbOp) {name = dbOp.name || dbOp.username;}
+          if (dbOp) {name = dbOp.name || dbOp.username || 'Doctor';}
         } catch {
           // ignore
         }
@@ -764,7 +739,7 @@ export const me = async (req: Request, res: Response) => {
         try {
             const dbOp = await prisma.operator.findUnique({ where: { id: operator.operatorId } });
             if (dbOp) {
-                name = dbOp.name || dbOp.username;
+                name = dbOp.name || dbOp.username || 'Doctor';
             }
         } catch (_e) {
             // ignore if table doesn't exist yet or other error

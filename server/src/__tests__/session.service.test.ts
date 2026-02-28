@@ -1,44 +1,49 @@
 import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
 import { deleteSessionPermanentlyWithPrisma } from '../services/session.service';
 import { SessionSchemas } from '../validators';
+import type {
+  MockPrismaClient,
+  MockTransactionClient,
+  CreateMockPrismaParams,
+  TransactionCall,
+} from './testTypes';
+import type { Prisma, PrismaClient } from '@prisma/client';
 
-type AnyFn = (...args: any[]) => any;
+/**
+ * 创建 Mock Prisma 客户端
+ */
+function createFakePrisma(params: CreateMockPrismaParams): MockPrismaClient {
+  const calls: TransactionCall[] = [];
 
-function createFakePrisma(params: {
-  findUnique: AnyFn;
-  onDelete: AnyFn;
-  tableExistsByName: Record<string, boolean>;
-  onExecuteRawUnsafe?: AnyFn;
-}) {
-  const calls: Array<{ name: string; args: any[] }> = [];
-
-  const tx = {
-    $queryRaw: async (strings: any, ...values: any[]) => {
+  const tx: MockTransactionClient = {
+    $queryRaw: async (strings: TemplateStringsArray, ...values: unknown[]) => {
       calls.push({ name: '$queryRaw', args: [strings, ...values] });
       const tableName = String(values?.[0] ?? '');
       return [{ exists: Boolean(params.tableExistsByName[tableName]) }];
     },
-    $executeRawUnsafe: async (sql: string, ...values: any[]) => {
+    $executeRawUnsafe: async (sql: string, ...values: unknown[]) => {
       calls.push({ name: '$executeRawUnsafe', args: [sql, ...values] });
-      if (params.onExecuteRawUnsafe) {return params.onExecuteRawUnsafe(sql, ...values);}
+      if (params.onExecuteRawUnsafe) {
+        return params.onExecuteRawUnsafe(sql, ...values);
+      }
       return 1;
     },
     interviewSession: {
-      delete: async (arg: any) => {
+      delete: async (arg: Prisma.InterviewSessionDeleteArgs) => {
         calls.push({ name: 'interviewSession.delete', args: [arg] });
         return params.onDelete(arg);
       },
     },
   };
 
-  const prismaClient = {
+  const prismaClient: MockPrismaClient = {
     interviewSession: {
-      findUnique: async (arg: any) => {
+      findUnique: async (arg: Prisma.InterviewSessionFindUniqueArgs) => {
         calls.push({ name: 'interviewSession.findUnique', args: [arg] });
         return params.findUnique(arg);
       },
     },
-    $transaction: async (fn: AnyFn) => {
+    $transaction: async <T>(fn: (tx: MockTransactionClient) => Promise<T>): Promise<T> => {
       calls.push({ name: '$transaction', args: [] });
       return fn(tx);
     },
@@ -68,7 +73,7 @@ describe('SessionService', () => {
       });
 
       await expect(
-        deleteSessionPermanentlyWithPrisma(prismaClient as any, {
+        deleteSessionPermanentlyWithPrisma(prismaClient as unknown as PrismaClient, {
           sessionId: 1,
           operator: { token: 't', operatorId: 3, role: 'doctor' },
         })
@@ -89,7 +94,7 @@ describe('SessionService', () => {
         tableExistsByName: { audit_logs: true },
       });
 
-      const ret = await deleteSessionPermanentlyWithPrisma(prismaClient as any, {
+      const ret = await deleteSessionPermanentlyWithPrisma(prismaClient as unknown as PrismaClient, {
         sessionId: 1,
         operator: { token: 't', operatorId: 0, role: 'admin' },
       });
@@ -120,7 +125,7 @@ describe('SessionService', () => {
       });
 
       await expect(
-        deleteSessionPermanentlyWithPrisma(prismaClient as any, {
+        deleteSessionPermanentlyWithPrisma(prismaClient as unknown as PrismaClient, {
           sessionId: 1,
           operator: { token: 't', operatorId: 1, role: 'doctor' },
         })
@@ -142,12 +147,12 @@ describe('SessionService', () => {
         tableExistsByName: { child_a: true, child_b: true, audit_logs: true },
       });
 
-      await deleteSessionPermanentlyWithPrisma(prismaClient as any, {
+      await deleteSessionPermanentlyWithPrisma(prismaClient as unknown as PrismaClient, {
         sessionId: 10,
         operator: { token: 't', operatorId: 7, role: 'doctor' },
       });
 
-      const calls = (prismaClient as any).__calls as Array<{ name: string; args: any[] }>;
+      const calls = prismaClient.__calls;
       const executedSql = calls
         .filter((c) => c.name === '$executeRawUnsafe')
         .map((c) => String(c.args[0]));
@@ -184,8 +189,9 @@ describe('SessionService', () => {
 
       const parsed = SessionSchemas.update.parse(input);
       expect(parsed).toBeDefined();
-      expect((parsed as any).historianRelationship).toBeUndefined();
-      expect((parsed as any).pastHistory).toBeUndefined();
+      const parsedRecord = parsed as Record<string, unknown>;
+      expect(parsedRecord.historianRelationship).toBeUndefined();
+      expect(parsedRecord.pastHistory).toBeUndefined();
     });
   });
 });

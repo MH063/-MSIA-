@@ -12,7 +12,6 @@ import {
 } from '../services/knowledge.service';
 import prisma from '../prisma';
 
-// Mock prisma
 vi.mock('../prisma', () => ({
   default: {
     symptomKnowledge: {
@@ -26,6 +25,8 @@ vi.mock('../prisma', () => ({
     },
   },
 }));
+
+const mockPrisma = prisma as unknown as Record<string, Record<string, ReturnType<typeof vi.fn>>>;
 
 describe('KnowledgeService', () => {
   beforeEach(() => {
@@ -42,7 +43,7 @@ describe('KnowledgeService', () => {
         { id: 1, symptomKey: 'headache', displayName: '头痛' },
         { id: 2, symptomKey: 'fever', displayName: '发热' },
       ];
-      (prisma.symptomKnowledge.findMany as any).mockResolvedValue(mockData);
+      mockPrisma.symptomKnowledge.findMany.mockResolvedValue(mockData);
 
       const result = await getAllKnowledge();
 
@@ -57,7 +58,7 @@ describe('KnowledgeService', () => {
       const mockData = [
         { id: 1, symptomKey: 'headache', displayName: '头痛', updatedAt: new Date() },
       ];
-      (prisma.symptomKnowledge.findMany as any).mockResolvedValue(mockData);
+      mockPrisma.symptomKnowledge.findMany.mockResolvedValue(mockData);
 
       const result = await getKnowledgeSince(since);
 
@@ -71,7 +72,7 @@ describe('KnowledgeService', () => {
   describe('getKnowledgeByKey', () => {
     it('应该通过 symptomKey 精确匹配找到知识', async () => {
       const mockData = { id: 1, symptomKey: 'headache', displayName: '头痛' };
-      (prisma.symptomKnowledge.findUnique as any).mockResolvedValue(mockData);
+      mockPrisma.symptomKnowledge.findUnique.mockResolvedValue(mockData);
 
       const result = await getKnowledgeByKey('headache');
 
@@ -83,8 +84,8 @@ describe('KnowledgeService', () => {
 
     it('当 symptomKey 未找到时，应该尝试通过 displayName 精确匹配', async () => {
       const mockData = { id: 1, symptomKey: 'headache', displayName: '头痛' };
-      (prisma.symptomKnowledge.findUnique as any).mockResolvedValue(null);
-      (prisma.symptomKnowledge.findFirst as any).mockResolvedValue(mockData);
+      mockPrisma.symptomKnowledge.findUnique.mockResolvedValue(null);
+      mockPrisma.symptomKnowledge.findFirst.mockResolvedValue(mockData);
 
       const result = await getKnowledgeByKey('头痛');
 
@@ -96,8 +97,8 @@ describe('KnowledgeService', () => {
 
     it('当精确匹配都失败时，应该尝试模糊匹配', async () => {
       const mockData = { id: 1, symptomKey: 'headache', displayName: '头痛' };
-      (prisma.symptomKnowledge.findUnique as any).mockResolvedValue(null);
-      (prisma.symptomKnowledge.findFirst as any)
+      mockPrisma.symptomKnowledge.findUnique.mockResolvedValue(null);
+      mockPrisma.symptomKnowledge.findFirst
         .mockResolvedValueOnce(null)
         .mockResolvedValueOnce(mockData);
 
@@ -110,8 +111,8 @@ describe('KnowledgeService', () => {
     });
 
     it('当所有匹配都失败时，应该返回 null', async () => {
-      (prisma.symptomKnowledge.findUnique as any).mockResolvedValue(null);
-      (prisma.symptomKnowledge.findFirst as any).mockResolvedValue(null);
+      mockPrisma.symptomKnowledge.findUnique.mockResolvedValue(null);
+      mockPrisma.symptomKnowledge.findFirst.mockResolvedValue(null);
 
       const result = await getKnowledgeByKey('unknown');
 
@@ -128,7 +129,7 @@ describe('KnowledgeService', () => {
         description: '头部疼痛的症状',
       };
       const mockResult = { id: 1, ...mockData };
-      (prisma.symptomKnowledge.upsert as any).mockResolvedValue(mockResult);
+      mockPrisma.symptomKnowledge.upsert.mockResolvedValue(mockResult);
 
       const result = await upsertKnowledge(mockData);
 
@@ -153,7 +154,7 @@ describe('KnowledgeService', () => {
 
   describe('countKnowledge', () => {
     it('应该返回知识库条目总数', async () => {
-      (prisma.symptomKnowledge.count as any).mockResolvedValue(100);
+      mockPrisma.symptomKnowledge.count.mockResolvedValue(100);
 
       const result = await countKnowledge();
 
@@ -168,7 +169,7 @@ describe('KnowledgeService', () => {
         { id: 1, displayName: '头痛', symptomKey: 'headache' },
         { id: 2, displayName: '发热', symptomKey: 'fever' },
       ];
-      (prisma.symptomKnowledge.findMany as any).mockResolvedValue(mockData);
+      mockPrisma.symptomKnowledge.findMany.mockResolvedValue(mockData);
 
       const result = await getRecentKnowledge(2);
 
@@ -181,7 +182,7 @@ describe('KnowledgeService', () => {
     });
 
     it('应该使用默认的 take 值', async () => {
-      (prisma.symptomKnowledge.findMany as any).mockResolvedValue([]);
+      mockPrisma.symptomKnowledge.findMany.mockResolvedValue([]);
 
       await getRecentKnowledge();
 
@@ -195,7 +196,7 @@ describe('KnowledgeService', () => {
 
   describe('deleteKnowledgeByKey', () => {
     it('应该成功删除存在的知识条目', async () => {
-      (prisma.symptomKnowledge.delete as any).mockResolvedValue({ symptomKey: 'headache' });
+      mockPrisma.symptomKnowledge.delete.mockResolvedValue({ symptomKey: 'headache' });
 
       const result = await deleteKnowledgeByKey('headache');
 
@@ -206,9 +207,9 @@ describe('KnowledgeService', () => {
     });
 
     it('当记录不存在时，应该返回 deleted: 0', async () => {
-      const error = new Error('Record not found') as any;
+      const error = new Error('Record not found') as Error & { code: string };
       error.code = 'P2025';
-      (prisma.symptomKnowledge.delete as any).mockRejectedValue(error);
+      mockPrisma.symptomKnowledge.delete.mockRejectedValue(error);
 
       const result = await deleteKnowledgeByKey('unknown');
 
@@ -216,9 +217,9 @@ describe('KnowledgeService', () => {
     });
 
     it('当发生其他错误时，应该抛出异常', async () => {
-      const error = new Error('Database error') as any;
+      const error = new Error('Database error') as Error & { code: string };
       error.code = 'P2000';
-      (prisma.symptomKnowledge.delete as any).mockRejectedValue(error);
+      mockPrisma.symptomKnowledge.delete.mockRejectedValue(error);
 
       await expect(deleteKnowledgeByKey('headache')).rejects.toThrow('Database error');
     });
@@ -226,7 +227,7 @@ describe('KnowledgeService', () => {
 
   describe('deleteKnowledgeBulk', () => {
     it('应该批量删除知识条目', async () => {
-      (prisma.symptomKnowledge.deleteMany as any).mockResolvedValue({ count: 3 });
+      mockPrisma.symptomKnowledge.deleteMany.mockResolvedValue({ count: 3 });
 
       const result = await deleteKnowledgeBulk(['headache', 'fever', 'cough']);
 
@@ -237,7 +238,7 @@ describe('KnowledgeService', () => {
     });
 
     it('当没有匹配的记录时，应该返回 0', async () => {
-      (prisma.symptomKnowledge.deleteMany as any).mockResolvedValue({ count: 0 });
+      mockPrisma.symptomKnowledge.deleteMany.mockResolvedValue({ count: 0 });
 
       const result = await deleteKnowledgeBulk(['unknown1', 'unknown2']);
 

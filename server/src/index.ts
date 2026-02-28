@@ -10,6 +10,7 @@ import nlpRoutes from './routes/nlp.routes';
 import diagnosisRoutes from './routes/diagnosis.routes';
 import mappingRoutes from './routes/mapping.routes';
 import authRoutes from './routes/auth.routes';
+import emailAuthRoutes from './routes/email-auth.routes';
 import captchaRoutes from './routes/captcha.routes';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { securityHeaders, sqlInjectionProtection, xssProtection } from './utils/security';
@@ -55,13 +56,13 @@ app.use(cors({
       if (serverConfig.isProduction) {
         secureLogger.warn('[CORS] 生产环境收到无来源请求');
       }
-      return callback(null, true);
+      return callback(null, origin);
     }
 
     // 生产环境：严格使用白名单
     if (serverConfig.isProduction) {
       if (corsConfig.allowedOrigins.includes(origin)) {
-        callback(null, true);
+        callback(null, origin);
       } else {
         secureLogger.warn('[CORS] 生产环境拒绝跨域请求', { origin, allowedOrigins: corsConfig.allowedOrigins });
         callback(new Error('不允许的跨域请求'));
@@ -101,14 +102,14 @@ app.use(cors({
 
       // 检查白名单
       if (corsConfig.allowedOrigins.includes(origin)) {
-        callback(null, true);
+        callback(null, origin);
         return;
       }
 
       if (isLocalhost || isPrivateIP || is172Private) {
         // 记录开发环境的跨域请求
         secureLogger.debug('[CORS] 开发环境允许跨域请求', { origin });
-        callback(null, true);
+        callback(null, origin);
       } else {
         secureLogger.warn('[CORS] 开发环境拒绝跨域请求', { origin });
         callback(new Error('不允许的跨域请求'));
@@ -254,6 +255,9 @@ app.use(rateLimitStrategies.standard);
 // 特定路由限流
 app.use('/api/auth/login', rateLimitStrategies.strict);
 app.use('/api/auth/register', rateLimitStrategies.strict);
+app.use('/api/auth/email/login', rateLimitStrategies.strict);
+app.use('/api/auth/email/register', rateLimitStrategies.strict);
+app.use('/api/auth/email/send-code', rateLimitStrategies.strict);
 app.use('/api/captcha', rateLimitStrategies.relaxed);
 app.use('/api/knowledge', rateLimitStrategies.knowledge);
 app.use('/api/diagnosis/suggest', rateLimitStrategies.diagnosis);
@@ -281,6 +285,7 @@ app.use('/api/nlp', nlpRoutes);
 app.use('/api/diagnosis', diagnosisRoutes);
 app.use('/api/mapping', mappingRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/auth/email', emailAuthRoutes);
 app.use('/api/captcha', captchaRoutes);
 
 /**

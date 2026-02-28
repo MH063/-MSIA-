@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { App as AntdApp, Button, Space, Typography, Card, Tag, Tabs, Input, Grid, Pagination, Segmented, Spin, theme } from 'antd';
+import { App as AntdApp, Button, Space, Typography, Card, Tag, Tabs, Input, Grid, Pagination, Segmented, Spin } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { TablePaginationConfig, FilterValue, SorterResult, TableCurrentDataSource } from 'antd/es/table/interface';
 import { DeleteOutlined, EyeOutlined, ExclamationCircleOutlined, PlusOutlined, FileTextOutlined, ClockCircleOutlined, CheckCircleOutlined, SyncOutlined } from '@ant-design/icons';
@@ -48,7 +48,6 @@ interface StatCardConfig {
 
 const InterviewOverview: React.FC = () => {
   const navigate = useNavigate();
-  const { token } = theme.useToken();
   const { modal, message } = AntdApp.useApp();
   const screens = useBreakpoint();
   const isMobile = !screens.md;

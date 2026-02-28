@@ -40,7 +40,7 @@ const mockService = knowledgeService as unknown as {
 
 describe('KnowledgeController', () => {
   let mockReq: Partial<Request>;
-  let mockRes: Partial<Response>;
+  let mockRes: unknown;
   let mockJson: ReturnType<typeof vi.fn>;
   let mockStatus: ReturnType<typeof vi.fn>;
   let mockWrite: ReturnType<typeof vi.fn>;

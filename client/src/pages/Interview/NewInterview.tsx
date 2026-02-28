@@ -42,6 +42,7 @@ import { computeAgeDisplay, formatAgeText, normalizeAge } from '../../utils/age'
 import AgeDisplayView from './components/Editor/AgeDisplay';
 import HukouSelect from '../../components/HukouSelect';
 import BirthplaceSelect from '../../components/BirthplaceSelect';
+import './NewInterview.css';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -368,21 +369,9 @@ const NewInterview: React.FC = () => {
   const isMobile = !screens.md;
 
   return (
-    <div style={{ 
-      minHeight: '100vh',
-      background: token.colorBgLayout,
-      padding: isMobile ? '16px' : '24px'
-    }}>
+    <div className="new-interview-page">
       {/* 页面头部 */}
-      <div style={{ 
-        maxWidth: 1000, 
-        margin: '0 auto 32px',
-        textAlign: 'center',
-        position: 'relative',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center'
-      }}>
+      <div className="page-header">
         <div style={{ 
           position: isMobile ? 'relative' : 'absolute', 
           left: 0, 
@@ -394,59 +383,47 @@ const NewInterview: React.FC = () => {
             type="text" 
             icon={<ArrowRightOutlined rotate={180} />} 
             onClick={() => navigate('/interview')}
-            style={{ fontSize: 16 }}
+            className="back-btn"
           >
             {isMobile ? '返回列表' : '返回问诊列表'}
           </Button>
         </div>
 
-        <div style={{ marginBottom: 16 }}>
+        <div className="header-avatar">
           <Avatar 
-            size={64} 
+            size={80} 
             icon={<MedicineBoxOutlined />} 
-            style={{ 
-              background: token.colorPrimary,
-              boxShadow: token.boxShadow
-            }} 
           />
         </div>
-        <Title level={2} style={{ marginBottom: 8, color: token.colorTextHeading, fontSize: isMobile ? 24 : 30 }}>
+        <Title level={2} className="page-title">
           开始新问诊
         </Title>
-        <Text type="secondary" style={{ fontSize: isMobile ? 14 : 16 }}>
+        <Text type="secondary" className="page-subtitle">
           建立患者档案，数据将自动同步到问诊系统
         </Text>
       </div>
 
       {/* 步骤条 */}
-      <div style={{ maxWidth: 800, margin: '0 auto 32px' }}>
+      <div className="steps-container">
         {isMobile ? (
-          <div
-            style={{
-              background: token.colorBgContainer,
-              padding: '12px 16px',
-              borderRadius: 16,
-              boxShadow: token.boxShadowSecondary,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 24
-            }}
-          >
+          <div className="mobile-steps">
             <Button
               type="text"
               onClick={() => handleStepChange(0)}
-              icon={<UserOutlined style={{ fontSize: 20, color: currentStep === 0 ? token.colorPrimary : token.colorTextQuaternary }} />}
+              className={currentStep === 0 ? 'active' : ''}
+              icon={<UserOutlined style={{ fontSize: 20, color: currentStep === 0 ? '#fff' : token.colorTextQuaternary }} />}
             />
             <Button
               type="text"
               onClick={() => handleStepChange(1)}
-              icon={<PhoneOutlined style={{ fontSize: 20, color: currentStep === 1 ? token.colorPrimary : token.colorTextQuaternary }} />}
+              className={currentStep === 1 ? 'active' : ''}
+              icon={<PhoneOutlined style={{ fontSize: 20, color: currentStep === 1 ? '#fff' : token.colorTextQuaternary }} />}
             />
             <Button
               type="text"
               onClick={() => handleStepChange(2)}
-              icon={<CheckCircleOutlined style={{ fontSize: 20, color: currentStep === 2 ? token.colorPrimary : token.colorTextQuaternary }} />}
+              className={currentStep === 2 ? 'active' : ''}
+              icon={<CheckCircleOutlined style={{ fontSize: 20, color: currentStep === 2 ? '#fff' : token.colorTextQuaternary }} />}
             />
           </div>
         ) : (
@@ -460,14 +437,6 @@ const NewInterview: React.FC = () => {
               title: step.title,
               icon: step.icon,
             }))}
-            style={{ 
-              background: '#fff', 
-              padding: '24px 48px', 
-              borderRadius: 16,
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
-              display: 'flex',
-              justifyContent: 'center'
-            }}
           />
         )}
       </div>
@@ -487,7 +456,7 @@ const NewInterview: React.FC = () => {
       )}
 
       {/* 表单区域 */}
-      <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+      <div className="form-container">
         <Form 
           form={form} 
           layout="vertical" 
@@ -502,27 +471,16 @@ const NewInterview: React.FC = () => {
         >
           {/* 步骤1: 身份信息 */}
           <Card 
-            style={{ 
-              marginBottom: 24, 
-              borderRadius: 16,
-              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-              border: 'none',
-              display: currentStep === 0 ? 'block' : 'none'
-            }}
-            styles={{ body: { padding: '32px' } }}
+            style={{ display: currentStep === 0 ? 'block' : 'none' }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', marginBottom: 24 }}>
+            <div className="card-header">
               <Avatar 
-                size={40} 
+                size={48} 
                 icon={<UserOutlined />} 
-                style={{ 
-                  background: 'linear-gradient(135deg, #1890ff 0%, #69c0ff 100%)',
-                  marginRight: 16
-                }} 
               />
               <div>
-                <Title level={4} style={{ margin: 0 }}>患者身份信息</Title>
-                <Text type="secondary">请填写患者的基本身份信息，与问诊系统保持一致</Text>
+                <Title level={4} className="card-header-title">患者身份信息</Title>
+                <Text type="secondary" className="card-header-desc">请填写患者的基本身份信息，与问诊系统保持一致</Text>
               </div>
             </div>
 
@@ -774,17 +732,12 @@ const NewInterview: React.FC = () => {
               </Col>
             </Row>
 
-            <div style={{ textAlign: 'center', marginTop: 24 }}>
+            <div className="form-actions">
+              <div></div>
               <Button 
                 type="primary" 
                 size="large"
                 onClick={() => handleStepChange(1)}
-                style={{ 
-                  borderRadius: 8,
-                  background: token.colorPrimary,
-                  border: 'none',
-                  padding: '0 48px'
-                }}
               >
                 下一步<ArrowRightOutlined />
               </Button>
@@ -793,27 +746,16 @@ const NewInterview: React.FC = () => {
 
           {/* 步骤2: 联系方式 */}
           <Card 
-            style={{ 
-              marginBottom: 24, 
-              borderRadius: 16,
-              boxShadow: token.boxShadow,
-              border: 'none',
-              display: currentStep === 1 ? 'block' : 'none'
-            }}
-            styles={{ body: { padding: '32px' } }}
+            style={{ display: currentStep === 1 ? 'block' : 'none' }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', marginBottom: 24 }}>
+            <div className="card-header">
               <Avatar 
-                size={40} 
+                size={48} 
                 icon={<PhoneOutlined />} 
-                style={{ 
-                  background: token.colorSuccess,
-                  marginRight: 16
-                }} 
               />
               <div>
-                <Title level={4} style={{ margin: 0 }}>联系方式</Title>
-                <Text type="secondary">请填写患者的联系方式和地址信息</Text>
+                <Title level={4} className="card-header-title">联系方式</Title>
+                <Text type="secondary" className="card-header-desc">请填写患者的联系方式和地址信息</Text>
               </div>
             </div>
 
@@ -890,11 +832,10 @@ const NewInterview: React.FC = () => {
               </Col>
             </Row>
 
-            <div style={{ textAlign: 'center', marginTop: 24, display: 'flex', justifyContent: 'center', gap: 16 }}>
+            <div className="form-actions">
               <Button
                 size="large"
                 onClick={() => setCurrentStep(0)}
-                style={{ borderRadius: 8 }}
               >
                 上一步
               </Button>
@@ -902,12 +843,6 @@ const NewInterview: React.FC = () => {
                 type="primary"
                 size="large"
                 onClick={() => handleStepChange(2)}
-                style={{
-                  borderRadius: 8,
-                  background: 'linear-gradient(135deg, #1890ff 0%, #36cfc9 100%)',
-                  border: 'none',
-                  padding: '0 48px'
-                }}
               >
                 下一步<ArrowRightOutlined />
               </Button>
@@ -916,27 +851,16 @@ const NewInterview: React.FC = () => {
 
           {/* 步骤3: 问诊配置 */}
           <Card 
-            style={{ 
-              marginBottom: 24, 
-              borderRadius: 16,
-              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-              border: 'none',
-              display: currentStep === 2 ? 'block' : 'none'
-            }}
-            styles={{ body: { padding: '32px' } }}
+            style={{ display: currentStep === 2 ? 'block' : 'none' }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', marginBottom: 24 }}>
+            <div className="card-header">
               <Avatar 
-                size={40} 
+                size={48} 
                 icon={<CheckCircleOutlined />} 
-                style={{ 
-                  background: token.colorPrimary,
-                  marginRight: 16
-                }} 
               />
               <div>
-                <Title level={4} style={{ margin: 0 }}>问诊配置</Title>
-                <Text type="secondary">配置病史陈述者和信息可靠程度</Text>
+                <Title level={4} className="card-header-title">问诊配置</Title>
+                <Text type="secondary" className="card-header-desc">配置病史陈述者和信息可靠程度</Text>
               </div>
             </div>
 
@@ -1026,37 +950,31 @@ const NewInterview: React.FC = () => {
               </Space>
             </div>
 
-            <div style={{ textAlign: 'center', marginTop: 32, display: 'flex', justifyContent: 'center', gap: 16 }}>
+            <div className="form-actions">
               <Button
                 size="large"
                 onClick={() => setCurrentStep(1)}
-                style={{ borderRadius: 8 }}
               >
                 上一步
               </Button>
-              <Button 
-                size="large"
-                icon={<SaveOutlined />}
-                onClick={handleSaveDraft}
-                style={{ borderRadius: 8 }}
-              >
-                保存草稿
-              </Button>
-              <Button 
-                type="primary" 
-                htmlType="submit"
-                loading={loading}
-                size="large"
-                icon={loading ? <LoadingOutlined /> : <CheckCircleOutlined />}
-                style={{ 
-                  borderRadius: 8,
-                  background: token.colorSuccess,
-                  border: 'none',
-                  padding: '0 48px'
-                }}
-              >
-                {loading ? '创建中...' : '开始问诊'}
-              </Button>
+              <div style={{ display: 'flex', gap: 12 }}>
+                <Button 
+                  size="large"
+                  icon={<SaveOutlined />}
+                  onClick={handleSaveDraft}
+                >
+                  保存草稿
+                </Button>
+                <Button 
+                  type="primary" 
+                  htmlType="submit"
+                  loading={loading}
+                  size="large"
+                  icon={loading ? <LoadingOutlined /> : <CheckCircleOutlined />}
+                >
+                  {loading ? '创建中...' : '开始问诊'}
+                </Button>
+              </div>
             </div>
           </Card>
         </Form>

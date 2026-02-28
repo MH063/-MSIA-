@@ -1875,6 +1875,72 @@ export const exportReportDocx = async (req: Request, res: Response) => {
 };
 
 /**
+ * exportReportMarkdown
+ * 导出指定会话的病历报告Markdown格式
+ */
+export const exportReportMarkdown = async (req: Request, res: Response) => {
+  try {
+    const sessionId = Number(req.params.id);
+    if (!Number.isFinite(sessionId) || sessionId <= 0) {
+      res.status(400).json({ success: false, message: 'id 必须为正整数' });
+      return;
+    }
+
+    const reportRes = await getReportTextForExport(sessionId);
+    if (!reportRes.ok) {
+      res.status(reportRes.status).json(reportRes.body);
+      return;
+    }
+
+    const session = await sessionService.getSessionById(sessionId);
+    const patientName = String(session?.patient?.name || '').trim() || '未命名';
+    const title = `病历-${patientName}-${formatDateForFilename(new Date())}`;
+
+    const markdownContent = `# ${title}\n\n${reportRes.report}`;
+
+    secureLogger.info('[export.markdown] 导出成功', { sessionId });
+
+    res.json({ success: true, data: markdownContent });
+  } catch (error) {
+    secureLogger.error('[export.markdown] 导出失败', error instanceof Error ? error : undefined);
+    res.status(500).json({ success: false, message: '导出Markdown失败' });
+  }
+};
+
+/**
+ * exportReportText
+ * 导出指定会话的病历报告纯文本格式
+ */
+export const exportReportText = async (req: Request, res: Response) => {
+  try {
+    const sessionId = Number(req.params.id);
+    if (!Number.isFinite(sessionId) || sessionId <= 0) {
+      res.status(400).json({ success: false, message: 'id 必须为正整数' });
+      return;
+    }
+
+    const reportRes = await getReportTextForExport(sessionId);
+    if (!reportRes.ok) {
+      res.status(reportRes.status).json(reportRes.body);
+      return;
+    }
+
+    const session = await sessionService.getSessionById(sessionId);
+    const patientName = String(session?.patient?.name || '').trim() || '未命名';
+    const title = `病历-${patientName}-${formatDateForFilename(new Date())}`;
+
+    const textContent = `${title}\n${'='.repeat(title.length)}\n\n${reportRes.report}`;
+
+    secureLogger.info('[export.text] 导出成功', { sessionId });
+
+    res.json({ success: true, data: textContent });
+  } catch (error) {
+    secureLogger.error('[export.text] 导出失败', error instanceof Error ? error : undefined);
+    res.status(500).json({ success: false, message: '导出文本失败' });
+  }
+};
+
+/**
  * 获取会话列表
  */
 export const getAllSessions = async (req: Request, res: Response) => {

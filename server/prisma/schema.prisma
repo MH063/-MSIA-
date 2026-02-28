@@ -133,19 +133,42 @@ model SymptomKnowledge {
 }
 
 model Operator {
-  id        Int      @id @default(autoincrement())
-  username  String   @unique @db.VarChar(50)
-  password  String   @db.VarChar(200)
-  name      String?  @db.VarChar(100)
-  role      String   @default("doctor") @db.VarChar(20) // admin, doctor
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+  id              Int       @id @default(autoincrement())
+  username        String?   @unique @db.VarChar(50)
+  password        String    @db.VarChar(200)
+  name            String?   @db.VarChar(100)
+  email           String?   @unique @db.VarChar(100)
+  emailVerified   Boolean   @default(false) @map("email_verified")
+  emailVerifiedAt DateTime? @map("email_verified_at")
+  role            String    @default("doctor") @db.VarChar(20)
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
 
-  // 索引优化
+  emailVerificationCodes EmailVerificationCode[]
+
   @@index([role])
   @@index([createdAt])
+  @@index([email])
 
   @@map("operators")
+}
+
+model EmailVerificationCode {
+  id         Int       @id @default(autoincrement())
+  email      String    @db.VarChar(100)
+  code       String    @db.VarChar(6)
+  type       String    @db.VarChar(20)
+  operatorId Int?      @map("operator_id")
+  expiresAt  DateTime  @map("expires_at")
+  usedAt     DateTime? @map("used_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  operator   Operator? @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+
+  @@index([email])
+  @@index([email, type])
+  @@index([expiresAt])
+  @@map("email_verification_codes")
 }
 
 model KnowledgeSource {

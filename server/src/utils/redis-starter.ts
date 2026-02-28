@@ -5,6 +5,7 @@
 import { spawn, ChildProcess } from 'child_process';
 import * as path from 'path';
 import * as net from 'net';
+import * as fs from 'fs';
 import { secureLogger } from './secureLogger';
 
 let redisProcess: ChildProcess | null = null;
@@ -64,8 +65,6 @@ function startRedisProcess(): Promise<boolean> {
     const redisServerPath = getRedisServerPath();
     const redisConfigPath = getRedisConfigPath();
 
-    // 检查 Redis 可执行文件是否存在
-    const fs = require('fs');
     if (!fs.existsSync(redisServerPath)) {
       secureLogger.warn('[Redis] Redis 服务程序不存在', { path: redisServerPath });
       resolve(false);

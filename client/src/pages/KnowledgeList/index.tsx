@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { Layout, Typography, Tabs, Space, Empty, Input, Tree, Breadcrumb, Button, Tag, theme, Grid, Drawer, FloatButton, message, Spin, App } from 'antd';
+import { Typography, Tabs, Space, Empty, Input, Tree, Breadcrumb, Button, Tag, theme, Grid, Drawer, FloatButton, Spin, App } from 'antd';
 import { BookOutlined, ShareAltOutlined, FileTextOutlined, DeploymentUnitOutlined, MenuOutlined } from '@ant-design/icons';
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
@@ -8,47 +8,23 @@ import { useSearchParams } from 'react-router-dom';
 import api, { unwrapData } from '../../utils/api';
 import type { ApiResponse } from '../../utils/api';
 import KnowledgeGraph from './components/KnowledgeGraph';
-import { useThemeStore } from '../../store/theme.store';
 import logger from '../../utils/logger';
+import type {
+  ServerSymptomMapping,
+  KnowledgeItem,
+  SessionSearchItem,
+  SessionSearchPayload,
+  SymptomMatch,
+  SymptomMappingPayload,
+  GraphData,
+  TreeNode,
+} from '../../types/knowledge';
+import { toKnowledgeItem } from '../../types/knowledge';
 import './index.css';
 
-const { Sider, Content } = Layout;
 const { Title, Text } = Typography;
 const { Search } = Input;
 const { useBreakpoint } = Grid;
-
-type ServerSymptomMapping = {
-  symptomKey: string;
-  displayName: string;
-  category?: string | null;
-  description?: string | null;
-  redFlags?: unknown;
-  associatedSymptoms?: unknown;
-  questions?: unknown;
-};
-
-interface KnowledgeItem {
-  id: string;
-  symptomKey: string;
-  symptomName: string;
-  category?: string;
-  description?: string;
-  redFlags?: string[];
-  relatedSymptoms?: string[];
-  questions?: string[];
-}
-
-interface SessionSearchItem {
-  id: number;
-  patient?: { name?: string; gender?: string };
-  createdAt: string;
-  status: string;
-}
-
-interface SessionSearchPayload {
-  items: SessionSearchItem[];
-  total: number;
-}
 
 /**
  * 知识库列表页面
@@ -57,7 +33,6 @@ interface SessionSearchPayload {
 const KnowledgeList: React.FC = () => {
   const { message } = App.useApp();
   const { token } = theme.useToken();
-  const { mode } = useThemeStore();
   const screens = useBreakpoint();
   const [searchParams, setSearchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
@@ -69,12 +44,10 @@ const KnowledgeList: React.FC = () => {
   const [expandedKeys, setExpandedKeys] = useState<string[]>(['root']);
   const [sessionsLoading, setSessionsLoading] = useState(false);
   const [sessionResults, setSessionResults] = useState<SessionSearchItem[]>([]);
-  const [symptomMatches, setSymptomMatches] = useState<Array<{ name: string; key: string }>>([]);
+  const [symptomMatches, setSymptomMatches] = useState<SymptomMatch[]>([]);
 
-  // 判断是否为移动端
   const isMobile = !screens.md;
 
-  // 初始化搜索参数
   useEffect(() => {
     const query = searchParams.get('search');
     if (query) {
@@ -87,21 +60,7 @@ const KnowledgeList: React.FC = () => {
     try {
       const res: ApiResponse<ServerSymptomMapping[]> = await api.get('/knowledge/symptom-mappings');
       const payload = unwrapData<ServerSymptomMapping[]>(res) || [];
-      const mapped: KnowledgeItem[] = (payload || []).map((it) => {
-        const redFlags = Array.isArray(it.redFlags) ? (it.redFlags as unknown[]).map(String) : [];
-        const related = Array.isArray(it.associatedSymptoms) ? (it.associatedSymptoms as unknown[]).map(String) : [];
-        const questions = Array.isArray(it.questions) ? (it.questions as unknown[]).map(String) : [];
-        return {
-          id: it.symptomKey,
-          symptomKey: it.symptomKey,
-          symptomName: it.displayName || it.symptomKey,
-          category: it.category || '常见症状',
-          description: typeof it.description === 'string' ? it.description : undefined,
-          redFlags,
-          relatedSymptoms: related,
-          questions,
-        };
-      });
+      const mapped: KnowledgeItem[] = payload.map(toKnowledgeItem);
       setKnowledgeList(mapped);
       logger.info('[KnowledgeList] 已加载知识库映射', { count: mapped.length });
     } catch (err) {
@@ -115,9 +74,6 @@ const KnowledgeList: React.FC = () => {
     fetchData();
   }, [fetchData]);
 
-  /**
-   * 聚合搜索：病历 + 症状映射
-   */
   useEffect(() => {
     const term = searchTerm.trim();
     if (!term) {
@@ -142,8 +98,8 @@ const KnowledgeList: React.FC = () => {
 
     (async () => {
       try {
-        const resp = (await api.get('/mapping/symptoms')) as ApiResponse<{ nameToKey: Record<string, string>; synonyms: Record<string, string> }>;
-        const payload = unwrapData<{ nameToKey: Record<string, string>; synonyms: Record<string, string> }>(resp);
+        const resp = (await api.get('/mapping/symptoms')) as ApiResponse<SymptomMappingPayload>;
+        const payload = unwrapData<SymptomMappingPayload>(resp);
         const nameToKey = payload?.nameToKey || {};
         const synonyms = payload?.synonyms || {};
         const names = Object.keys(nameToKey);
@@ -153,7 +109,7 @@ const KnowledgeList: React.FC = () => {
           .map(([, canonical]) => canonical)
           .filter(Boolean);
         const union = Array.from(new Set([...matchedNames, ...matchedSynonyms]));
-        const results = union.map(name => ({ name, key: nameToKey[name] || name.toLowerCase().replace(/\s+/g, '_') }));
+        const results: SymptomMatch[] = union.map(name => ({ name, key: nameToKey[name] || name.toLowerCase().replace(/\s+/g, '_') }));
         setSymptomMatches(results.slice(0, 10));
       } catch (e) {
         logger.error('[KnowledgeList] 症状映射搜索失败', e);
@@ -167,7 +123,6 @@ const KnowledgeList: React.FC = () => {
     return knowledgeList.find(k => k.id === selectedKey);
   }, [knowledgeList, selectedKey]);
 
-  // 过滤列表
   const filteredList = useMemo(() => {
     if (!searchTerm) return knowledgeList;
     return knowledgeList.filter(k => 
@@ -176,8 +131,7 @@ const KnowledgeList: React.FC = () => {
     );
   }, [knowledgeList, searchTerm]);
 
-  // Construct Tree Data (Mock 3 levels)
-  const treeData = useMemo(() => {
+  const treeData = useMemo((): TreeNode[] => {
     if (!filteredList || filteredList.length === 0) {
       return [{
         title: '临床医学',
@@ -209,8 +163,7 @@ const KnowledgeList: React.FC = () => {
     ];
   }, [filteredList]);
 
-  // Construct Graph Data
-  const graphData = useMemo(() => {
+  const graphData = useMemo((): GraphData => {
     if (!selectedItem) return { nodes: [], links: [], categories: [] };
     
     const nodes = [
@@ -232,7 +185,6 @@ const KnowledgeList: React.FC = () => {
     return { nodes, links, categories };
   }, [selectedItem]);
 
-  // Markdown Content Generation (Mock)
   const markdownContent = useMemo(() => {
     if (!selectedItem) return '';
     return `
@@ -257,9 +209,6 @@ ${selectedItem.questions?.map((q: string) => `- ${q}`).join('\n') || '暂无'}
     `;
   }, [selectedItem]);
 
-  /**
-   * Tabs 配置项，使用 useMemo 缓存避免每次渲染重新创建
-   */
   const tabItems = useMemo(() => [
     {
       key: 'detail',
@@ -323,7 +272,6 @@ ${selectedItem.questions?.map((q: string) => `- ${q}`).join('\n') || '暂无'}
             const raw = e.target.value;
             const safe = raw.replace(/['"<>]/g, '');
             setSearchTerm(safe);
-            // Update URL param
             if (safe) {
               setSearchParams({ search: safe });
             } else {
@@ -360,7 +308,6 @@ ${selectedItem.questions?.map((q: string) => `- ${q}`).join('\n') || '暂无'}
 
   return (
     <div className="knowledge-page msia-page">
-      {/* 页面头部 */}
       <div className="knowledge-header">
         <div className="knowledge-header-content">
           <Title level={2} className="knowledge-title">医学知识库</Title>
@@ -381,14 +328,12 @@ ${selectedItem.questions?.map((q: string) => `- ${q}`).join('\n') || '暂无'}
       </div>
 
       <div className="knowledge-body">
-        {/* 桌面端侧边栏 */}
         {!isMobile && (
           <div className="knowledge-sider">
             {SidebarContent}
           </div>
         )}
 
-        {/* 移动端抽屉 */}
         {isMobile && (
           <Drawer
             title="知识库导航"
@@ -402,7 +347,6 @@ ${selectedItem.questions?.map((q: string) => `- ${q}`).join('\n') || '暂无'}
           </Drawer>
         )}
 
-        {/* 内容区域 */}
         <div className="knowledge-content">
           {selectedItem ? (
             <div className="knowledge-detail-wrapper">
@@ -448,7 +392,6 @@ ${selectedItem.questions?.map((q: string) => `- ${q}`).join('\n') || '暂无'}
                         <Title level={4}>搜索结果：{searchTerm}</Title>
                       </div>
                       
-                      {/* 病历匹配 */}
                       <div className="knowledge-search-section">
                         <Title level={5}>病历匹配</Title>
                         {sessionsLoading ? (
@@ -476,7 +419,6 @@ ${selectedItem.questions?.map((q: string) => `- ${q}`).join('\n') || '暂无'}
                         )}
                       </div>
 
-                      {/* 症状候选 */}
                       <div className="knowledge-search-section">
                         <Title level={5}>症状候选</Title>
                         {symptomMatches.length > 0 ? (
@@ -490,7 +432,6 @@ ${selectedItem.questions?.map((q: string) => `- ${q}`).join('\n') || '暂无'}
                         )}
                       </div>
 
-                      {/* 知识库词条匹配 */}
                       <div className="knowledge-search-section">
                         <Title level={5}>知识库词条匹配</Title>
                         {filteredList.length > 0 ? (
@@ -520,7 +461,6 @@ ${selectedItem.questions?.map((q: string) => `- ${q}`).join('\n') || '暂无'}
         </div>
       </div>
 
-      {/* 移动端浮动按钮 */}
       {isMobile && (
         <FloatButton 
           icon={<MenuOutlined />} 

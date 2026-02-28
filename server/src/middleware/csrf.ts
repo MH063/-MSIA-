@@ -110,9 +110,17 @@ export const csrfProtection = (req: Request, res: Response, next: NextFunction):
     return next();
   }
   
-  // 开发环境默认跳过CSRF验证
-  if (process.env.NODE_ENV !== 'production' || process.env.SKIP_CSRF === 'true') {
+  // 开发环境默认跳过CSRF验证（前端可能未完整实现CSRF支持）
+  // 生产环境强制启用CSRF验证
+  // 可通过环境变量 SKIP_CSRF=true 强制跳过（用于测试）
+  // 或通过 ENABLE_CSRF_IN_DEV=true 在开发环境强制启用
+  if (process.env.NODE_ENV !== 'production' && process.env.ENABLE_CSRF_IN_DEV !== 'true') {
     secureLogger.debug('[CSRF] 开发环境跳过CSRF验证');
+    return next();
+  }
+  
+  if (process.env.SKIP_CSRF === 'true') {
+    secureLogger.debug('[CSRF] 跳过CSRF验证（SKIP_CSRF=true）');
     return next();
   }
   

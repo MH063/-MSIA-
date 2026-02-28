@@ -33,5 +33,7 @@ router.post('/:id/report', requirePermission('session:report'), validateParams(I
 // 导出PDF/Word - 验证ID参数
 router.get('/:id/export/pdf', requirePermission('session:export'), validateParams(IdParamSchema), sessionController.exportReportPdf);
 router.get('/:id/export/word', requirePermission('session:export'), validateParams(IdParamSchema), sessionController.exportReportDocx);
+router.get('/:id/export/markdown', requirePermission('session:export'), validateParams(IdParamSchema), sessionController.exportReportMarkdown);
+router.get('/:id/export/text', requirePermission('session:export'), validateParams(IdParamSchema), sessionController.exportReportText);
 
 export default router;
