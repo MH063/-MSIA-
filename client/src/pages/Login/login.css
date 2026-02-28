@@ -1,13 +1,20 @@
 /* 登录页面整体布局 */
 .login-page {
   min-height: 100vh;
+  min-height: 100dvh;
   width: 100%;
   position: relative;
   overflow: hidden;
-  background: var(--msia-bg);
+  background: linear-gradient(135deg, #f0f5ff 0%, #e6f7ff 50%, #f0f9ff 100%);
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 20px;
+}
+
+/* 暗色主题背景 */
+[data-theme='dark'] .login-page {
+  background: linear-gradient(135deg, #0c1929 0%, #0a192f 50%, #0d1f3c 100%);
 }
 
 /* 背景装饰 */
@@ -26,45 +33,64 @@
   position: absolute;
   border-radius: 50%;
   filter: blur(80px);
-  opacity: 0.5;
+  opacity: 0.6;
 }
 
 .login-bg-blob-1 {
-  width: 500px;
-  height: 500px;
-  background: linear-gradient(135deg, rgba(0, 102, 204, 0.4) 0%, rgba(0, 163, 191, 0.3) 100%);
-  top: -150px;
-  right: -100px;
-  animation: blobFloat 12s ease-in-out infinite;
+  width: 600px;
+  height: 600px;
+  background: linear-gradient(135deg, rgba(0, 102, 204, 0.35) 0%, rgba(0, 163, 191, 0.25) 100%);
+  top: -200px;
+  right: -150px;
+  animation: blobFloat 15s ease-in-out infinite;
 }
 
 .login-bg-blob-2 {
-  width: 400px;
-  height: 400px;
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.35) 0%, rgba(59, 130, 246, 0.25) 100%);
-  bottom: -100px;
-  left: -50px;
-  animation: blobFloat 15s ease-in-out infinite reverse;
+  width: 500px;
+  height: 500px;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.3) 0%, rgba(59, 130, 246, 0.2) 100%);
+  bottom: -150px;
+  left: -100px;
+  animation: blobFloat 18s ease-in-out infinite reverse;
 }
 
 .login-bg-blob-3 {
-  width: 300px;
-  height: 300px;
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.25) 0%, rgba(239, 68, 68, 0.15) 100%);
-  top: 40%;
-  left: 20%;
-  animation: blobFloat 18s ease-in-out infinite;
+  width: 350px;
+  height: 350px;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(236, 72, 153, 0.15) 100%);
+  top: 35%;
+  left: 15%;
+  animation: blobFloat 20s ease-in-out infinite;
+}
+
+/* 暗色主题 blob */
+[data-theme='dark'] .login-bg-blob-1 {
+  background: linear-gradient(135deg, rgba(59, 158, 255, 0.25) 0%, rgba(0, 180, 216, 0.15) 100%);
+  opacity: 0.4;
+}
+
+[data-theme='dark'] .login-bg-blob-2 {
+  background: linear-gradient(135deg, rgba(52, 211, 153, 0.2) 0%, rgba(96, 165, 250, 0.15) 100%);
+  opacity: 0.35;
+}
+
+[data-theme='dark'] .login-bg-blob-3 {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(236, 72, 153, 0.1) 100%);
+  opacity: 0.3;
 }
 
 @keyframes blobFloat {
   0%, 100% { 
-    transform: translate(0, 0) scale(1); 
+    transform: translate(0, 0) scale(1) rotate(0deg); 
   }
-  33% { 
-    transform: translate(30px, -30px) scale(1.05); 
+  25% { 
+    transform: translate(20px, -30px) scale(1.05) rotate(5deg); 
   }
-  66% { 
-    transform: translate(-20px, 20px) scale(0.95); 
+  50% { 
+    transform: translate(-15px, 20px) scale(0.95) rotate(-5deg); 
+  }
+  75% { 
+    transform: translate(25px, 15px) scale(1.02) rotate(3deg); 
   }
 }
 
@@ -76,10 +102,16 @@
   width: 100%;
   height: 100%;
   background-image: 
-    linear-gradient(rgba(0, 102, 204, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 102, 204, 0.03) 1px, transparent 1px);
-  background-size: 50px 50px;
+    linear-gradient(rgba(0, 102, 204, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 102, 204, 0.04) 1px, transparent 1px);
+  background-size: 60px 60px;
   z-index: 1;
+}
+
+[data-theme='dark'] .login-bg-grid {
+  background-image: 
+    linear-gradient(rgba(59, 158, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(59, 158, 255, 0.03) 1px, transparent 1px);
 }
 
 /* 登录卡片 */
@@ -87,37 +119,49 @@
   position: relative;
   z-index: 2;
   width: 100%;
-  max-width: 440px;
-  padding: 48px 40px;
-  border-radius: var(--msia-radius-lg);
-  box-shadow: var(--msia-shadow-xl);
+  max-width: 460px;
+  padding: 48px 44px;
+  border-radius: 24px;
+  box-shadow: 
+    0 4px 6px -1px rgba(0, 0, 0, 0.05),
+    0 10px 15px -3px rgba(0, 0, 0, 0.08),
+    0 20px 40px -4px rgba(0, 102, 204, 0.1);
   backdrop-filter: blur(20px);
   margin: 20px;
-  background: var(--msia-card);
-  border: 1px solid var(--msia-border);
-  animation: cardSlideUp 0.5s ease-out;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  animation: cardSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+[data-theme='dark'] .login-card {
+  background: rgba(17, 25, 40, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 
+    0 4px 6px -1px rgba(0, 0, 0, 0.2),
+    0 10px 15px -3px rgba(0, 0, 0, 0.3),
+    0 20px 40px -4px rgba(0, 0, 0, 0.4);
 }
 
 @keyframes cardSlideUp {
   from {
     opacity: 0;
-    transform: translateY(30px);
+    transform: translateY(40px) scale(0.98);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
   }
 }
 
 /* 标题区域 */
 .login-header {
   text-align: center;
-  margin-bottom: 40px;
+  margin-bottom: 36px;
 }
 
 .login-logo {
-  font-size: 56px;
-  color: var(--msia-primary);
+  font-size: 64px;
+  color: linear-gradient(135deg, #0066CC 0%, #00A3BF 100%);
   margin-bottom: 20px;
   display: flex;
   align-items: center;
@@ -125,137 +169,250 @@
   animation: logoPulse 3s ease-in-out infinite;
 }
 
+.login-logo .anticon {
+  background: linear-gradient(135deg, #0066CC 0%, #00A3BF 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 2px 8px rgba(0, 102, 204, 0.3));
+}
+
+[data-theme='dark'] .login-logo .anticon {
+  background: linear-gradient(135deg, #3b9eff 0%, #00d4aa 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 2px 8px rgba(59, 158, 255, 0.4));
+}
+
 @keyframes logoPulse {
   0%, 100% { 
     transform: scale(1); 
-    filter: drop-shadow(0 4px 12px rgba(0, 102, 204, 0.3));
+    filter: drop-shadow(0 4px 16px rgba(0, 102, 204, 0.3));
   }
   50% { 
     transform: scale(1.05); 
-    filter: drop-shadow(0 6px 20px rgba(0, 102, 204, 0.4));
+    filter: drop-shadow(0 8px 24px rgba(0, 102, 204, 0.4));
   }
 }
 
 .login-title {
   margin-bottom: 8px !important;
-  font-weight: 700 !important;
-  font-size: 24px !important;
-  color: var(--msia-text-primary) !important;
+  font-weight: 800 !important;
+  font-size: 28px !important;
+  color: #0f172a !important;
   letter-spacing: -0.5px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme='dark'] .login-title {
+  color: #f8fafc !important;
+  text-shadow: 0 2px 8px rgba(255, 255, 255, 0.1);
 }
 
 .login-subtitle {
-  color: var(--msia-text-secondary);
+  color: #475569;
   font-size: 14px;
+  font-weight: 400;
+}
+
+[data-theme='dark'] .login-subtitle {
+  color: #cbd5e1;
 }
 
 /* 表单元素 */
 .login-form-item {
-  margin-bottom: 24px;
+  margin-bottom: 22px;
 }
 
 .login-form-item .ant-form-item-label > label {
   font-weight: 500;
-  color: var(--msia-text-secondary);
+  color: #475569;
+  font-size: 14px;
+}
+
+[data-theme='dark'] .login-form-item .ant-form-item-label > label {
+  color: #94a3b8;
 }
 
 .login-input {
-  height: 48px;
-  border-radius: var(--msia-radius-sm);
+  height: 50px;
+  border-radius: 12px;
   font-size: 15px;
-  background: var(--msia-bg) !important;
-  border-color: var(--msia-border) !important;
-  color: var(--msia-text) !important;
-  transition: all var(--msia-transition-base);
+  background: #f8fafc !important;
+  border: 1.5px solid #e2e8f0 !important;
+  color: #1e293b !important;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+[data-theme='dark'] .login-input {
+  background: rgba(30, 41, 59, 0.8) !important;
+  border-color: rgba(71, 85, 105, 0.5) !important;
+  color: #f1f5f9 !important;
 }
 
 .login-input:hover {
-  border-color: var(--msia-primary) !important;
+  border-color: #0066CC !important;
+  background: #fff !important;
+}
+
+[data-theme='dark'] .login-input:hover {
+  border-color: #3b9eff !important;
+  background: rgba(30, 41, 59, 1) !important;
 }
 
 .login-input:focus,
 .login-input-focused {
-  border-color: var(--msia-primary) !important;
-  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1) !important;
+  border-color: #0066CC !important;
+  box-shadow: 0 0 0 4px rgba(0, 102, 204, 0.12) !important;
+  background: #fff !important;
+}
+
+[data-theme='dark'] .login-input:focus,
+[data-theme='dark'] .login-input-focused {
+  border-color: #3b9eff !important;
+  box-shadow: 0 0 0 4px rgba(59, 158, 255, 0.15) !important;
+  background: rgba(30, 41, 59, 1) !important;
 }
 
 .login-input-icon {
-  color: var(--msia-text-tertiary);
+  color: #94a3b8;
   font-size: 18px;
   margin-right: 10px;
 }
 
+[data-theme='dark'] .login-input-icon {
+  color: #64748b;
+}
+
 /* 登录按钮 */
 .login-button {
-  height: 48px;
+  height: 52px;
   font-size: 16px;
   font-weight: 600;
-  border-radius: var(--msia-radius-sm);
+  border-radius: 12px;
   margin-top: 8px;
-  background: linear-gradient(135deg, var(--msia-primary) 0%, var(--msia-primary-2) 100%);
+  background: linear-gradient(135deg, #0066CC 0%, #00A3BF 100%);
   border: none;
-  box-shadow: 0 4px 16px rgba(0, 102, 204, 0.25);
-  transition: all var(--msia-transition-base);
+  box-shadow: 0 4px 14px rgba(0, 102, 204, 0.35);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  letter-spacing: 2px;
 }
 
 .login-button:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 102, 204, 0.35);
-  background: linear-gradient(135deg, var(--msia-primary-hover) 0%, #008BA3 100%);
+  box-shadow: 0 8px 25px rgba(0, 102, 204, 0.45);
+  background: linear-gradient(135deg, #0052a3 0%, #008a9e 100%);
 }
 
 .login-button:active:not(:disabled) {
   transform: translateY(0);
+  box-shadow: 0 4px 14px rgba(0, 102, 204, 0.35);
 }
 
 .login-button:disabled {
-  background: var(--msia-border);
+  background: #cbd5e1;
   box-shadow: none;
+  cursor: not-allowed;
+}
+
+[data-theme='dark'] .login-button {
+  background: linear-gradient(135deg, #3b9eff 0%, #00d4aa 100%);
+  box-shadow: 0 4px 14px rgba(59, 158, 255, 0.3);
+}
+
+[data-theme='dark'] .login-button:hover:not(:disabled) {
+  box-shadow: 0 8px 25px rgba(59, 158, 255, 0.4);
+  background: linear-gradient(135deg, #2d8bdb 0%, #00b894 100%);
+}
+
+[data-theme='dark'] .login-button:disabled {
+  background: #334155;
 }
 
 /* Tab 切换 */
 .login-tabs .ant-tabs-nav {
-  margin-bottom: 24px;
+  margin-bottom: 28px;
 }
 
 .login-tabs .ant-tabs-tab {
-  padding: 12px 20px;
+  padding: 12px 24px;
   font-weight: 500;
-  transition: all var(--msia-transition-base);
+  font-size: 15px;
+  transition: all 0.25s ease;
+  color: #64748b;
+}
+
+[data-theme='dark'] .login-tabs .ant-tabs-tab {
+  color: #94a3b8;
+}
+
+.login-tabs .ant-tabs-tab:hover {
+  color: #0066CC;
+}
+
+[data-theme='dark'] .login-tabs .ant-tabs-tab:hover {
+  color: #3b9eff;
 }
 
 .login-tabs .ant-tabs-tab-active {
-  color: var(--msia-primary);
+  color: #0066CC !important;
+}
+
+[data-theme='dark'] .login-tabs .ant-tabs-tab-active {
+  color: #3b9eff !important;
 }
 
 .login-tabs .ant-tabs-ink-bar {
-  background: var(--msia-primary);
+  background: linear-gradient(90deg, #0066CC 0%, #00A3BF 100%);
   height: 3px;
   border-radius: 3px;
 }
 
+[data-theme='dark'] .login-tabs .ant-tabs-ink-bar {
+  background: linear-gradient(90deg, #3b9eff 0%, #00d4aa 100%);
+}
+
 /* 底部链接 */
 .login-footer {
-  margin-top: 32px;
+  margin-top: 28px;
   text-align: center;
   padding-top: 24px;
-  border-top: 1px solid var(--msia-border);
+  border-top: 1px solid #e2e8f0;
+}
+
+[data-theme='dark'] .login-footer {
+  border-top-color: rgba(71, 85, 105, 0.5);
 }
 
 .login-footer-text {
-  color: var(--msia-text-secondary);
+  color: #64748b;
+  font-size: 14px;
+}
+
+[data-theme='dark'] .login-footer-text {
+  color: #94a3b8;
 }
 
 .login-footer-link {
-  color: var(--msia-primary);
-  margin-left: 8px;
+  color: #0066CC;
+  margin-left: 6px;
   font-weight: 600;
-  transition: color var(--msia-transition-fast);
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+[data-theme='dark'] .login-footer-link {
+  color: #3b9eff;
 }
 
 .login-footer-link:hover {
-  color: var(--msia-primary-hover);
+  color: #0052a3;
   text-decoration: none;
+}
+
+[data-theme='dark'] .login-footer-link:hover {
+  color: #60a5fa;
 }
 
 /* 环境标签 */
@@ -263,14 +420,21 @@
   position: absolute;
   top: 24px;
   right: 24px;
-  padding: 6px 14px;
-  border-radius: var(--msia-radius-sm);
+  padding: 8px 16px;
+  border-radius: 20px;
   font-size: 12px;
   font-weight: 600;
   z-index: 10;
-  background: rgba(16, 185, 129, 0.1);
-  border: 1px solid rgba(16, 185, 129, 0.3);
-  color: var(--msia-success);
+  background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+  border: 1px solid #86efac;
+  color: #15803d;
+  box-shadow: 0 2px 8px rgba(34, 197, 94, 0.2);
+}
+
+[data-theme='dark'] .env-tag {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(74, 222, 128, 0.15) 100%);
+  border-color: rgba(74, 222, 128, 0.3);
+  color: #4ade80;
 }
 
 /* 验证码容器 */
@@ -285,60 +449,197 @@
 }
 
 .login-captcha-image {
-  height: 48px;
-  border-radius: var(--msia-radius-sm);
+  height: 50px;
+  border-radius: 12px;
   cursor: pointer;
-  border: 1px solid var(--msia-border);
-  transition: all var(--msia-transition-fast);
+  border: 1.5px solid #e2e8f0;
+  transition: all 0.25s ease;
+}
+
+[data-theme='dark'] .login-captcha-image {
+  border-color: rgba(71, 85, 105, 0.5);
 }
 
 .login-captcha-image:hover {
-  border-color: var(--msia-primary);
+  border-color: #0066CC;
   transform: scale(1.02);
 }
 
-/* 响应式调整 */
+[data-theme='dark'] .login-captcha-image:hover {
+  border-color: #3b9eff;
+}
+
+/* 平板端响应式 */
+@media (max-width: 768px) {
+  .login-page {
+    padding: 16px;
+  }
+
+  .login-card {
+    padding: 40px 36px;
+    border-radius: 20px;
+    margin: 16px;
+  }
+
+  .login-logo {
+    font-size: 56px;
+  }
+
+  .login-title {
+    font-size: 24px !important;
+  }
+
+  .login-bg-blob-1 {
+    width: 400px;
+    height: 400px;
+  }
+
+  .login-bg-blob-2 {
+    width: 300px;
+    height: 300px;
+  }
+
+  .login-bg-blob-3 {
+    width: 200px;
+    height: 200px;
+  }
+}
+
+/* 手机端响应式 */
 @media (max-width: 480px) {
+  .login-page {
+    padding: 12px;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    display: flex;
+  }
+
   .login-card {
     padding: 32px 24px;
-    margin: 16px;
-    border-radius: var(--msia-radius-md);
+    margin: 12px;
+    border-radius: 20px;
+    box-shadow: 
+      0 2px 4px -1px rgba(0, 0, 0, 0.05),
+      0 8px 12px -2px rgba(0, 0, 0, 0.08);
+    max-width: 400px;
+    width: 100%;
   }
-  
+
   .login-logo {
     font-size: 48px;
+    margin-bottom: 16px;
   }
-  
+
+  .login-title {
+    font-size: 22px !important;
+  }
+
+  .login-subtitle {
+    font-size: 13px;
+  }
+
+  .login-input {
+    height: 46px;
+    font-size: 14px;
+  }
+
+  .login-button {
+    height: 48px;
+    font-size: 15px;
+    letter-spacing: 1px;
+  }
+
+  .login-tabs .ant-tabs-tab {
+    padding: 10px 16px;
+    font-size: 14px;
+  }
+
+  .env-tag {
+    top: 16px;
+    right: 16px;
+    padding: 6px 12px;
+    font-size: 11px;
+  }
+
+  .login-bg-blob-1,
+  .login-bg-blob-2,
+  .login-bg-blob-3 {
+    opacity: 0.4;
+  }
+}
+
+/* 超小屏幕 */
+@media (max-width: 360px) {
+  .login-card {
+    padding: 28px 20px;
+  }
+
   .login-title {
     font-size: 20px !important;
   }
-  
+}
+
+/* 横屏手机 */
+@media (max-height: 500px) and (orientation: landscape) {
+  .login-page {
+    padding: 20px;
+    align-items: center;
+  }
+
+  .login-card {
+    padding: 24px 32px;
+  }
+
+  .login-header {
+    margin-bottom: 20px;
+  }
+
+  .login-logo {
+    font-size: 40px;
+    margin-bottom: 12px;
+  }
+
+  .login-title {
+    font-size: 20px !important;
+    margin-bottom: 4px !important;
+  }
+
+  .login-subtitle {
+    display: none;
+  }
+
+  .login-form-item {
+    margin-bottom: 16px;
+  }
+
+  .login-input {
+    height: 42px;
+  }
+
   .login-button {
-    height: 44px;
-    font-size: 15px;
+    height: 42px;
+    margin-top: 4px;
   }
 }
 
-/* 暗色主题适配 */
-[data-theme='dark'] .login-card {
-  background: var(--msia-card);
-  border-color: var(--msia-border);
+/* 动画增强 */
+@media (prefers-reduced-motion: no-preference) {
+  .login-card {
+    animation: cardSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  }
 }
 
-[data-theme='dark'] .login-bg-blob-1 {
-  background: linear-gradient(135deg, rgba(59, 158, 255, 0.35) 0%, rgba(0, 180, 216, 0.25) 100%);
-}
-
-[data-theme='dark'] .login-bg-blob-2 {
-  background: linear-gradient(135deg, rgba(52, 211, 153, 0.3) 0%, rgba(96, 165, 250, 0.2) 100%);
-}
-
-[data-theme='dark'] .login-input {
-  background: var(--msia-bg-secondary) !important;
-}
-
-[data-theme='dark'] .login-bg-grid {
-  background-image: 
-    linear-gradient(rgba(59, 158, 255, 0.02) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(59, 158, 255, 0.02) 1px, transparent 1px);
+@media (prefers-reduced-motion: reduce) {
+  .login-card {
+    animation: none;
+  }
+  
+  .login-bg-blob {
+    animation: none;
+  }
+  
+  .login-logo {
+    animation: none;
+  }
 }

@@ -23,10 +23,7 @@ const EChartsWrapper: React.FC<EChartsWrapperProps> = ({
 }) => {
   const chartRef = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<echarts.ECharts | null>(null);
-  const optionRef = useRef<echarts.EChartsOption>(option);
   const { mode } = useThemeStore();
-
-  optionRef.current = option;
 
   useEffect(() => {
     if (chartRef.current) {
@@ -36,7 +33,7 @@ const EChartsWrapper: React.FC<EChartsWrapperProps> = ({
       }
       chartInstance.current = echarts.init(chartRef.current, theme);
       
-      chartInstance.current.setOption(optionRef.current);
+      chartInstance.current.setOption(option);
 
       const resizeObserver = new ResizeObserver(() => {
         chartInstance.current?.resize();
@@ -55,7 +52,7 @@ const EChartsWrapper: React.FC<EChartsWrapperProps> = ({
         }
       };
     }
-  }, [mode]);
+  }, [mode, option]);
 
   useEffect(() => {
     if (chartInstance.current && onEvents) {

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { Layout, Typography, Tabs, Space, Empty, Input, Tree, Breadcrumb, Button, Tag, theme, Grid, Drawer, FloatButton, message, Spin } from 'antd';
+import { Layout, Typography, Tabs, Space, Empty, Input, Tree, Breadcrumb, Button, Tag, theme, Grid, Drawer, FloatButton, message, Spin, App } from 'antd';
 import { BookOutlined, ShareAltOutlined, FileTextOutlined, DeploymentUnitOutlined, MenuOutlined } from '@ant-design/icons';
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
@@ -13,7 +13,7 @@ import logger from '../../utils/logger';
 import './index.css';
 
 const { Sider, Content } = Layout;
-const { Title } = Typography;
+const { Title, Text } = Typography;
 const { Search } = Input;
 const { useBreakpoint } = Grid;
 
@@ -50,7 +50,12 @@ interface SessionSearchPayload {
   total: number;
 }
 
+/**
+ * 知识库列表页面
+ * 展示医学知识库内容，支持分类浏览和搜索
+ */
 const KnowledgeList: React.FC = () => {
+  const { message } = App.useApp();
   const { token } = theme.useToken();
   const { mode } = useThemeStore();
   const screens = useBreakpoint();
@@ -309,25 +314,27 @@ ${selectedItem.questions?.map((q: string) => `- ${q}`).join('\n') || '暂无'}
   };
 
   const SidebarContent = (
-    <div style={{ padding: 16, height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Search 
-        placeholder="搜索知识库" 
-        style={{ marginBottom: 16 }} 
-        value={searchTerm}
-        onChange={(e) => {
-          const raw = e.target.value;
-          const safe = raw.replace(/['"<>]/g, '');
-          setSearchTerm(safe);
-          // Update URL param
-          if (safe) {
-            setSearchParams({ search: safe });
-          } else {
-            setSearchParams({});
-          }
-        }}
-        allowClear
-      />
-      <div style={{ flex: 1, overflowY: 'auto' }}>
+    <div className="knowledge-sider-content">
+      <div className="knowledge-sider-search-wrapper">
+        <Search 
+          placeholder="搜索知识库" 
+          value={searchTerm}
+          onChange={(e) => {
+            const raw = e.target.value;
+            const safe = raw.replace(/['"<>]/g, '');
+            setSearchTerm(safe);
+            // Update URL param
+            if (safe) {
+              setSearchParams({ search: safe });
+            } else {
+              setSearchParams({});
+            }
+          }}
+          allowClear
+          className="knowledge-sider-search"
+        />
+      </div>
+      <div className="knowledge-tree-wrapper">
         <Tree
           expandedKeys={expandedKeys}
           selectedKeys={[selectedKey]}
@@ -346,52 +353,74 @@ ${selectedItem.questions?.map((q: string) => `- ${q}`).join('\n') || '暂无'}
           }}
           treeData={treeData}
           blockNode
-          style={{ background: 'transparent', color: token.colorText }}
         />
       </div>
     </div>
   );
 
   return (
-    <div className="knowledge-page msia-page" style={{ padding: 0, height: 'calc(100vh - 64px)', background: token.colorBgLayout, position: 'relative' }}>
-      <Layout style={{ height: '100%', background: 'transparent' }}>
-        {/* Desktop Sider */}
+    <div className="knowledge-page msia-page">
+      {/* 页面头部 */}
+      <div className="knowledge-header">
+        <div className="knowledge-header-content">
+          <Title level={2} className="knowledge-title">医学知识库</Title>
+          <Text className="knowledge-subtitle">
+            系统化的医学知识体系，助力临床问诊学习
+          </Text>
+        </div>
+        {isMobile && (
+          <Button 
+            type="primary"
+            icon={<MenuOutlined />}
+            onClick={() => setMobileDrawerOpen(true)}
+            className="knowledge-menu-btn"
+          >
+            分类导航
+          </Button>
+        )}
+      </div>
+
+      <div className="knowledge-body">
+        {/* 桌面端侧边栏 */}
         {!isMobile && (
-          <Sider width={280} theme={mode === 'dark' ? 'dark' : 'light'} style={{ borderRight: `1px solid ${token.colorBorderSecondary}`, overflowY: 'auto', background: token.colorBgContainer }}>
+          <div className="knowledge-sider">
             {SidebarContent}
-          </Sider>
+          </div>
         )}
 
-        {/* Mobile Drawer */}
-        <Drawer
-          title="知识库导航"
-          placement="left"
-          onClose={() => setMobileDrawerOpen(false)}
-          open={mobileDrawerOpen}
-          size="default"
-          styles={{ body: { padding: 0 } }}
-        >
-          {SidebarContent}
-        </Drawer>
+        {/* 移动端抽屉 */}
+        {isMobile && (
+          <Drawer
+            title="知识库导航"
+            placement="left"
+            onClose={() => setMobileDrawerOpen(false)}
+            open={mobileDrawerOpen}
+            size="default"
+            className="knowledge-drawer"
+          >
+            {SidebarContent}
+          </Drawer>
+        )}
 
-        <Content style={{ padding: isMobile ? 12 : 24, overflowY: 'auto' }}>
+        {/* 内容区域 */}
+        <div className="knowledge-content">
           {selectedItem ? (
-            <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+            <div className="knowledge-detail-wrapper">
               <Breadcrumb
+                className="knowledge-breadcrumb"
                 items={[
                   { title: <a onClick={() => { setSelectedKey(''); setSearchTerm(''); setSearchParams({}); }}>知识库</a> },
                   { title: <a onClick={() => { setSelectedKey(''); }}>临床医学</a> },
                   { title: selectedItem.category || '常见症状' },
                   { title: selectedItem.symptomName }
                 ]}
-                style={{ marginBottom: 16 }}
               />
-              <div style={{ background: token.colorBgContainer, padding: isMobile ? 16 : 32, borderRadius: 16, minHeight: 600, boxShadow: token.boxShadow }}>
-                <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', marginBottom: 24, gap: 16 }}>
-                  <Title level={2} style={{ margin: 0, color: token.colorText, fontSize: isMobile ? 24 : 30 }}>{selectedItem.symptomName}</Title>
+              <div className="knowledge-detail-card">
+                <div className="knowledge-detail-header">
+                  <Title level={3} className="knowledge-detail-title">{selectedItem.symptomName}</Title>
                   <Space>
-                    <Button icon={<ShareAltOutlined />} onClick={handleShare}>分享</Button>
-                    <Button type="primary" icon={<BookOutlined />} onClick={handleQuote}>引用</Button>
+                    <Button icon={<ShareAltOutlined />} onClick={handleShare} className="knowledge-btn-default">分享</Button>
+                    <Button type="primary" icon={<BookOutlined />} onClick={handleQuote} className="knowledge-btn-primary">引用</Button>
                   </Space>
                 </div>
 
@@ -400,39 +429,45 @@ ${selectedItem.questions?.map((q: string) => `- ${q}`).join('\n') || '暂无'}
                   onChange={setActiveTab}
                   destroyOnHidden={false}
                   items={tabItems}
+                  className="knowledge-tabs"
                 />
               </div>
             </div>
           ) : (
-            <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
+            <div className="knowledge-empty-wrapper">
               {loading ? (
-                <Spin size="large" />
+                <div className="knowledge-loading">
+                  <Spin size="large" />
+                  <Text className="knowledge-loading-text">加载知识库数据...</Text>
+                </div>
               ) : (
-                <div style={{ width: '100%' }}>
+                <div className="knowledge-empty-state">
                   {searchTerm ? (
-                    <div style={{ maxWidth: 1000, margin: '0 auto', padding: 16 }}>
-                      <div style={{ marginBottom: 16 }}>
-                        <Title level={4} style={{ margin: 0 }}>搜索结果：{searchTerm}</Title>
+                    <div className="knowledge-search-results">
+                      <div className="knowledge-search-header">
+                        <Title level={4}>搜索结果：{searchTerm}</Title>
                       </div>
-                      <div style={{ marginBottom: 24 }}>
-                        <Title level={5} style={{ marginBottom: 8 }}>病历匹配</Title>
+                      
+                      {/* 病历匹配 */}
+                      <div className="knowledge-search-section">
+                        <Title level={5}>病历匹配</Title>
                         {sessionsLoading ? (
-                          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200 }}>
+                          <div className="knowledge-section-loading">
                             <Spin />
                           </div>
                         ) : sessionResults.length > 0 ? (
-                          <div style={{ display: 'grid', gap: 12 }}>
+                          <div className="knowledge-session-list">
                             {sessionResults.map((s) => (
-                              <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: token.colorBgContainer, border: `1px solid ${token.colorBorderSecondary}`, borderRadius: 8, padding: 12 }}>
-                                <div style={{ display: 'flex', gap: 10 }}>
+                              <div key={s.id} className="knowledge-session-item">
+                                <div className="knowledge-session-info">
                                   <Tag color="processing">ID {s.id}</Tag>
                                   <span>{s.patient?.name || '未知患者'}</span>
-                                  <span style={{ color: token.colorTextSecondary }}>{new Date(s.createdAt).toLocaleString()}</span>
+                                  <span className="knowledge-session-time">{new Date(s.createdAt).toLocaleString()}</span>
                                 </div>
                                 <Button size="small" type="primary" onClick={() => window.location.assign(`/interview/${s.id}`)}>进入详情</Button>
                               </div>
                             ))}
-                            <div style={{ textAlign: 'right' }}>
+                            <div className="knowledge-view-all">
                               <Button type="link" onClick={() => window.location.assign(`/sessions?search=${encodeURIComponent(searchTerm)}`)}>查看全部病历</Button>
                             </div>
                           </div>
@@ -440,10 +475,12 @@ ${selectedItem.questions?.map((q: string) => `- ${q}`).join('\n') || '暂无'}
                           <Empty description="无病历匹配" image={Empty.PRESENTED_IMAGE_SIMPLE} />
                         )}
                       </div>
-                      <div style={{ marginBottom: 24 }}>
-                        <Title level={5} style={{ marginBottom: 8 }}>症状候选</Title>
+
+                      {/* 症状候选 */}
+                      <div className="knowledge-search-section">
+                        <Title level={5}>症状候选</Title>
                         {symptomMatches.length > 0 ? (
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                          <div className="knowledge-tag-list">
                             {symptomMatches.map(it => (
                               <Tag key={it.key} color="blue">{it.name}</Tag>
                             ))}
@@ -452,12 +489,14 @@ ${selectedItem.questions?.map((q: string) => `- ${q}`).join('\n') || '暂无'}
                           <Empty description="无症状候选匹配" image={Empty.PRESENTED_IMAGE_SIMPLE} />
                         )}
                       </div>
-                      <div>
-                        <Title level={5} style={{ marginBottom: 8 }}>知识库词条匹配</Title>
+
+                      {/* 知识库词条匹配 */}
+                      <div className="knowledge-search-section">
+                        <Title level={5}>知识库词条匹配</Title>
                         {filteredList.length > 0 ? (
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                          <div className="knowledge-tag-list">
                             {filteredList.slice(0, 20).map(k => (
-                              <Tag key={k.id} color="purple" onClick={() => setSelectedKey(k.id)} style={{ cursor: 'pointer' }}>{k.symptomName}</Tag>
+                              <Tag key={k.id} color="purple" onClick={() => setSelectedKey(k.id)} className="knowledge-clickable-tag">{k.symptomName}</Tag>
                             ))}
                           </div>
                         ) : (
@@ -466,7 +505,11 @@ ${selectedItem.questions?.map((q: string) => `- ${q}`).join('\n') || '暂无'}
                       </div>
                     </div>
                   ) : (
-                    <Empty description="请选择左侧知识项" image={Empty.PRESENTED_IMAGE_SIMPLE}>
+                    <Empty 
+                      description="请选择左侧知识项" 
+                      image={Empty.PRESENTED_IMAGE_SIMPLE}
+                      className="knowledge-empty"
+                    >
                       {isMobile && <Button type="primary" onClick={() => setMobileDrawerOpen(true)}>打开目录</Button>}
                     </Empty>
                   )}
@@ -474,16 +517,16 @@ ${selectedItem.questions?.map((q: string) => `- ${q}`).join('\n') || '暂无'}
               )}
             </div>
           )}
-        </Content>
-      </Layout>
-      
-      {/* Mobile Floating Button */}
+        </div>
+      </div>
+
+      {/* 移动端浮动按钮 */}
       {isMobile && (
         <FloatButton 
           icon={<MenuOutlined />} 
           type="primary" 
           onClick={() => setMobileDrawerOpen(true)}
-          style={{ bottom: 24, right: 24 }}
+          className="knowledge-float-btn"
         />
       )}
     </div>

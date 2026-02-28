@@ -1,16 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { App as AntdApp, Button, Space, Typography, Card, Tag, Tabs, Input, Grid, Pagination, Segmented, Spin, Empty, theme } from 'antd';
+import { App as AntdApp, Button, Space, Typography, Card, Tag, Tabs, Input, Grid, Pagination, Segmented, Spin, theme } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { TablePaginationConfig, FilterValue, SorterResult, TableCurrentDataSource } from 'antd/es/table/interface';
-import { DeleteOutlined, EyeOutlined, ExclamationCircleOutlined, PlusOutlined } from '@ant-design/icons';
+import { DeleteOutlined, EyeOutlined, ExclamationCircleOutlined, PlusOutlined, FileTextOutlined, ClockCircleOutlined, CheckCircleOutlined, SyncOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import api, { getApiErrorMessage, unwrapData } from '../../utils/api';
 import type { ApiResponse } from '../../utils/api';
 import LazyTable from '../../components/lazy/LazyTable';
 import { logger } from '../../utils/logger';
+import './index.css';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 const { Search } = Input;
 const { useBreakpoint } = Grid;
 
@@ -34,6 +35,17 @@ interface SessionListItem {
   updatedAt: string;
 }
 
+/**
+ * 统计卡片配置接口
+ */
+interface StatCardConfig {
+  key: string;
+  label: string;
+  value: number;
+  icon: React.ReactNode;
+  iconClass: string;
+}
+
 const InterviewOverview: React.FC = () => {
   const navigate = useNavigate();
   const { token } = theme.useToken();
@@ -46,6 +58,9 @@ const InterviewOverview: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('incomplete');
   const [searchText, setSearchText] = useState<string>('');
 
+  /**
+   * 获取问诊列表数据
+   */
   const fetchData = React.useCallback(async (page: number = 1, pageSize: number = 10, status: string = 'incomplete', search: string = '') => {
     setLoading(true);
     try {
@@ -77,8 +92,11 @@ const InterviewOverview: React.FC = () => {
 
   useEffect(() => {
     fetchData(pageCurrent, pageSize, activeTab, searchText);
-  }, [activeTab, fetchData, pageCurrent, pageSize, searchText]); // 仅依赖具体数值，避免对象引用变化导致循环
+  }, [activeTab, fetchData, pageCurrent, pageSize, searchText]);
 
+  /**
+   * 处理表格变化
+   */
   const handleTableChange = (
     pagination: TablePaginationConfig,
     _filters: Record<string, FilterValue | null>,
@@ -93,22 +111,34 @@ const InterviewOverview: React.FC = () => {
     fetchData(current, pageSize, activeTab, searchText);
   };
 
+  /**
+   * 处理标签页切换
+   */
   const handleTabChange = (key: string) => {
       setActiveTab(key);
-      setPagination({ ...pagination, current: 1 }); // Reset to page 1
+      setPagination({ ...pagination, current: 1 });
   };
 
+  /**
+   * 处理移动端分段控制器变化
+   */
   const handleMobileSegmentChange = (value: string | number) => {
     const key = String(value);
     setActiveTab(key);
     setPagination((p) => ({ ...p, current: 1 }));
   };
 
+  /**
+   * 处理搜索
+   */
   const handleSearch = (value: string) => {
       setSearchText(value);
       setPagination({ ...pagination, current: 1 });
   };
 
+  /**
+   * 处理删除
+   */
   const handleDelete = (id: number) => {
     modal.confirm({
       title: '确认删除该问诊记录',
@@ -119,7 +149,6 @@ const InterviewOverview: React.FC = () => {
       cancelText: '取消',
       onOk: async () => {
         try {
-          
           const res: ApiResponse = await api.delete(`/sessions/${id}`);
           if (res.success) {
             message.success('已永久删除');
@@ -133,6 +162,9 @@ const InterviewOverview: React.FC = () => {
     });
   };
 
+  /**
+   * 获取状态元数据
+   */
   const getStatusMeta = React.useCallback((status: SessionListItem['status']) => {
     if (status === 'draft') return { color: 'processing', text: '进行中' };
     if (status === 'completed') return { color: 'success', text: '已完成' };
@@ -140,12 +172,49 @@ const InterviewOverview: React.FC = () => {
     return { color: 'default', text: '未知' };
   }, []);
 
+  /**
+   * 渲染年龄
+   */
   const renderAge = React.useCallback((record: SessionListItem) => {
     if (record.patient?.birthDate) {
       return `${Math.floor(dayjs().diff(dayjs(record.patient.birthDate), 'year'))}岁`;
     }
     return '-';
   }, []);
+
+  /**
+   * 统计卡片配置
+   */
+  const statsCards: StatCardConfig[] = [
+    { 
+      key: 'total',
+      label: '总记录', 
+      value: pagination.total, 
+      icon: <FileTextOutlined />,
+      iconClass: 'interview-stat-icon-blue'
+    },
+    { 
+      key: 'incomplete',
+      label: '进行中', 
+      value: data.filter(d => d.status === 'draft').length, 
+      icon: <SyncOutlined />,
+      iconClass: 'interview-stat-icon-orange'
+    },
+    { 
+      key: 'completed',
+      label: '已完成', 
+      value: data.filter(d => d.status === 'completed' || d.status === 'archived').length, 
+      icon: <CheckCircleOutlined />,
+      iconClass: 'interview-stat-icon-green'
+    },
+    { 
+      key: 'today',
+      label: '今日新增', 
+      value: data.filter(d => dayjs(d.createdAt).isSame(dayjs(), 'day')).length, 
+      icon: <ClockCircleOutlined />,
+      iconClass: 'interview-stat-icon-purple'
+    },
+  ];
 
   const columns: ColumnsType<SessionListItem> = [
     {
@@ -216,77 +285,80 @@ const InterviewOverview: React.FC = () => {
   ];
 
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? 12 : 24 }}>
-      <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'center', gap: isMobile ? 12 : 0, marginBottom: isMobile ? 12 : 24 }}>
-        <div>
-          <Title level={isMobile ? 4 : 2} style={{ marginBottom: 6 }}>问诊记录总览</Title>
-          <Typography.Text type="secondary" style={{ fontSize: isMobile ? 12 : 14 }}>
+    <div className="interview-page msia-page">
+      {/* 页面头部 */}
+      <div className="interview-header">
+        <div className="interview-header-content">
+          <Title level={isMobile ? 4 : 2} className="interview-title">问诊记录总览</Title>
+          <Text className="interview-subtitle">
             管理所有患者的问诊记录，支持按状态筛选与搜索
-          </Typography.Text>
+          </Text>
         </div>
-        <Button
-          type="primary"
-          size={isMobile ? 'middle' : 'large'}
-          icon={<PlusOutlined />}
-          onClick={() => navigate('/interview/new')}
-          style={isMobile ? { width: '100%' } : undefined}
-        >
-          开始新问诊
-        </Button>
+        <div className="interview-header-actions">
+          <Button
+            type="primary"
+            size={isMobile ? 'middle' : 'large'}
+            icon={<PlusOutlined />}
+            onClick={() => navigate('/interview/new')}
+          >
+            开始新问诊
+          </Button>
+        </div>
       </div>
 
-      <Card variant="borderless" styles={{ body: { padding: isMobile ? 12 : '0 24px 24px 24px' } }}>
-        {isMobile ? (
-          <div style={{ display: 'grid', gap: 10, marginBottom: 12 }}>
-            <Segmented
-              value={activeTab}
-              onChange={handleMobileSegmentChange}
-              options={[
-                { value: 'incomplete', label: '进行中' },
-                { value: 'completed', label: '已完成' },
-                { value: '', label: '全部' },
-              ]}
-              block
-            />
-            <Search
-              placeholder="搜索患者姓名"
-              allowClear
-              onSearch={handleSearch}
-            />
+      {/* 统计卡片 */}
+      <div className="interview-stats-grid">
+        {statsCards.map((card) => (
+          <div key={card.key} className="interview-stat-card">
+            <div className={`interview-stat-icon ${card.iconClass}`}>
+              {card.icon}
+            </div>
+            <div className="interview-stat-content">
+              <div className="interview-stat-value">{card.value}</div>
+              <div className="interview-stat-label">{card.label}</div>
+            </div>
           </div>
-        ) : (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <Tabs
-              activeKey={activeTab}
-              onChange={handleTabChange}
-              items={[
-                { key: 'incomplete', label: '未完成问诊（进行中）' },
-                { key: 'completed', label: '已完成问诊（归档/结束）' },
-                { key: '', label: '全部记录' }
-              ]}
-              style={{ flex: 1 }}
-            />
-            <div style={{ paddingLeft: 16 }}>
+        ))}
+      </div>
+
+      {/* 主内容卡片 */}
+      <Card className="interview-content-card" variant="borderless">
+        {isMobile ? (
+          <>
+            {/* 移动端筛选 */}
+            <div className="interview-mobile-filter">
+              <Segmented
+                value={activeTab}
+                onChange={handleMobileSegmentChange}
+                options={[
+                  { value: 'incomplete', label: '进行中' },
+                  { value: 'completed', label: '已完成' },
+                  { value: '', label: '全部' },
+                ]}
+                block
+              />
               <Search
                 placeholder="搜索患者姓名"
                 allowClear
                 onSearch={handleSearch}
-                style={{ width: 250 }}
               />
             </div>
-          </div>
-        )}
 
-        {isMobile ? (
-          <div>
+            {/* 移动端列表 */}
             {loading ? (
-              <div style={{ padding: '18px 0', display: 'flex', justifyContent: 'center' }}>
+              <div className="interview-loading">
                 <Spin />
               </div>
             ) : data.length === 0 ? (
-              <Empty description="暂无记录" style={{ padding: '18px 0' }} />
+              <div className="interview-empty">
+                <div className="interview-empty-icon">
+                  <FileTextOutlined />
+                </div>
+                <div className="interview-empty-text">暂无记录</div>
+                <div className="interview-empty-hint">点击上方按钮开始新问诊</div>
+              </div>
             ) : (
-              <div style={{ display: 'grid', gap: 10 }}>
+              <div className="interview-mobile-list">
                 {data.map((record) => {
                   const statusMeta = getStatusMeta(record.status);
                   const patientName = record.patient?.name || '未命名';
@@ -297,27 +369,25 @@ const InterviewOverview: React.FC = () => {
                   const actionText = record.status === 'draft' ? '继续问诊' : '查看详情';
 
                   return (
-                    <Card
+                    <div
                       key={record.id}
-                      styles={{ body: { padding: 12 } }}
-                      style={{ width: '100%' }}
+                      className="interview-mobile-card"
                       onClick={() => navigate(`/interview/${record.id}`)}
-                      hoverable
                     >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
-                        <div style={{ minWidth: 0 }}>
-                          <Typography.Text strong style={{ fontSize: 16 }}>{patientName}</Typography.Text>
-                          <div style={{ marginTop: 4, color: token.colorTextSecondary, fontSize: 12 }}>
-                            <span>患者ID：{patientId}</span>
-                            <span style={{ marginInline: 10 }}>性别：{gender}</span>
-                            <span>年龄：{age}</span>
+                      <div className="interview-mobile-card-header">
+                        <div>
+                          <div className="interview-mobile-card-name">{patientName}</div>
+                          <div className="interview-mobile-card-meta">
+                            <span>ID: {patientId}</span>
+                            <span>{gender}</span>
+                            <span>{age}</span>
                           </div>
                         </div>
                         <Tag color={statusMeta.color} style={{ margin: 0 }}>{statusMeta.text}</Tag>
                       </div>
 
-                      <div style={{ marginTop: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-                        <Typography.Text type="secondary" style={{ fontSize: 12 }}>{createdAt}</Typography.Text>
+                      <div className="interview-mobile-card-footer">
+                        <span className="interview-mobile-card-time">{createdAt}</span>
                         <Space size={8}>
                           <Button
                             type="primary"
@@ -344,16 +414,15 @@ const InterviewOverview: React.FC = () => {
                           </Button>
                         </Space>
                       </div>
-                    </Card>
+                    </div>
                   );
                 })}
               </div>
             )}
 
-            <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                共 {pagination.total} 条记录
-              </Typography.Text>
+            {/* 移动端分页 */}
+            <div className="interview-pagination">
+              <span className="interview-pagination-total">共 {pagination.total} 条记录</span>
               <Pagination
                 current={pagination.current}
                 pageSize={pagination.pageSize}
@@ -363,20 +432,45 @@ const InterviewOverview: React.FC = () => {
                 size="small"
               />
             </div>
-          </div>
+          </>
         ) : (
-          <LazyTable
-            columns={columns}
-            dataSource={data}
-            rowKey="id"
-            loading={loading}
-            pagination={{
-              ...pagination,
-              showTotal: (total: number) => `共 ${total} 条记录`,
-              showSizeChanger: true
-            }}
-            onChange={handleTableChange}
-          />
+          <>
+            {/* 桌面端筛选栏 */}
+            <div className="interview-filter-bar">
+              <Tabs
+                activeKey={activeTab}
+                onChange={handleTabChange}
+                items={[
+                  { key: 'incomplete', label: '未完成问诊（进行中）' },
+                  { key: 'completed', label: '已完成问诊（归档/结束）' },
+                  { key: '', label: '全部记录' }
+                ]}
+              />
+              <div className="interview-search">
+                <Search
+                  placeholder="搜索患者姓名"
+                  allowClear
+                  onSearch={handleSearch}
+                />
+              </div>
+            </div>
+
+            {/* 桌面端表格 */}
+            <div className="interview-table-wrapper">
+              <LazyTable
+                columns={columns}
+                dataSource={data}
+                rowKey="id"
+                loading={loading}
+                pagination={{
+                  ...pagination,
+                  showTotal: (total: number) => `共 ${total} 条记录`,
+                  showSizeChanger: true
+                }}
+                onChange={handleTableChange}
+              />
+            </div>
+          </>
         )}
       </Card>
     </div>

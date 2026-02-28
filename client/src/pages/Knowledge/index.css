@@ -1,12 +1,14 @@
 /* ========================================
-   KnowledgeList 页面样式 - 医疗专业现代化设计
+   Knowledge 页面样式 - 医疗专业现代化设计
    ======================================== */
 
 /* 页面整体布局 */
 .knowledge-page {
   padding: 0;
-  min-height: calc(100vh - 64px);
+  min-height: 100%;
   background: transparent;
+  max-width: 100%;
+  margin: 0 auto;
 }
 
 /* 页面头部区域 */
@@ -78,8 +80,6 @@
   border-radius: 12px;
   height: 44px;
   font-weight: 600;
-  position: relative;
-  z-index: 1;
 }
 
 .knowledge-menu-btn:hover {
@@ -114,15 +114,15 @@
   box-shadow: 0 4px 20px -4px rgba(0, 0, 0, 0.3);
 }
 
-.knowledge-sider-content {
+.knowledge-sider-header {
   padding: 20px 16px;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
+  border-bottom: 1px solid var(--msia-border-light);
+  background: linear-gradient(135deg, rgba(0, 102, 204, 0.03) 0%, transparent 100%);
 }
 
-.knowledge-sider-search-wrapper {
-  margin-bottom: 16px;
+[data-theme='dark'] .knowledge-sider-header {
+  border-bottom-color: rgba(71, 85, 105, 0.2);
+  background: linear-gradient(135deg, rgba(59, 158, 255, 0.05) 0%, transparent 100%);
 }
 
 /* 侧边栏搜索框 */
@@ -176,41 +176,117 @@
   font-size: 16px;
 }
 
-/* 树形菜单区域 */
-.knowledge-tree-wrapper {
-  flex: 1;
-  overflow-y: auto;
+/* 侧边栏菜单 */
+.knowledge-sider .ant-menu,
+.knowledge-drawer .ant-menu {
+  border-right: none !important;
+  background: transparent !important;
+  padding: 8px;
 }
 
-.knowledge-sider .ant-tree {
-  background: transparent;
+/* 子菜单标题 */
+.knowledge-sider .ant-menu-submenu,
+.knowledge-drawer .ant-menu-submenu {
+  margin-bottom: 4px;
 }
 
-.knowledge-sider .ant-tree-node-content-wrapper {
-  border-radius: 8px;
+.knowledge-sider .ant-menu-submenu-title,
+.knowledge-drawer .ant-menu-submenu-title {
+  margin: 0;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 14px;
+  height: 44px;
+  line-height: 44px;
+  padding: 0 12px !important;
   transition: all 0.25s ease;
+  color: var(--msia-text-primary);
 }
 
-.knowledge-sider .ant-tree-node-content-wrapper:hover {
-  background: rgba(0, 102, 204, 0.08);
+.knowledge-sider .ant-menu-submenu-title:hover,
+.knowledge-drawer .ant-menu-submenu-title:hover {
+  background: rgba(0, 102, 204, 0.08) !important;
+  color: var(--msia-primary) !important;
 }
 
-.knowledge-sider .ant-tree-node-selected .ant-tree-node-content-wrapper {
-  background: var(--msia-primary-gradient) !important;
-  color: #fff;
-  box-shadow: 0 2px 8px rgba(0, 102, 204, 0.25);
+[data-theme='dark'] .knowledge-sider .ant-menu-submenu-title:hover,
+[data-theme='dark'] .knowledge-drawer .ant-menu-submenu-title:hover {
+  background: rgba(59, 158, 255, 0.1) !important;
 }
 
-.knowledge-sider .ant-tree-treenode {
-  padding: 2px 0;
+.knowledge-sider .ant-menu-submenu-open > .ant-menu-submenu-title,
+.knowledge-drawer .ant-menu-submenu-open > .ant-menu-submenu-title {
+  color: var(--msia-primary);
 }
 
-.knowledge-sider .ant-tree-switcher {
+.knowledge-sider .ant-menu-submenu-arrow,
+.knowledge-drawer .ant-menu-submenu-arrow {
   color: var(--msia-text-tertiary);
 }
 
-.knowledge-sider .ant-tree-switcher:hover {
+.knowledge-sider .ant-menu-submenu-title:hover .ant-menu-submenu-arrow,
+.knowledge-drawer .ant-menu-submenu-title:hover .ant-menu-submenu-arrow {
   color: var(--msia-primary);
+}
+
+/* 子菜单展开内容 */
+.knowledge-sider .ant-menu-sub,
+.knowledge-drawer .ant-menu-sub {
+  background: transparent !important;
+}
+
+.knowledge-sider .ant-menu-sub.ant-menu-inline,
+.knowledge-drawer .ant-menu-sub.ant-menu-inline {
+  background: rgba(0, 102, 204, 0.02) !important;
+  border-radius: 10px;
+  margin: 4px 0;
+}
+
+[data-theme='dark'] .knowledge-sider .ant-menu-sub.ant-menu-inline,
+[data-theme='dark'] .knowledge-drawer .ant-menu-sub.ant-menu-inline {
+  background: rgba(59, 158, 255, 0.03) !important;
+}
+
+/* 菜单项 */
+.knowledge-sider .ant-menu-item,
+.knowledge-drawer .ant-menu-item {
+  margin: 2px 8px !important;
+  border-radius: 8px;
+  font-size: 13px;
+  height: 38px;
+  line-height: 38px;
+  transition: all 0.25s ease;
+  color: var(--msia-text-secondary);
+}
+
+.knowledge-sider .ant-menu-item:hover,
+.knowledge-drawer .ant-menu-item:hover {
+  background: rgba(0, 102, 204, 0.08) !important;
+  color: var(--msia-primary) !important;
+}
+
+[data-theme='dark'] .knowledge-sider .ant-menu-item:hover,
+[data-theme='dark'] .knowledge-drawer .ant-menu-item:hover {
+  background: rgba(59, 158, 255, 0.1) !important;
+}
+
+.knowledge-sider .ant-menu-item-selected,
+.knowledge-drawer .ant-menu-item-selected {
+  background: var(--msia-primary-gradient) !important;
+  color: #fff !important;
+  font-weight: 500;
+  box-shadow: 0 2px 8px rgba(0, 102, 204, 0.25);
+}
+
+.knowledge-sider .ant-menu-item-selected::after,
+.knowledge-drawer .ant-menu-item-selected::after {
+  display: none;
+}
+
+.knowledge-sider .ant-menu-item .anticon,
+.knowledge-drawer .ant-menu-item .anticon {
+  font-size: 14px;
+  margin-right: 8px;
 }
 
 /* 内容区域 */
@@ -220,7 +296,7 @@
 }
 
 /* 面包屑 */
-.knowledge-breadcrumb {
+.knowledge-content .ant-breadcrumb {
   margin-bottom: 20px !important;
   padding: 12px 20px;
   background: var(--msia-card);
@@ -228,27 +304,22 @@
   border: 1px solid var(--msia-border);
 }
 
-[data-theme='dark'] .knowledge-breadcrumb {
+[data-theme='dark'] .knowledge-content .ant-breadcrumb {
   background: rgba(30, 41, 59, 0.8);
   border-color: rgba(71, 85, 105, 0.3);
 }
 
-.knowledge-breadcrumb a {
+.knowledge-content .ant-breadcrumb a {
   color: var(--msia-text-secondary);
   transition: color 0.2s ease;
 }
 
-.knowledge-breadcrumb a:hover {
+.knowledge-content .ant-breadcrumb a:hover {
   color: var(--msia-primary);
 }
 
-/* 详情卡片 */
-.knowledge-detail-wrapper {
-  max-width: 1000px;
-  margin: 0 auto;
-}
-
-.knowledge-detail-card {
+/* 内容卡片 */
+.knowledge-content-card {
   background: var(--msia-card);
   border-radius: 20px;
   border: 1px solid var(--msia-border);
@@ -256,86 +327,47 @@
   box-shadow: 0 4px 20px -4px rgba(0, 0, 0, 0.05);
 }
 
-[data-theme='dark'] .knowledge-detail-card {
+[data-theme='dark'] .knowledge-content-card {
   background: rgba(30, 41, 59, 0.8);
   border-color: rgba(71, 85, 105, 0.3);
   box-shadow: 0 4px 20px -4px rgba(0, 0, 0, 0.3);
 }
 
-.knowledge-detail-header {
+/* 内容头部 */
+.knowledge-content-header {
   padding: 24px 28px;
   border-bottom: 1px solid var(--msia-border-light);
   background: linear-gradient(135deg, rgba(0, 102, 204, 0.03) 0%, transparent 100%);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 16px;
 }
 
-[data-theme='dark'] .knowledge-detail-header {
+[data-theme='dark'] .knowledge-content-header {
   border-bottom-color: rgba(71, 85, 105, 0.2);
   background: linear-gradient(135deg, rgba(59, 158, 255, 0.05) 0%, transparent 100%);
 }
 
-.knowledge-detail-title {
+.knowledge-content-title {
   font-size: 24px !important;
   font-weight: 700 !important;
   color: var(--msia-text-primary) !important;
-  margin: 0 !important;
+  margin-bottom: 12px !important;
 }
 
-.knowledge-btn-default {
-  border-radius: 10px;
-  height: 40px;
+.knowledge-tags-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.knowledge-tags-wrapper .ant-tag {
+  border-radius: 8px;
+  padding: 4px 12px;
   font-weight: 500;
-}
-
-.knowledge-btn-primary {
-  background: var(--msia-primary-gradient);
+  font-size: 12px;
   border: none;
-  border-radius: 10px;
-  height: 40px;
-  font-weight: 600;
-  box-shadow: 0 4px 12px rgba(0, 102, 204, 0.25);
 }
 
-.knowledge-btn-primary:hover {
-  background: var(--msia-primary);
-  box-shadow: 0 6px 16px rgba(0, 102, 204, 0.35);
-}
-
-/* Tabs 样式 */
-.knowledge-tabs .ant-tabs-nav {
-  margin-bottom: 0;
-  padding: 0 28px;
-  background: var(--msia-bg-secondary);
-  border-bottom: 1px solid var(--msia-border-light);
-}
-
-[data-theme='dark'] .knowledge-tabs .ant-tabs-nav {
-  background: rgba(51, 65, 85, 0.3);
-  border-bottom-color: rgba(71, 85, 105, 0.2);
-}
-
-.knowledge-tabs .ant-tabs-tab {
-  padding: 16px 20px;
-  font-weight: 500;
-  font-size: 14px;
-}
-
-.knowledge-tabs .ant-tabs-tab-active .ant-tabs-tab-btn {
-  color: var(--msia-primary);
-  font-weight: 600;
-}
-
-.knowledge-tabs .ant-tabs-ink-bar {
-  background: var(--msia-primary-gradient);
-  height: 3px;
-  border-radius: 2px;
-}
-
-.knowledge-tabs .ant-tabs-content {
+/* 内容主体 */
+.knowledge-content-body {
   padding: 28px;
 }
 
@@ -343,6 +375,7 @@
 .markdown-body {
   font-size: 14px;
   line-height: 1.8;
+  color: var(--msia-text-primary);
 }
 
 .markdown-body h1 {
@@ -418,130 +451,110 @@
   color: var(--msia-text-secondary);
 }
 
-/* 空状态 */
-.knowledge-empty-wrapper {
+/* 知识图谱卡片 */
+.knowledge-graph-card {
+  background: var(--msia-card);
+  border-radius: 16px;
+  border: 1px solid var(--msia-border);
+  overflow: hidden;
   height: 100%;
+}
+
+[data-theme='dark'] .knowledge-graph-card {
+  background: rgba(30, 41, 59, 0.6);
+  border-color: rgba(71, 85, 105, 0.3);
+}
+
+.knowledge-graph-card .ant-card-head {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--msia-border-light);
+  background: linear-gradient(135deg, rgba(0, 102, 204, 0.03) 0%, transparent 100%);
+}
+
+[data-theme='dark'] .knowledge-graph-card .ant-card-head {
+  border-bottom-color: rgba(71, 85, 105, 0.2);
+  background: linear-gradient(135deg, rgba(59, 158, 255, 0.05) 0%, transparent 100%);
+}
+
+.knowledge-graph-card .ant-card-head-title {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--msia-text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.knowledge-graph-card .ant-card-body {
+  padding: 16px;
+  min-height: 300px;
+}
+
+/* 空状态 */
+.knowledge-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 100px 40px;
+  background: var(--msia-card);
+  border-radius: 20px;
+  border: 1px solid var(--msia-border);
+  min-height: 500px;
+  box-shadow: 0 4px 20px -4px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme='dark'] .knowledge-empty {
+  background: rgba(30, 41, 59, 0.6);
+  border-color: rgba(71, 85, 105, 0.3);
+  box-shadow: 0 4px 20px -4px rgba(0, 0, 0, 0.3);
+}
+
+.knowledge-empty-icon {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(0, 102, 204, 0.12) 0%, rgba(0, 163, 191, 0.08) 100%);
   display: flex;
   align-items: center;
   justify-content: center;
+  margin-bottom: 28px;
+  box-shadow: 0 8px 32px -8px rgba(0, 102, 204, 0.2);
 }
 
+.knowledge-empty-icon .anticon {
+  font-size: 56px;
+  color: var(--msia-primary);
+}
+
+.knowledge-empty-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--msia-text-primary);
+  margin-bottom: 12px;
+}
+
+.knowledge-empty-desc {
+  font-size: 15px;
+  color: var(--msia-text-secondary);
+  text-align: center;
+  max-width: 320px;
+  line-height: 1.6;
+}
+
+/* 加载状态 */
 .knowledge-loading {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
+  justify-content: center;
   padding: 40px;
+  gap: 16px;
 }
 
 .knowledge-loading-text {
   color: var(--msia-text-secondary);
   font-size: 14px;
-}
-
-.knowledge-empty {
-  padding: 80px 40px;
-}
-
-.knowledge-empty .ant-empty-image {
-  height: 80px;
-}
-
-/* 搜索结果 */
-.knowledge-search-results {
-  background: var(--msia-card);
-  border-radius: 20px;
-  border: 1px solid var(--msia-border);
-  padding: 28px;
-  box-shadow: 0 4px 20px -4px rgba(0, 0, 0, 0.05);
-}
-
-[data-theme='dark'] .knowledge-search-results {
-  background: rgba(30, 41, 59, 0.8);
-  border-color: rgba(71, 85, 105, 0.3);
-  box-shadow: 0 4px 20px -4px rgba(0, 0, 0, 0.3);
-}
-
-.knowledge-search-header {
-  margin-bottom: 24px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--msia-border-light);
-}
-
-.knowledge-search-section {
-  margin-bottom: 28px;
-}
-
-.knowledge-search-section:last-child {
-  margin-bottom: 0;
-}
-
-.knowledge-section-loading {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 200px;
-}
-
-.knowledge-session-list {
-  display: grid;
-  gap: 12px;
-}
-
-.knowledge-session-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: var(--msia-bg-secondary);
-  border: 1px solid var(--msia-border);
-  border-radius: 12px;
-  padding: 14px 16px;
-  transition: all 0.25s ease;
-}
-
-.knowledge-session-item:hover {
-  border-color: var(--msia-primary);
-  box-shadow: 0 4px 12px -4px rgba(0, 102, 204, 0.15);
-}
-
-.knowledge-session-info {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.knowledge-session-time {
-  color: var(--msia-text-tertiary);
-  font-size: 13px;
-}
-
-.knowledge-view-all {
-  text-align: right;
-  margin-top: 12px;
-}
-
-.knowledge-tag-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.knowledge-tag-list .ant-tag {
-  border-radius: 8px;
-  padding: 4px 12px;
-  font-size: 13px;
-  cursor: default;
-}
-
-.knowledge-clickable-tag {
-  cursor: pointer !important;
-  transition: all 0.25s ease;
-}
-
-.knowledge-clickable-tag:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px -2px rgba(0, 102, 204, 0.2);
 }
 
 /* 抽屉样式 */
@@ -557,13 +570,6 @@
 
 .knowledge-drawer .ant-drawer-body {
   padding: 0;
-}
-
-/* 浮动按钮 */
-.knowledge-float-btn {
-  bottom: 24px !important;
-  right: 24px !important;
-  box-shadow: 0 4px 16px rgba(0, 102, 204, 0.35) !important;
 }
 
 /* ========================================
@@ -592,7 +598,7 @@
   }
 }
 
-.knowledge-detail-card {
+.knowledge-content-card {
   animation: fadeInUp 0.5s ease-out forwards;
 }
 
@@ -600,16 +606,27 @@
   animation: slideInLeft 0.4s ease-out forwards;
 }
 
+.knowledge-sider .ant-menu-item {
+  animation: slideInLeft 0.3s ease-out forwards;
+  opacity: 0;
+}
+
+.knowledge-sider .ant-menu-item:nth-child(1) { animation-delay: 0.1s; }
+.knowledge-sider .ant-menu-item:nth-child(2) { animation-delay: 0.15s; }
+.knowledge-sider .ant-menu-item:nth-child(3) { animation-delay: 0.2s; }
+.knowledge-sider .ant-menu-item:nth-child(4) { animation-delay: 0.25s; }
+.knowledge-sider .ant-menu-item:nth-child(5) { animation-delay: 0.3s; }
+
 /* ========================================
    响应式调整
    ======================================== */
 
 @media (max-width: 1200px) {
-  .knowledge-tabs .ant-tabs-content {
+  .knowledge-content-body {
     padding: 24px;
   }
 
-  .knowledge-detail-header {
+  .knowledge-content-header {
     padding: 20px 24px;
   }
 }
@@ -623,7 +640,7 @@
     display: none;
   }
 
-  .knowledge-detail-title {
+  .knowledge-content-title {
     font-size: 20px !important;
   }
 
@@ -646,32 +663,26 @@
     font-size: 22px !important;
   }
 
-  .knowledge-breadcrumb {
+  .knowledge-content .ant-breadcrumb {
     padding: 10px 16px;
     border-radius: 10px;
   }
 
-  .knowledge-detail-card {
+  .knowledge-content-card {
     border-radius: 16px;
   }
 
-  .knowledge-detail-header {
+  .knowledge-content-header {
     padding: 16px 20px;
-    flex-direction: column;
-    align-items: flex-start;
   }
 
-  .knowledge-tabs .ant-tabs-nav {
-    padding: 0 16px;
-  }
-
-  .knowledge-tabs .ant-tabs-content {
+  .knowledge-content-body {
     padding: 20px;
   }
 
-  .knowledge-tabs .ant-tabs-tab {
-    padding: 12px 16px;
-    font-size: 13px;
+  .knowledge-graph-card {
+    border-radius: 14px;
+    margin-top: 20px;
   }
 
   .markdown-body {
@@ -686,19 +697,19 @@
     font-size: 17px;
   }
 
-  .knowledge-search-results {
-    padding: 20px;
-    border-radius: 16px;
-  }
-
-  .knowledge-session-item {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
-
   .knowledge-empty {
     padding: 60px 20px;
+    border-radius: 16px;
+    min-height: 400px;
+  }
+
+  .knowledge-empty-icon {
+    width: 80px;
+    height: 80px;
+  }
+
+  .knowledge-empty-icon .anticon {
+    font-size: 36px;
   }
 }
 
@@ -712,26 +723,25 @@
     font-size: 20px !important;
   }
 
-  .knowledge-breadcrumb {
+  .knowledge-content .ant-breadcrumb {
     padding: 10px 14px;
   }
 
-  .knowledge-detail-header {
+  .knowledge-content-header {
     padding: 14px 16px;
   }
 
-  .knowledge-detail-title {
-    font-size: 18px !important;
-  }
-
-  .knowledge-tabs .ant-tabs-content {
+  .knowledge-content-body {
     padding: 16px;
   }
 
-  .knowledge-btn-default,
-  .knowledge-btn-primary {
-    height: 36px;
-    font-size: 13px;
+  .knowledge-content-title {
+    font-size: 18px !important;
+  }
+
+  .knowledge-tags-wrapper .ant-tag {
+    padding: 3px 10px;
+    font-size: 11px;
   }
 
   .markdown-body h1 {
@@ -748,40 +758,52 @@
     padding-left: 20px;
   }
 
-  .knowledge-search-results {
-    padding: 16px;
-    border-radius: 14px;
+  .knowledge-empty-title {
+    font-size: 18px;
   }
 
-  .knowledge-tag-list .ant-tag {
-    padding: 3px 10px;
-    font-size: 12px;
+  .knowledge-empty-desc {
+    font-size: 13px;
   }
 }
 
 /* 减少动画偏好 */
 @media (prefers-reduced-motion: reduce) {
-  .knowledge-detail-card,
-  .knowledge-sider {
+  .knowledge-content-card,
+  .knowledge-sider,
+  .knowledge-sider .ant-menu-item {
     animation: none;
     opacity: 1;
   }
 }
 
 /* 滚动条美化 */
-.knowledge-tree-wrapper::-webkit-scrollbar {
+.knowledge-sider::-webkit-scrollbar {
   width: 6px;
 }
 
-.knowledge-tree-wrapper::-webkit-scrollbar-track {
+.knowledge-sider::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.knowledge-tree-wrapper::-webkit-scrollbar-thumb {
+.knowledge-sider::-webkit-scrollbar-thumb {
   background: var(--msia-border);
   border-radius: 3px;
 }
 
-.knowledge-tree-wrapper::-webkit-scrollbar-thumb:hover {
+.knowledge-sider::-webkit-scrollbar-thumb:hover {
   background: var(--msia-text-tertiary);
+}
+
+.markdown-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.markdown-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.markdown-body::-webkit-scrollbar-thumb {
+  background: var(--msia-border);
+  border-radius: 3px;
 }
