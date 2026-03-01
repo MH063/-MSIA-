@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { App as AntdApp, Button, Space, Typography, Card, Tag, Grid, Pagination, Empty, Timeline, Switch, Collapse, Row, Col, theme, Spin, Popconfirm } from 'antd';
-import { DeleteOutlined, EyeOutlined, ExclamationCircleOutlined, PlusOutlined, LockOutlined, UnlockOutlined, ClockCircleOutlined, RollbackOutlined, InboxOutlined, FileTextOutlined, CheckCircleOutlined, EditOutlined, FolderOutlined } from '@ant-design/icons';
+import { DeleteOutlined, EyeOutlined, ExclamationCircleOutlined, PlusOutlined, LockOutlined, UnlockOutlined, ClockCircleOutlined, RollbackOutlined, InboxOutlined, FileTextOutlined, CheckCircleOutlined, EditOutlined, FolderOutlined, SafetyOutlined } from '@ant-design/icons';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import dayjs from 'dayjs';
 import api, { getApiErrorMessage, unwrapData } from '../../utils/api';
 import type { ApiResponse } from '../../utils/api';
 import { logger } from '../../utils/logger';
 import MarkdownEditor from '../../components/MarkdownEditor';
+import KeyManagementModal from '../../components/KeyManagement';
 
 const { Title, Text } = Typography;
 const { useBreakpoint } = Grid;
@@ -26,6 +27,7 @@ const SessionList: React.FC = () => {
   const [viewMode, setViewMode] = useState<'all' | 'archived'>('all');
   const [searchParams] = useSearchParams();
   const searchTerm = React.useMemo(() => String(searchParams.get('search') || '').trim(), [searchParams]);
+  const [keyManagementVisible, setKeyManagementVisible] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('privacy_mode', String(isEncrypted));
@@ -247,6 +249,21 @@ const SessionList: React.FC = () => {
                 </Popconfirm>
               )}
               <Button 
+                style={{ 
+                  background: 'rgba(255,255,255,0.2)',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 10,
+                  height: 40,
+                  fontWeight: 500,
+                  backdropFilter: 'blur(10px)',
+                }}
+                icon={<SafetyOutlined />}
+                onClick={() => setKeyManagementVisible(true)}
+              >
+                密钥管理
+              </Button>
+              <Button 
                 type="primary"
                 style={{ 
                   background: '#fff',
@@ -265,6 +282,11 @@ const SessionList: React.FC = () => {
             </Space>
           </div>
         </Card>
+
+        <KeyManagementModal
+          visible={keyManagementVisible}
+          onClose={() => setKeyManagementVisible(false)}
+        />
 
         {viewMode === 'archived' && (
           <Card 

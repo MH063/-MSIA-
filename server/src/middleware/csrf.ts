@@ -1,11 +1,14 @@
 /**
  * CSRF防护中间件
  * 为所有涉及数据修改的请求添加CSRF令牌验证
+ * 支持Redis分布式存储
  */
 
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import { secureLogger } from '../utils/secureLogger';
+import { getRedisClient } from '../utils/redis-client';
+import { serverConfig } from '../config';
 
 /**
  * CSRF令牌配置
@@ -15,12 +18,13 @@ const CSRF_CONFIG = {
   headerName: 'X-CSRF-Token',
   cookieName: 'csrf_token',
   expiresIn: 3600000, // 1小时
+  redisKeyPrefix: 'csrf:',
 };
 
 /**
- * CSRF令牌存储（生产环境应使用Redis等分布式存储）
+ * 内存存储（本地开发或Redis不可用时的降级方案）
  */
-const tokenStore = new Map<string, { token: string; expires: number }>();
+const memoryTokenStore = new Map<string, { token: string; expires: number }>();
 
 /**
  * 生成CSRF令牌
@@ -35,13 +39,28 @@ export function generateCsrfToken(): string {
  * @param sessionId 会话ID
  * @returns CSRF令牌
  */
-export function createCsrfToken(sessionId: string): string {
+export async function createCsrfToken(sessionId: string): Promise<string> {
   const token = generateCsrfToken();
   const expires = Date.now() + CSRF_CONFIG.expiresIn;
+  const key = `${CSRF_CONFIG.redisKeyPrefix}${sessionId}`;
   
-  tokenStore.set(sessionId, { token, expires });
+  // 优先使用Redis
+  const redis = await getRedisClient();
+  if (redis) {
+    try {
+      const ttlSeconds = Math.ceil(CSRF_CONFIG.expiresIn / 1000);
+      await redis.set(key, JSON.stringify({ token, expires }), { EX: ttlSeconds });
+      secureLogger.debug('[CSRF] Token已存储到Redis', { sessionId: sessionId.substring(0, 8) + '...' });
+    } catch (err) {
+      secureLogger.warn('[CSRF] Redis存储失败，降级到内存存储', { error: err instanceof Error ? err.message : String(err) });
+      memoryTokenStore.set(sessionId, { token, expires });
+    }
+  } else {
+    // Redis不可用，使用内存存储
+    memoryTokenStore.set(sessionId, { token, expires });
+  }
   
-  // 清理过期令牌
+  // 清理过期令牌（内存）
   cleanupExpiredTokens();
   
   return token;
@@ -53,15 +72,40 @@ export function createCsrfToken(sessionId: string): string {
  * @param token 待验证的令牌
  * @returns 是否有效
  */
-export function verifyCsrfToken(sessionId: string, token: string): boolean {
-  const stored = tokenStore.get(sessionId);
+export async function verifyCsrfToken(sessionId: string, token: string): Promise<boolean> {
+  const key = `${CSRF_CONFIG.redisKeyPrefix}${sessionId}`;
   
+  // 优先从Redis获取
+  const redis = await getRedisClient();
+  if (redis) {
+    try {
+      const stored = await redis.get(key);
+      if (!stored) {
+        secureLogger.debug('[CSRF] Redis中未找到Token', { sessionId: sessionId.substring(0, 8) + '...' });
+        return false;
+      }
+      
+      const parsed = JSON.parse(stored) as { token: string; expires: number };
+      if (Date.now() > parsed.expires) {
+        await redis.del(key);
+        return false;
+      }
+      
+      return parsed.token === token;
+    } catch (err) {
+      secureLogger.warn('[CSRF] Redis读取失败，尝试内存存储', { error: err instanceof Error ? err.message : String(err) });
+      // 降级到内存存储验证
+    }
+  }
+  
+  // 从内存存储获取
+  const stored = memoryTokenStore.get(sessionId);
   if (!stored) {
     return false;
   }
   
   if (Date.now() > stored.expires) {
-    tokenStore.delete(sessionId);
+    memoryTokenStore.delete(sessionId);
     return false;
   }
   
@@ -69,13 +113,32 @@ export function verifyCsrfToken(sessionId: string, token: string): boolean {
 }
 
 /**
- * 清理过期令牌
+ * 删除CSRF令牌
+ * @param sessionId 会话ID
+ */
+export async function deleteCsrfToken(sessionId: string): Promise<void> {
+  const key = `${CSRF_CONFIG.redisKeyPrefix}${sessionId}`;
+  
+  const redis = await getRedisClient();
+  if (redis) {
+    try {
+      await redis.del(key);
+    } catch {
+      // 忽略错误
+    }
+  }
+  
+  memoryTokenStore.delete(sessionId);
+}
+
+/**
+ * 清理过期令牌（内存）
  */
 function cleanupExpiredTokens(): void {
   const now = Date.now();
-  for (const [key, value] of tokenStore.entries()) {
+  for (const [key, value] of memoryTokenStore.entries()) {
     if (now > value.expires) {
-      tokenStore.delete(key);
+      memoryTokenStore.delete(key);
     }
   }
 }
@@ -99,7 +162,7 @@ const EXCLUDED_PATHS = [
 /**
  * CSRF保护中间件
  */
-export const csrfProtection = (req: Request, res: Response, next: NextFunction): void => {
+export const csrfProtection = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   // 检查是否需要CSRF保护
   if (!PROTECTED_METHODS.includes(req.method)) {
     return next();
@@ -147,43 +210,26 @@ export const csrfProtection = (req: Request, res: Response, next: NextFunction):
   // 获取会话ID（从请求体、查询参数或header中获取）
   const sessionId = (req.body?.sessionId || req.query?.sessionId || req.headers['x-session-id']) as string;
   
-  if (!sessionId) {
-    // 如果没有会话ID，使用IP地址作为标识
-    const ipBasedId = req.ip || 'unknown';
-    if (!verifyCsrfToken(ipBasedId, csrfToken)) {
-      secureLogger.warn('[CSRF] CSRF令牌验证失败（基于IP）', {
-        method: req.method,
-        path: req.path,
-        ip: req.ip,
-      });
-      
-      res.status(403).json({
-        success: false,
-        error: {
-          code: 'CSRF_TOKEN_INVALID',
-          message: '安全令牌无效，请刷新页面重试',
-        },
-      });
-      return;
-    }
-  } else {
-    if (!verifyCsrfToken(sessionId, csrfToken)) {
-      secureLogger.warn('[CSRF] CSRF令牌验证失败', {
-        method: req.method,
-        path: req.path,
-        sessionId,
-        ip: req.ip,
-      });
-      
-      res.status(403).json({
-        success: false,
-        error: {
-          code: 'CSRF_TOKEN_INVALID',
-          message: '安全令牌无效，请刷新页面重试',
-        },
-      });
-      return;
-    }
+  // 验证CSRF令牌
+  const ipBasedId = sessionId || req.ip || 'unknown';
+  const isValid = await verifyCsrfToken(ipBasedId, csrfToken);
+  
+  if (!isValid) {
+    secureLogger.warn('[CSRF] CSRF令牌验证失败', {
+      method: req.method,
+      path: req.path,
+      sessionId: sessionId ? sessionId.substring(0, 8) + '...' : 'ip-based',
+      ip: req.ip,
+    });
+    
+    res.status(403).json({
+      success: false,
+      error: {
+        code: 'CSRF_TOKEN_INVALID',
+        message: '安全令牌无效，请刷新页面重试',
+      },
+    });
+    return;
   }
   
   next();
@@ -192,9 +238,9 @@ export const csrfProtection = (req: Request, res: Response, next: NextFunction):
 /**
  * CSRF令牌获取端点
  */
-export const getCsrfToken = (req: Request, res: Response): void => {
+export const getCsrfToken = async (req: Request, res: Response): Promise<void> => {
   const sessionId = (req.query?.sessionId || req.headers['x-session-id'] || req.ip) as string;
-  const token = createCsrfToken(sessionId);
+  const token = await createCsrfToken(sessionId);
   
   res.json({
     success: true,
@@ -208,13 +254,28 @@ export const getCsrfToken = (req: Request, res: Response): void => {
 /**
  * 为响应添加CSRF令牌的中间件
  */
-export const attachCsrfToken = (req: Request, res: Response, next: NextFunction): void => {
+export const attachCsrfToken = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   // 为GET请求生成新的CSRF令牌
   if (req.method === 'GET') {
     const sessionId = (req.query?.sessionId || req.headers['x-session-id'] || req.ip) as string;
-    const token = createCsrfToken(sessionId);
+    const token = await createCsrfToken(sessionId);
     res.setHeader('X-CSRF-Token', token);
   }
   
   next();
 };
+
+/**
+ * 获取CSRF存储统计（用于监控）
+ */
+export async function getCsrfStats(): Promise<{
+  memoryCount: number;
+  redisAvailable: boolean;
+}> {
+  const redis = await getRedisClient();
+  
+  return {
+    memoryCount: memoryTokenStore.size,
+    redisAvailable: !!redis,
+  };
+}

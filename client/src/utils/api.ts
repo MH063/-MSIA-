@@ -318,7 +318,7 @@ api.interceptors.response.use(
         try {
           const p = typeof window !== 'undefined' ? String(window.location.pathname || '/') : '/';
           // 登录页和白名单页面不跳转
-          const noRedirectPaths = ['/login', '/register', '/forgot-password', '/email-register', '/security-settings'];
+          const noRedirectPaths = ['/login', '/register'];
           const shouldRedirect = !noRedirectPaths.some(path => p.startsWith(path));
           if (shouldRedirect) {
             logger.warn('[api] 认证失败(401)，即将跳转到登录页', { path: p });

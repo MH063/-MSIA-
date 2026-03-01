@@ -24,6 +24,11 @@ model Patient {
   employer    String?  @db.VarChar(100)
 
   contactInfo Json?    @map("contact_info")
+  
+  // 加密元数据
+  encryptionVersion String? @map("encryption_version") @db.VarChar(20)
+  encryptedAt      DateTime? @map("encrypted_at")
+  
   createdAt   DateTime @default(now()) @map("created_at")
 
   sessions    InterviewSession[]
@@ -63,6 +68,10 @@ model InterviewSession {
   specialistExam  Json?    @map("specialist_exam")
   auxiliaryExams  Json?    @map("auxiliary_exams")
   reviewOfSystems Json?    @map("review_of_systems")
+
+  // 加密元数据
+  encryptionVersion String? @map("encryption_version") @db.VarChar(20)
+  encryptedAt      DateTime? @map("encrypted_at")
 
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @default(now()) @updatedAt @map("updated_at")
@@ -141,14 +150,24 @@ model Operator {
   emailVerified   Boolean   @default(false) @map("email_verified")
   emailVerifiedAt DateTime? @map("email_verified_at")
   role            String    @default("doctor") @db.VarChar(20)
+  
+  // 非对称加密密钥（用于加密问诊数据）
+  publicKey         String?   @map("public_key") @db.Text
+  encryptedPrivateKey String? @map("encrypted_private_key") @db.Text
+  keyFingerprint    String?   @map("key_fingerprint") @db.VarChar(50)
+  keyCreatedAt      DateTime? @map("key_created_at")
+  
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
 
   emailVerificationCodes EmailVerificationCode[]
+  securityQuestions SecurityQuestion[]
+  keyVersions KeyVersion[]
 
   @@index([role])
   @@index([createdAt])
   @@index([email])
+  @@index([keyFingerprint])
 
   @@map("operators")
 }
@@ -298,4 +317,38 @@ model AuthLoginLockout {
   @@unique([ip, username], name: "ip_username")
   @@index([lockedUntil], map: "idx_auth_login_lockouts_locked_until")
   @@map("auth_login_lockouts")
+}
+
+// 安全问题（用于密码重置）
+model SecurityQuestion {
+  id              Int       @id @default(autoincrement())
+  operatorId       Int       @map("operator_id")
+  question         String    @db.VarChar(200)
+  answer           String    @db.VarChar(200)
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  operator Operator @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+
+  @@index([operatorId])
+  @@map("security_questions")
+}
+
+// 密钥版本管理（用于密钥轮换和撤销）
+model KeyVersion {
+  id              Int       @id @default(autoincrement())
+  operatorId       Int       @map("operator_id")
+  publicKey       String    @db.Text
+  keyFingerprint  String    @db.VarChar(50)
+  version         Int       @default(1) @map("version")
+  isRevoked       Boolean   @default(false) @map("is_revoked")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  revokedAt      DateTime? @map("revoked_at")
+
+  operator Operator @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+
+  @@index([operatorId])
+  @@index([operatorId, version])
+  @@index([isRevoked])
+  @@map("key_versions")
 }

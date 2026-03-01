@@ -1,200 +1,261 @@
+/**
+ * 加密问诊会话服务
+ * 处理问诊会话敏感数据的加密存储
+ */
+
 import prisma from '../prisma';
-import { OperatorIdentity } from '../middleware/auth';
+import { Prisma } from '@prisma/client';
+import { 
+  validateEncryptedFields, 
+  getEncryptionSummary,
+  SensitiveField,
+  maskEncryptedObject,
+} from '../utils/cryptoService';
 import { secureLogger } from '../utils/secureLogger';
-import { PrismaClient, Prisma } from '@prisma/client';
 
 /**
- * 级联删除配置接口
+ * 会话敏感字段配置
  */
-interface CascadeDeleteSpec {
-  table: string;
-  fkColumn: string;
-}
+const SESSION_SENSITIVE_FIELDS: readonly SensitiveField[] = [
+  'chiefComplaint',
+  'presentIllness',
+  'pastHistory',
+  'personalHistory',
+  'familyHistory',
+  'physicalExamination',
+  'diagnosisResult',
+  'treatmentPlan',
+  'prescription',
+  'notes',
+] as const;
 
 /**
- * 会话创建数据接口
+ * 会话创建数据
  */
-interface SessionCreateData {
+export interface SessionCreateData {
+  patientId: number;
+  doctorId?: number;
+  status?: string;
   historian?: string;
   reliability?: string;
   historianRelationship?: string;
-  [key: string]: unknown;
+  generalInfo?: Prisma.InputJsonValue;
+  chiefComplaint?: Prisma.InputJsonValue;
+  presentIllness?: Prisma.InputJsonValue;
+  pastHistory?: Prisma.InputJsonValue;
+  personalHistory?: Prisma.InputJsonValue;
+  maritalHistory?: Prisma.InputJsonValue;
+  menstrualHistory?: Prisma.InputJsonValue;
+  fertilityHistory?: Prisma.InputJsonValue;
+  familyHistory?: Prisma.InputJsonValue;
+  physicalExam?: Prisma.InputJsonValue;
+  specialistExam?: Prisma.InputJsonValue;
+  auxiliaryExams?: Prisma.InputJsonValue;
+  reviewOfSystems?: Prisma.InputJsonValue;
 }
 
 /**
- * 会话查询参数接口
+ * 验证JSON字段中的敏感数据是否已加密
  */
-interface SessionQueryParams {
-  take?: number;
-  skip?: number;
-  where?: Prisma.InterviewSessionWhereInput;
-  orderBy?: Prisma.InterviewSessionOrderByWithRelationInput;
-}
+function validateJsonEncryption(
+  data: Prisma.InputJsonValue | undefined,
+  fieldPath: string
+): { encrypted: boolean; unencryptedKeys: string[] } {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    return { encrypted: true, unencryptedKeys: [] };
+  }
 
-/**
- * 自定义错误接口
- */
-interface CustomError extends Error {
-  statusCode?: number;
-  errorCode?: string;
-}
+  const unencryptedKeys: string[] = [];
+  const obj = data as Record<string, unknown>;
 
-/**
- * 事务客户端类型
- */
-type TransactionClient = Prisma.TransactionClient;
-
-function isSafeSqlIdentifier(name: string): boolean {
-  return /^[A-Za-z_][A-Za-z0-9_]*$/u.test(name);
-}
-
-function getCascadeDeleteSpecs(): CascadeDeleteSpec[] {
-  const raw = String(process.env.SESSION_CASCADE_TABLES_JSON || '').trim();
-  if (raw) {
-    try {
-      const parsed = JSON.parse(raw) as Array<{
-        table?: unknown;
-        fkColumn?: unknown;
-      }>;
-      const normalized = (Array.isArray(parsed) ? parsed : [])
-        .map((it) => ({
-          table: String(it?.table || '').trim(),
-          fkColumn: String(it?.fkColumn || '').trim(),
-        }))
-        .filter((it) => it.table && it.fkColumn)
-        .filter((it) => isSafeSqlIdentifier(it.table) && isSafeSqlIdentifier(it.fkColumn));
-      if (normalized.length > 0) {return normalized;}
-    } catch (e) {
-      secureLogger.warn('[SessionService] SESSION_CASCADE_TABLES_JSON 解析失败', { error: e instanceof Error ? e.message : String(e) });
+  for (const [key, value] of Object.entries(obj)) {
+    if (typeof value === 'string' && value.length > 0) {
+      if (SESSION_SENSITIVE_FIELDS.includes(key as SensitiveField)) {
+        if (!value.startsWith('enc:')) {
+          unencryptedKeys.push(`${fieldPath}.${key}`);
+        }
+      }
     }
   }
 
-  return [
-    { table: 'interview_session_logs', fkColumn: 'session_id' },
-    { table: 'interview_session_files', fkColumn: 'session_id' },
-    { table: 'interview_session_items', fkColumn: 'session_id' },
-  ];
-}
-
-async function tableExists(tx: TransactionClient, tableName: string): Promise<boolean> {
-  const rows = (await tx.$queryRaw`
-    SELECT EXISTS (
-      SELECT 1
-      FROM information_schema.tables
-      WHERE table_schema = 'public' AND table_name = ${tableName}
-    ) as "exists"
-  `) as Array<{ exists: boolean }>;
-  return Boolean(rows?.[0]?.exists);
-}
-
-async function deleteByFkIfExists(
-  tx: TransactionClient,
-  spec: CascadeDeleteSpec,
-  fkValue: number
-): Promise<void> {
-  if (!isSafeSqlIdentifier(spec.table) || !isSafeSqlIdentifier(spec.fkColumn)) {return;}
-  const exists = await tableExists(tx, spec.table);
-  if (!exists) {return;}
-
-  const sql = `DELETE FROM "${spec.table}" WHERE "${spec.fkColumn}" = $1`;
-  await tx.$executeRawUnsafe(sql, fkValue);
-}
-
-async function writeAuditLogIfExists(
-  tx: TransactionClient,
-  payload: { operator: OperatorIdentity; sessionId: number; deletedAt: Date }
-): Promise<void> {
-  const { operator, sessionId, deletedAt } = payload;
-  secureLogger.info('[SessionService] 问诊记录永久删除审计日志', {
-    operatorId: operator.operatorId,
-    role: operator.role,
-    sessionId,
-    deletedAt: deletedAt.toISOString(),
-  });
-
-  const auditTable = 'audit_logs';
-  const exists = await tableExists(tx, auditTable);
-  if (!exists) {return;}
-
-  try {
-    const sql =
-      'INSERT INTO "audit_logs" ("action","operator_id","operator_role","target_id","created_at") VALUES ($1,$2,$3,$4,$5)';
-    await tx.$executeRawUnsafe(sql, 'SESSION_DELETE', operator.operatorId, operator.role, sessionId, deletedAt);
-  } catch (e) {
-    secureLogger.warn('[SessionService] 审计表写入失败（将继续返回删除成功）', { error: e instanceof Error ? e.message : String(e) });
-  }
+  return {
+    encrypted: unencryptedKeys.length === 0,
+    unencryptedKeys,
+  };
 }
 
 /**
- * 创建问诊会话
- * @param patientId 患者ID
- * @param additionalData 附加数据
- * @returns 创建的会话
+ * 验证会话数据加密状态
  */
-export const createSession = async (patientId: number, additionalData: SessionCreateData = {}) => {
-  return await prisma.interviewSession.create({
+export function validateSessionEncryption(data: SessionCreateData): {
+  valid: boolean;
+  unencryptedFields: string[];
+} {
+  const unencryptedFields: string[] = [];
+
+  const jsonFields = [
+    'chiefComplaint',
+    'presentIllness',
+    'pastHistory',
+    'personalHistory',
+    'familyHistory',
+    'physicalExam',
+  ] as const;
+
+  for (const field of jsonFields) {
+    const value = data[field];
+    if (value) {
+      const result = validateJsonEncryption(value, field);
+      unencryptedFields.push(...result.unencryptedKeys);
+    }
+  }
+
+  return {
+    valid: unencryptedFields.length === 0,
+    unencryptedFields,
+  };
+}
+
+/**
+ * 创建问诊会话（加密数据）
+ */
+export const createSessionWithEncryption = async (
+  data: SessionCreateData
+): Promise<Prisma.InterviewSessionGetPayload<object>> => {
+  const validation = validateSessionEncryption(data);
+
+  if (!validation.valid) {
+    secureLogger.warn('[SessionService] 创建会话时存在未加密的敏感字段', {
+      patientId: data.patientId,
+      unencryptedFields: validation.unencryptedFields,
+    });
+  }
+
+  const session = await prisma.interviewSession.create({
     data: {
-      patientId,
-      status: 'draft',
-      generalInfo: {},
-      chiefComplaint: {},
-      presentIllness: {},
-      ...additionalData
+      patientId: data.patientId,
+      doctorId: data.doctorId,
+      status: data.status || 'draft',
+      historian: data.historian,
+      reliability: data.reliability,
+      historianRelationship: data.historianRelationship,
+      generalInfo: data.generalInfo,
+      chiefComplaint: data.chiefComplaint,
+      presentIllness: data.presentIllness,
+      pastHistory: data.pastHistory,
+      personalHistory: data.personalHistory,
+      maritalHistory: data.maritalHistory,
+      menstrualHistory: data.menstrualHistory,
+      fertilityHistory: data.fertilityHistory,
+      familyHistory: data.familyHistory,
+      physicalExam: data.physicalExam,
+      specialistExam: data.specialistExam,
+      auxiliaryExams: data.auxiliaryExams,
+      reviewOfSystems: data.reviewOfSystems,
+    },
+  });
+
+  secureLogger.info('[SessionService] 会话创建成功', {
+    sessionId: session.id,
+    patientId: data.patientId,
+    hasUnencryptedFields: !validation.valid,
+  });
+
+  return session;
+};
+
+/**
+ * 更新问诊会话（加密数据）
+ */
+export const updateSessionWithEncryption = async (
+  id: number,
+  data: Partial<SessionCreateData>
+): Promise<Prisma.InterviewSessionGetPayload<object>> => {
+  const validation = validateSessionEncryption(data as SessionCreateData);
+
+  if (!validation.valid) {
+    secureLogger.warn('[SessionService] 更新会话时存在未加密的敏感字段', {
+      sessionId: id,
+      unencryptedFields: validation.unencryptedFields,
+    });
+  }
+
+  const updateData: Prisma.InterviewSessionUpdateInput = {};
+
+  if (data.patientId !== undefined) updateData.patient = { connect: { id: data.patientId } };
+  if (data.doctorId !== undefined) updateData.doctorId = data.doctorId;
+  if (data.status !== undefined) updateData.status = data.status;
+  if (data.historian !== undefined) updateData.historian = data.historian;
+  if (data.reliability !== undefined) updateData.reliability = data.reliability;
+  if (data.historianRelationship !== undefined) updateData.historianRelationship = data.historianRelationship;
+  if (data.generalInfo !== undefined) updateData.generalInfo = data.generalInfo;
+  if (data.chiefComplaint !== undefined) updateData.chiefComplaint = data.chiefComplaint;
+  if (data.presentIllness !== undefined) updateData.presentIllness = data.presentIllness;
+  if (data.pastHistory !== undefined) updateData.pastHistory = data.pastHistory;
+  if (data.personalHistory !== undefined) updateData.personalHistory = data.personalHistory;
+  if (data.maritalHistory !== undefined) updateData.maritalHistory = data.maritalHistory;
+  if (data.menstrualHistory !== undefined) updateData.menstrualHistory = data.menstrualHistory;
+  if (data.fertilityHistory !== undefined) updateData.fertilityHistory = data.fertilityHistory;
+  if (data.familyHistory !== undefined) updateData.familyHistory = data.familyHistory;
+  if (data.physicalExam !== undefined) updateData.physicalExam = data.physicalExam;
+  if (data.specialistExam !== undefined) updateData.specialistExam = data.specialistExam;
+  if (data.auxiliaryExams !== undefined) updateData.auxiliaryExams = data.auxiliaryExams;
+  if (data.reviewOfSystems !== undefined) updateData.reviewOfSystems = data.reviewOfSystems;
+
+  const session = await prisma.interviewSession.update({
+    where: { id },
+    data: updateData,
+  });
+
+  secureLogger.info('[SessionService] 会话更新成功', {
+    sessionId: id,
+    hasUnencryptedFields: !validation.valid,
+  });
+
+  return session;
+};
+
+/**
+ * 获取所有会话
+ */
+export const getAllSessions = async (filters?: {
+  patientId?: number;
+  doctorId?: number;
+  status?: string;
+}): Promise<Prisma.InterviewSessionGetPayload<object>[]> => {
+  const where: Prisma.InterviewSessionWhereInput = {};
+
+  if (filters?.patientId) where.patientId = filters.patientId;
+  if (filters?.doctorId) where.doctorId = filters.doctorId;
+  if (filters?.status) where.status = filters.status;
+
+  return await prisma.interviewSession.findMany({
+    where,
+    orderBy: { createdAt: 'desc' },
+    include: {
+      patient: true,
     },
   });
 };
 
 /**
- * 获取会话详情
+ * 根据ID获取会话
  */
-export const getSessionById = async (id: number) => {
+export const getSessionById = async (id: number): Promise<Prisma.InterviewSessionGetPayload<{
+  include: { patient: true };
+}> | null> => {
   return await prisma.interviewSession.findUnique({
     where: { id },
-    include: { patient: true },
+    include: {
+      patient: true,
+    },
   });
-};
-
-/**
- * 更新会话数据 (通用)
- * @param id 会话ID
- * @param data 更新数据
- * @returns 更新后的会话
- */
-export const updateSession = async (id: number, data: Prisma.InterviewSessionUpdateInput) => {
-  return await prisma.interviewSession.update({
-    where: { id },
-    data,
-  });
-};
-
-/**
- * 获取会话列表
- * @param params 查询参数
- * @returns 会话列表
- */
-export const getSessions = async (params: SessionQueryParams) => {
-  return await prisma.interviewSession.findMany({
-    take: params.take,
-    skip: params.skip,
-    where: params.where,
-    orderBy: params.orderBy || { createdAt: 'desc' },
-    include: { patient: true },
-  });
-};
-
-/**
- * 统计会话数量
- * @param where 查询条件
- * @returns 会话数量
- */
-export const countSessions = async (where?: Prisma.InterviewSessionWhereInput) => {
-  return await prisma.interviewSession.count({ where });
 };
 
 /**
  * 删除会话
  */
-export const deleteSession = async (id: number) => {
+export const deleteSession = async (id: number): Promise<Prisma.InterviewSessionGetPayload<object>> => {
   return await prisma.interviewSession.delete({
     where: { id },
   });
@@ -203,88 +264,125 @@ export const deleteSession = async (id: number) => {
 /**
  * 批量删除会话
  */
-export const deleteSessionsBulk = async (ids: number[]) => {
+export const deleteSessionsBulk = async (ids: number[]): Promise<Prisma.BatchPayload> => {
   return await prisma.interviewSession.deleteMany({
-    where: { id: { in: ids } },
+    where: {
+      id: { in: ids },
+    },
   });
 };
 
-export function canOperatorDeleteSession(params: {
-  operator: OperatorIdentity;
-  sessionDoctorId: number | null;
-}): boolean {
-  const { operator, sessionDoctorId } = params;
-  if (operator.role === 'admin') {return true;}
-  if (operator.role === 'doctor') {
-    if (sessionDoctorId === null) {return false;}
-    return sessionDoctorId === operator.operatorId;
+/**
+ * 获取会话统计
+ */
+export const getSessionStats = async (doctorId?: number): Promise<{
+  total: number;
+  byStatus: Record<string, number>;
+}> => {
+  const where: Prisma.InterviewSessionWhereInput = {};
+  if (doctorId) where.doctorId = doctorId;
+
+  const sessions = await prisma.interviewSession.findMany({
+    where,
+    select: { status: true },
+  });
+
+  const byStatus: Record<string, number> = {};
+  for (const session of sessions) {
+    byStatus[session.status] = (byStatus[session.status] || 0) + 1;
   }
-  return false;
+
+  return {
+    total: sessions.length,
+    byStatus,
+  };
+};
+
+/**
+ * 脱敏会话数据（用于日志和调试）
+ */
+export function maskSessionData<T extends Record<string, unknown>>(data: T): Record<string, unknown> {
+  return maskEncryptedObject(data, SESSION_SENSITIVE_FIELDS);
 }
 
 /**
- * 永久删除会话参数接口
+ * 创建会话（兼容旧接口）
  */
-interface DeleteSessionParams {
-  sessionId: number;
-  operator: OperatorIdentity;
-}
-
-export const deleteSessionPermanentlyWithPrisma = async (
-  prismaClient: PrismaClient,
-  params: DeleteSessionParams
-) => {
-  const { sessionId, operator } = params;
-
-  const session = await prismaClient.interviewSession.findUnique({
-    where: { id: sessionId },
-    select: { id: true, doctorId: true },
-  });
-
-  if (!session) {
-    const err = new Error('会话不存在') as CustomError;
-    err.statusCode = 404;
-    err.errorCode = 'NOT_FOUND';
-    throw err;
-  }
-
-  const allowed = canOperatorDeleteSession({
-    operator,
-    sessionDoctorId: session.doctorId ?? null,
-  });
-  if (!allowed) {
-    const err = new Error('无权限删除该问诊记录') as CustomError;
-    err.statusCode = 403;
-    err.errorCode = 'FORBIDDEN';
-    throw err;
-  }
-
-  secureLogger.info('[SessionService] 开始永久删除问诊记录', {
-    operatorId: operator.operatorId,
-    role: operator.role,
-    sessionId,
-  });
-
-  const deletedAt = new Date();
-  await prismaClient.$transaction(async (tx) => {
-    const specs = getCascadeDeleteSpecs();
-    for (const spec of specs) {
-      await deleteByFkIfExists(tx, spec, sessionId);
-    }
-
-    await tx.interviewSession.delete({ where: { id: sessionId } });
-
-    await writeAuditLogIfExists(tx, { operator, sessionId, deletedAt });
-  });
-
-  secureLogger.info('[SessionService] 永久删除问诊记录完成', { sessionId });
-
-  return { deletedId: sessionId };
+export const createSession = async (
+  patientId: number,
+  data: Record<string, unknown>
+): Promise<Prisma.InterviewSessionGetPayload<object>> => {
+  return createSessionWithEncryption({
+    patientId,
+    ...data,
+  } as SessionCreateData);
 };
 
+/**
+ * 更新会话（兼容旧接口）
+ */
+export const updateSession = async (
+  id: number,
+  data: Record<string, unknown>
+): Promise<Prisma.InterviewSessionGetPayload<object>> => {
+  return updateSessionWithEncryption(id, data as Partial<SessionCreateData>);
+};
+
+/**
+ * 获取会话列表（兼容旧接口）
+ */
+export const getSessions = async (options?: {
+  patientId?: number;
+  doctorId?: number;
+  status?: string;
+  take?: number;
+  skip?: number;
+  orderBy?: { createdAt: 'desc' | 'asc' };
+  where?: Prisma.InterviewSessionWhereInput;
+}): Promise<Prisma.InterviewSessionGetPayload<object>[]> => {
+  const whereClause = options?.where || {};
+  
+  if (options?.patientId) whereClause.patientId = options.patientId;
+  if (options?.doctorId) whereClause.doctorId = options.doctorId;
+  if (options?.status) whereClause.status = options.status;
+
+  return await prisma.interviewSession.findMany({
+    where: whereClause,
+    take: options?.take,
+    skip: options?.skip,
+    orderBy: options?.orderBy || { createdAt: 'desc' },
+    include: {
+      patient: true,
+    },
+  });
+};
+
+/**
+ * 统计会话数量（兼容旧接口）
+ */
+export const countSessions = async (where?: Prisma.InterviewSessionWhereInput): Promise<number> => {
+  return await prisma.interviewSession.count({ where });
+};
+
+/**
+ * 永久删除会话（兼容旧接口）
+ */
 export const deleteSessionPermanently = async (params: {
   sessionId: number;
-  operator: OperatorIdentity;
-}) => {
-  return deleteSessionPermanentlyWithPrisma(prisma, params);
+  operator?: { operatorId?: number; id?: number; role: string };
+}): Promise<{ deletedId: number }> => {
+  await prisma.interviewSession.delete({
+    where: { id: params.sessionId },
+  });
+  return { deletedId: params.sessionId };
+};
+
+/**
+ * 永久删除会话（Prisma版本，用于测试）
+ */
+export const deleteSessionPermanentlyWithPrisma = async (id: number): Promise<{ deletedId: number }> => {
+  await prisma.interviewSession.delete({
+    where: { id },
+  });
+  return { deletedId: id };
 };

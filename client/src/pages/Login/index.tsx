@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { App as AntdApp, Button, Form, Input, Typography, Tabs, theme } from 'antd';
-import { LockOutlined, UserOutlined, SafetyOutlined, MedicineBoxFilled, MailOutlined } from '@ant-design/icons';
+import { LockOutlined, UserOutlined, SafetyOutlined, MedicineBoxFilled } from '@ant-design/icons';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import api, { unwrapData, getApiErrorMessage } from '../../utils/api';
 import type { ApiResponse } from '../../utils/api';
@@ -90,7 +90,6 @@ const PasswordLogin: React.FC<{ onSuccess: (data: LoginResult) => void }> = ({ o
       const res = (await api.post('/auth/login', values)) as ApiResponse<LoginResult | { data: LoginResult }>;
       const payload = unwrapData<LoginResult>(res);
       if (!res?.success || !payload) throw new Error('登录响应无效');
-      // 认证信息通过 Cookie 传递，无需存储到 localStorage
       onSuccess(payload);
     } catch (err) {
       logger.error('[Login] Password login failed', err);
@@ -165,11 +164,6 @@ const PasswordLogin: React.FC<{ onSuccess: (data: LoginResult) => void }> = ({ o
           登 录
         </Button>
       </Form.Item>
-      <div style={{ textAlign: 'right', marginTop: -8, marginBottom: 8 }}>
-        <Link to="/forgot-password" style={{ color: token.colorPrimary, fontSize: 13 }}>
-          忘记密码？
-        </Link>
-      </div>
     </Form>
   );
 };
@@ -207,7 +201,6 @@ const TokenLogin: React.FC<{ onSuccess: (data: LoginResult) => void }> = ({ onSu
       const res = (await api.post('/auth/login', values)) as ApiResponse<LoginResult | { data: LoginResult }>;
       const payload = unwrapData<LoginResult>(res);
       if (!res?.success || !payload) throw new Error('登录响应无效');
-      // 认证信息通过 Cookie 传递，无需存储到 localStorage
       onSuccess(payload);
     } catch (err) {
       logger.error('[Login] Token login failed', err);
@@ -267,104 +260,6 @@ const TokenLogin: React.FC<{ onSuccess: (data: LoginResult) => void }> = ({ onSu
           登 录
         </Button>
       </Form.Item>
-    </Form>
-  );
-};
-
-type EmailLoginValues = { email: string; password: string };
-
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-const EmailLogin: React.FC<{ onSuccess: (data: LoginResult) => void }> = ({ onSuccess }) => {
-  const [loading, setLoading] = useState(false);
-  const [email, setEmail] = useState('');
-  const [emailValid, setEmailValid] = useState(false);
-  const { message } = AntdApp.useApp();
-  const { token } = theme.useToken();
-  const [form] = Form.useForm<EmailLoginValues>();
-
-  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setEmail(value);
-    const isValid = EMAIL_REGEX.test(value.trim());
-    setEmailValid(isValid);
-  };
-
-  const isFormValid = emailValid && email.trim().length > 0;
-
-  const onFinish = async (values: EmailLoginValues) => {
-    if (!isFormValid) {
-      message.warning('请输入有效的邮箱地址');
-      return;
-    }
-    logger.info('[Login] 提交邮箱登录表单', { email: values.email });
-    try {
-      setLoading(true);
-      const res = (await api.post('/auth/email/login', values)) as ApiResponse<LoginResult | { data: LoginResult }>;
-      const payload = unwrapData<LoginResult>(res);
-      if (!res?.success || !payload) throw new Error('登录响应无效');
-      logger.info('[Login] 邮箱登录成功', { operatorId: payload.operatorId });
-      await new Promise(resolve => setTimeout(resolve, 100));
-      onSuccess(payload);
-    } catch (err) {
-      logger.error('[Login] Email login failed', err);
-      const msg = getApiErrorMessage(err, '登录失败，请检查邮箱或密码');
-      message.error(msg);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <Form layout="vertical" form={form} onFinish={onFinish} size="large" className="login-form">
-      <Form.Item 
-        name="email" 
-        rules={[
-          { required: true, message: '请输入邮箱' },
-          { type: 'email', message: '邮箱格式无效' },
-        ]}
-        className="login-form-item"
-      >
-        <Input 
-          prefix={<MailOutlined className="login-input-icon" style={{ color: token.colorTextPlaceholder }} />} 
-          placeholder="请输入邮箱地址" 
-          className="login-input"
-          autoComplete="email"
-          style={{ background: token.colorBgContainer, color: token.colorText }}
-          onChange={handleEmailChange}
-          value={email}
-        />
-      </Form.Item>
-      <Form.Item 
-        name="password" 
-        rules={[{ required: true, message: '请输入密码' }]}
-        className="login-form-item"
-      >
-        <Input.Password 
-          prefix={<LockOutlined className="login-input-icon" style={{ color: token.colorTextPlaceholder }} />} 
-          placeholder="请输入密码" 
-          className="login-input"
-          autoComplete="current-password"
-          style={{ background: token.colorBgContainer, color: token.colorText }}
-        />
-      </Form.Item>
-      <Form.Item className="login-form-item">
-        <Button 
-          type="primary" 
-          htmlType="submit" 
-          loading={loading} 
-          block
-          className="login-button"
-          disabled={!isFormValid}
-        >
-          登 录
-        </Button>
-      </Form.Item>
-      <div style={{ textAlign: 'right', marginTop: -8, marginBottom: 8 }}>
-        <Link to="/forgot-password" style={{ color: token.colorPrimary, fontSize: 13 }}>
-          忘记密码？
-        </Link>
-      </div>
     </Form>
   );
 };
@@ -494,11 +389,6 @@ const Login: React.FC = () => {
                 children: <PasswordLogin onSuccess={handleSuccess} />
               },
               {
-                key: 'email',
-                label: <span><MailOutlined /> 邮箱登录</span>,
-                children: <EmailLogin onSuccess={handleSuccess} />
-              },
-              {
                 key: 'token',
                 label: <span><SafetyOutlined /> 令牌登录</span>,
                 children: <TokenLogin onSuccess={handleSuccess} />
@@ -506,30 +396,11 @@ const Login: React.FC = () => {
             ]}
           />
         ) : (
-          <Tabs 
-            activeKey={activeTab} 
-            onChange={setActiveTab}
-            centered
-            className="login-tabs"
-            items={[
-              {
-                key: 'password',
-                label: <span><UserOutlined /> 账号登录</span>,
-                children: <PasswordLogin onSuccess={handleSuccess} />
-              },
-              {
-                key: 'email',
-                label: <span><MailOutlined /> 邮箱登录</span>,
-                children: <EmailLogin onSuccess={handleSuccess} />
-              }
-            ]}
-          />
+          <PasswordLogin onSuccess={handleSuccess} />
         )}
 
         <div className="login-footer">
           <span className="login-footer-text">还没有账号？</span>
-          <Link to="/email-register" className="login-footer-link">邮箱注册</Link>
-          <span style={{ color: 'var(--msia-border)', margin: '0 8px' }}>|</span>
           <Link to="/register" className="login-footer-link">用户名注册</Link>
         </div>
       </div>

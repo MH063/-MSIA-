@@ -1,7 +1,7 @@
 import React from 'react';
 import { App as AntdApp, Button, Grid, Layout, Menu, Space, theme, Dropdown, Avatar } from 'antd';
 import LazyDrawer from '../components/lazy/LazyDrawer';
-import { MenuOutlined, SunOutlined, MoonOutlined, UserOutlined, SettingOutlined, LogoutOutlined } from '@ant-design/icons';
+import { MenuOutlined, SunOutlined, MoonOutlined, UserOutlined, LogoutOutlined } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import Logo from '../components/Logo';
 import { useThemeStore } from '../store/theme.store';
@@ -43,8 +43,7 @@ const MainLayout: React.FC = () => {
       || p === '/interview'
       || p === '/sessions'
       || p === '/knowledge'
-      || p === '/interview/new'
-      || p === '/security-settings';
+      || p === '/interview/new';
     
     if (noAuthCheck) {
       setAuthChecking(false);
@@ -185,15 +184,6 @@ const MainLayout: React.FC = () => {
           <Dropdown
             menu={{
               items: [
-                {
-                  key: 'security',
-                  icon: <SettingOutlined />,
-                  label: '账户安全设置',
-                  onClick: () => navigate('/security-settings'),
-                },
-                {
-                  type: 'divider',
-                },
                 {
                   key: 'logout',
                   icon: <LogoutOutlined />,

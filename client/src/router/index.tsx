@@ -5,9 +5,6 @@ import SuspenseWrapper from './SuspenseWrapper';
 import RedirectToInterview from './RedirectToInterview';
 const Login = React.lazy(() => import('../pages/Login'));
 const Register = React.lazy(() => import('../pages/Register'));
-const EmailRegister = React.lazy(() => import('../pages/EmailRegister'));
-const ForgotPassword = React.lazy(() => import('../pages/ForgotPassword'));
-const SecuritySettings = React.lazy(() => import('../pages/SecuritySettings'));
 const Home = React.lazy(() => import('../pages/Home'));
 const Dashboard = React.lazy(() => import('../pages/Dashboard'));
 const Interview = React.lazy(() => import('../pages/Interview'));
@@ -42,22 +39,6 @@ const router = createBrowserRouter([
       </SuspenseWrapper>
     ),
   },
-  {
-    path: '/email-register',
-    element: (
-      <SuspenseWrapper>
-        <EmailRegister />
-      </SuspenseWrapper>
-    ),
-  },
-  {
-    path: '/forgot-password',
-    element: (
-      <SuspenseWrapper>
-        <ForgotPassword />
-      </SuspenseWrapper>
-    ),
-  },
   // 带导航栏的页面
   {
     path: '/',
@@ -68,14 +49,6 @@ const router = createBrowserRouter([
         element: (
           <SuspenseWrapper>
             <Home />
-          </SuspenseWrapper>
-        ),
-      },
-      {
-        path: '/security-settings',
-        element: (
-          <SuspenseWrapper>
-            <SecuritySettings />
           </SuspenseWrapper>
         ),
       },

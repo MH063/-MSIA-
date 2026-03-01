@@ -301,6 +301,7 @@ const NewInterview: React.FC = () => {
 
   /**
    * 暂存草稿
+   * 使用 sessionStorage 存储，关闭浏览器后自动清除，提高安全性
    */
   const handleSaveDraft = useCallback(async () => {
     const values = form.getFieldsValue();
@@ -310,7 +311,7 @@ const NewInterview: React.FC = () => {
     }
     
     try {
-      localStorage.setItem('interview_draft', JSON.stringify(values));
+      sessionStorage.setItem('interview_draft', JSON.stringify(values));
       message.success('草稿已保存到本地');
     } catch {
       message.error('保存草稿失败');
@@ -319,10 +320,11 @@ const NewInterview: React.FC = () => {
 
   /**
    * 加载草稿
+   * 从 sessionStorage 读取，关闭浏览器后自动清除
    */
   useEffect(() => {
     try {
-      const draft = localStorage.getItem('interview_draft');
+      const draft = sessionStorage.getItem('interview_draft');
       if (draft) {
         const parsed = JSON.parse(draft);
         // 转换日期字符串回 Dayjs 对象

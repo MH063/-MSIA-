@@ -10,7 +10,8 @@ import nlpRoutes from './routes/nlp.routes';
 import diagnosisRoutes from './routes/diagnosis.routes';
 import mappingRoutes from './routes/mapping.routes';
 import authRoutes from './routes/auth.routes';
-import emailAuthRoutes from './routes/email-auth.routes';
+import keyRoutes from './routes/key.routes';
+
 import captchaRoutes from './routes/captcha.routes';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { securityHeaders, sqlInjectionProtection, xssProtection } from './utils/security';
@@ -24,6 +25,8 @@ import { rateLimitStrategies } from './middleware/rateLimiter';
 import { alert } from './utils/alert';
 import { initRedis, stopRedis } from './utils/redis-starter';
 import { closeRedisClient } from './utils/redis-client';
+import { auditLog, AuditEventType } from './utils/auditLogger';
+import { startRotationScheduler, stopRotationScheduler } from './utils/auth-helpers';
 
 dotenv.config();
 
@@ -255,9 +258,6 @@ app.use(rateLimitStrategies.standard);
 // 特定路由限流
 app.use('/api/auth/login', rateLimitStrategies.strict);
 app.use('/api/auth/register', rateLimitStrategies.strict);
-app.use('/api/auth/email/login', rateLimitStrategies.strict);
-app.use('/api/auth/email/register', rateLimitStrategies.strict);
-app.use('/api/auth/email/send-code', rateLimitStrategies.strict);
 app.use('/api/captcha', rateLimitStrategies.relaxed);
 app.use('/api/knowledge', rateLimitStrategies.knowledge);
 app.use('/api/diagnosis/suggest', rateLimitStrategies.diagnosis);
@@ -285,8 +285,8 @@ app.use('/api/nlp', nlpRoutes);
 app.use('/api/diagnosis', diagnosisRoutes);
 app.use('/api/mapping', mappingRoutes);
 app.use('/api/auth', authRoutes);
-app.use('/api/auth/email', emailAuthRoutes);
 app.use('/api/captcha', captchaRoutes);
+app.use('/api/keys', keyRoutes);
 
 /**
  * 健康检查接口
@@ -374,6 +374,22 @@ async function startServer() {
   // 初始化 Redis 服务
   await initRedis();
 
+  // 启动审计日志轮换调度器
+  startRotationScheduler();
+
+  // 记录系统启动审计日志
+  await auditLog({
+    eventType: AuditEventType.SYSTEM_START,
+    severity: 'low',
+    action: 'startup',
+    success: true,
+    details: {
+      port,
+      host,
+      environment: serverConfig.nodeEnv,
+    },
+  });
+
   const tip = '请使用本机网卡IP访问，如 http://<本机IP>:' + port;
 
   app.listen(port, host, () => {
@@ -432,6 +448,18 @@ process.on('uncaughtException', (error) => {
 // 优雅关闭处理
 async function gracefulShutdown(signal: string) {
   secureLogger.info(`收到 ${signal} 信号，开始优雅关闭...`);
+  
+  // 记录系统关闭审计日志
+  await auditLog({
+    eventType: AuditEventType.SYSTEM_STOP,
+    severity: 'low',
+    action: 'shutdown',
+    success: true,
+    details: { signal },
+  });
+  
+  // 停止JWT密钥轮换调度器
+  stopRotationScheduler();
   
   // 关闭 Redis 客户端连接
   await closeRedisClient();
