@@ -62,7 +62,7 @@ vi.mock('../utils/secureLogger', () => ({
 vi.mock('../utils/cookie', () => {
   const parseCookieHeader = vi.fn((raw: string) => {
     const out: Record<string, string> = {};
-    if (!raw) return out;
+    if (!raw) {return out;}
     const parts = raw.split(';');
     for (const part of parts) {
       const idx = part.indexOf('=');
@@ -87,7 +87,7 @@ vi.mock('../utils/cookie', () => {
       if (idx > 0) {
         const k = part.slice(0, idx).trim();
         const v = part.slice(idx + 1).trim();
-        if (k === name) return v;
+        if (k === name) {return v;}
       }
     }
     return null;
@@ -185,7 +185,7 @@ describe('AuthController', () => {
         if (idx > 0) {
           const k = part.slice(0, idx).trim();
           const v = part.slice(idx + 1).trim();
-          if (k === name) return v;
+          if (k === name) {return v;}
         }
       }
       return null;

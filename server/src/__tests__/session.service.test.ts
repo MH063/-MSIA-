@@ -1,57 +1,17 @@
 import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
 import { deleteSessionPermanentlyWithPrisma } from '../services/session.service';
 import { SessionSchemas } from '../validators';
-import type {
-  MockPrismaClient,
-  MockTransactionClient,
-  CreateMockPrismaParams,
-  TransactionCall,
-} from './testTypes';
-import type { Prisma, PrismaClient } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 
-/**
- * 创建 Mock Prisma 客户端
- */
-function createFakePrisma(params: CreateMockPrismaParams): MockPrismaClient {
-  const calls: TransactionCall[] = [];
-
-  const tx: MockTransactionClient = {
-    $queryRaw: async (strings: TemplateStringsArray, ...values: unknown[]) => {
-      calls.push({ name: '$queryRaw', args: [strings, ...values] });
-      const tableName = String(values?.[0] ?? '');
-      return [{ exists: Boolean(params.tableExistsByName[tableName]) }];
-    },
-    $executeRawUnsafe: async (sql: string, ...values: unknown[]) => {
-      calls.push({ name: '$executeRawUnsafe', args: [sql, ...values] });
-      if (params.onExecuteRawUnsafe) {
-        return params.onExecuteRawUnsafe(sql, ...values);
-      }
-      return 1;
-    },
+vi.mock('../prisma', () => ({
+  default: {
     interviewSession: {
-      delete: async (arg: Prisma.InterviewSessionDeleteArgs) => {
-        calls.push({ name: 'interviewSession.delete', args: [arg] });
-        return params.onDelete(arg);
-      },
+      delete: vi.fn(),
     },
-  };
+  },
+}));
 
-  const prismaClient: MockPrismaClient = {
-    interviewSession: {
-      findUnique: async (arg: Prisma.InterviewSessionFindUniqueArgs) => {
-        calls.push({ name: 'interviewSession.findUnique', args: [arg] });
-        return params.findUnique(arg);
-      },
-    },
-    $transaction: async <T>(fn: (tx: MockTransactionClient) => Promise<T>): Promise<T> => {
-      calls.push({ name: '$transaction', args: [] });
-      return fn(tx);
-    },
-    __calls: calls,
-  };
-
-  return prismaClient;
-}
+import prisma from '../prisma';
 
 describe('SessionService', () => {
   beforeEach(() => {
@@ -64,24 +24,16 @@ describe('SessionService', () => {
 
   describe('deleteSessionPermanentlyWithPrisma', () => {
     it('删除指定ID的会话记录', async () => {
-      const prismaClient = createFakePrisma({
-        findUnique: async () => ({ id: 1, doctorId: null }),
-        onDelete: async () => ({ id: 1 }),
-        tableExistsByName: {},
-      });
+      (prisma.interviewSession.delete as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 1 });
 
       const result = await deleteSessionPermanentlyWithPrisma(1);
       expect(result).toEqual({ deletedId: 1 });
+      expect(prisma.interviewSession.delete).toHaveBeenCalledWith({ where: { id: 1 } });
     });
 
     it('删除不存在的会话会抛出错误', async () => {
       const error = new Error('Record not found');
-      
-      const prismaClient = createFakePrisma({
-        findUnique: async () => null,
-        onDelete: async () => { throw error; },
-        tableExistsByName: {},
-      });
+      (prisma.interviewSession.delete as ReturnType<typeof vi.fn>).mockRejectedValue(error);
 
       await expect(deleteSessionPermanentlyWithPrisma(999)).rejects.toThrow();
     });

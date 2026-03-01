@@ -6,8 +6,6 @@
 import prisma from '../prisma';
 import { Prisma } from '@prisma/client';
 import { 
-  validateEncryptedFields, 
-  getEncryptionSummary,
   SensitiveField,
   maskEncryptedObject,
 } from '../utils/cryptoService';
@@ -182,25 +180,25 @@ export const updateSessionWithEncryption = async (
 
   const updateData: Prisma.InterviewSessionUpdateInput = {};
 
-  if (data.patientId !== undefined) updateData.patient = { connect: { id: data.patientId } };
-  if (data.doctorId !== undefined) updateData.doctorId = data.doctorId;
-  if (data.status !== undefined) updateData.status = data.status;
-  if (data.historian !== undefined) updateData.historian = data.historian;
-  if (data.reliability !== undefined) updateData.reliability = data.reliability;
-  if (data.historianRelationship !== undefined) updateData.historianRelationship = data.historianRelationship;
-  if (data.generalInfo !== undefined) updateData.generalInfo = data.generalInfo;
-  if (data.chiefComplaint !== undefined) updateData.chiefComplaint = data.chiefComplaint;
-  if (data.presentIllness !== undefined) updateData.presentIllness = data.presentIllness;
-  if (data.pastHistory !== undefined) updateData.pastHistory = data.pastHistory;
-  if (data.personalHistory !== undefined) updateData.personalHistory = data.personalHistory;
-  if (data.maritalHistory !== undefined) updateData.maritalHistory = data.maritalHistory;
-  if (data.menstrualHistory !== undefined) updateData.menstrualHistory = data.menstrualHistory;
-  if (data.fertilityHistory !== undefined) updateData.fertilityHistory = data.fertilityHistory;
-  if (data.familyHistory !== undefined) updateData.familyHistory = data.familyHistory;
-  if (data.physicalExam !== undefined) updateData.physicalExam = data.physicalExam;
-  if (data.specialistExam !== undefined) updateData.specialistExam = data.specialistExam;
-  if (data.auxiliaryExams !== undefined) updateData.auxiliaryExams = data.auxiliaryExams;
-  if (data.reviewOfSystems !== undefined) updateData.reviewOfSystems = data.reviewOfSystems;
+  if (data.patientId !== undefined) {updateData.patient = { connect: { id: data.patientId } };}
+  if (data.doctorId !== undefined) {updateData.doctorId = data.doctorId;}
+  if (data.status !== undefined) {updateData.status = data.status;}
+  if (data.historian !== undefined) {updateData.historian = data.historian;}
+  if (data.reliability !== undefined) {updateData.reliability = data.reliability;}
+  if (data.historianRelationship !== undefined) {updateData.historianRelationship = data.historianRelationship;}
+  if (data.generalInfo !== undefined) {updateData.generalInfo = data.generalInfo;}
+  if (data.chiefComplaint !== undefined) {updateData.chiefComplaint = data.chiefComplaint;}
+  if (data.presentIllness !== undefined) {updateData.presentIllness = data.presentIllness;}
+  if (data.pastHistory !== undefined) {updateData.pastHistory = data.pastHistory;}
+  if (data.personalHistory !== undefined) {updateData.personalHistory = data.personalHistory;}
+  if (data.maritalHistory !== undefined) {updateData.maritalHistory = data.maritalHistory;}
+  if (data.menstrualHistory !== undefined) {updateData.menstrualHistory = data.menstrualHistory;}
+  if (data.fertilityHistory !== undefined) {updateData.fertilityHistory = data.fertilityHistory;}
+  if (data.familyHistory !== undefined) {updateData.familyHistory = data.familyHistory;}
+  if (data.physicalExam !== undefined) {updateData.physicalExam = data.physicalExam;}
+  if (data.specialistExam !== undefined) {updateData.specialistExam = data.specialistExam;}
+  if (data.auxiliaryExams !== undefined) {updateData.auxiliaryExams = data.auxiliaryExams;}
+  if (data.reviewOfSystems !== undefined) {updateData.reviewOfSystems = data.reviewOfSystems;}
 
   const session = await prisma.interviewSession.update({
     where: { id },
@@ -225,9 +223,9 @@ export const getAllSessions = async (filters?: {
 }): Promise<Prisma.InterviewSessionGetPayload<object>[]> => {
   const where: Prisma.InterviewSessionWhereInput = {};
 
-  if (filters?.patientId) where.patientId = filters.patientId;
-  if (filters?.doctorId) where.doctorId = filters.doctorId;
-  if (filters?.status) where.status = filters.status;
+  if (filters?.patientId) {where.patientId = filters.patientId;}
+  if (filters?.doctorId) {where.doctorId = filters.doctorId;}
+  if (filters?.status) {where.status = filters.status;}
 
   return await prisma.interviewSession.findMany({
     where,
@@ -280,7 +278,7 @@ export const getSessionStats = async (doctorId?: number): Promise<{
   byStatus: Record<string, number>;
 }> => {
   const where: Prisma.InterviewSessionWhereInput = {};
-  if (doctorId) where.doctorId = doctorId;
+  if (doctorId) {where.doctorId = doctorId;}
 
   const sessions = await prisma.interviewSession.findMany({
     where,
@@ -342,9 +340,9 @@ export const getSessions = async (options?: {
 }): Promise<Prisma.InterviewSessionGetPayload<object>[]> => {
   const whereClause = options?.where || {};
   
-  if (options?.patientId) whereClause.patientId = options.patientId;
-  if (options?.doctorId) whereClause.doctorId = options.doctorId;
-  if (options?.status) whereClause.status = options.status;
+  if (options?.patientId) {whereClause.patientId = options.patientId;}
+  if (options?.doctorId) {whereClause.doctorId = options.doctorId;}
+  if (options?.status) {whereClause.status = options.status;}
 
   return await prisma.interviewSession.findMany({
     where: whereClause,

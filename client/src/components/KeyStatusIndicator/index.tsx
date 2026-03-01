@@ -3,7 +3,7 @@
  * 在需要加密操作时提示用户创建或解锁密钥
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useReducer, useEffect } from 'react';
 import { Alert, Button, Space, Tag, Tooltip } from 'antd';
 import {
   SafetyOutlined,
@@ -25,43 +25,77 @@ interface KeyStatus {
   hasServerKey: boolean;
 }
 
+type State = {
+  keyStatus: KeyStatus | null;
+  loading: boolean;
+};
+
+type Action = 
+  | { type: 'SET_LOADING'; payload: boolean }
+  | { type: 'SET_KEY_STATUS'; payload: KeyStatus };
+
+const initialState: State = {
+  keyStatus: null,
+  loading: true,
+};
+
+function reducer(state: State, action: Action): State {
+  switch (action.type) {
+    case 'SET_LOADING':
+      return { ...state, loading: action.payload };
+    case 'SET_KEY_STATUS':
+      return { keyStatus: action.payload, loading: false };
+    default:
+      return state;
+  }
+}
+
 export const KeyStatusIndicator: React.FC<KeyStatusIndicatorProps> = ({
   onManageKeys,
   showDetails = false,
 }) => {
-  const [keyStatus, setKeyStatus] = useState<KeyStatus | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [state, dispatch] = useReducer(reducer, initialState);
 
   useEffect(() => {
-    checkKeyStatus();
+    let mounted = true;
+    
+    async function loadKeyStatus() {
+      dispatch({ type: 'SET_LOADING', payload: true });
+      const status = keyManager.getStatus();
+      
+      let hasServerKey = false;
+      try {
+        const result = await keyManager.checkServerKey();
+        hasServerKey = result === true;
+      } catch {
+        // 忽略错误
+      }
+
+      if (mounted) {
+        dispatch({
+          type: 'SET_KEY_STATUS',
+          payload: {
+            hasKeyPair: status.hasKeyPair,
+            isLocked: status.isLocked,
+            hasServerKey,
+          },
+        });
+      }
+    }
+    
+    loadKeyStatus();
+    
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  const checkKeyStatus = async () => {
-    setLoading(true);
-    const status = keyManager.getStatus();
-    
-    let hasServerKey = false;
-    try {
-      const result = await keyManager.checkServerKey();
-      hasServerKey = result === true;
-    } catch {
-      // 忽略错误
-    }
-
-    setKeyStatus({
-      hasKeyPair: status.hasKeyPair,
-      isLocked: status.isLocked,
-      hasServerKey,
-    });
-    setLoading(false);
-  };
-
-  if (loading) {
+  if (state.loading) {
     return null;
   }
 
   // 没有密钥
-  if (!keyStatus?.hasKeyPair) {
+  if (!state.keyStatus?.hasKeyPair) {
     return (
       <Alert
         type="warning"
@@ -83,7 +117,7 @@ export const KeyStatusIndicator: React.FC<KeyStatusIndicatorProps> = ({
   }
 
   // 密钥已锁定
-  if (keyStatus.isLocked) {
+  if (state.keyStatus.isLocked) {
     return (
       <Alert
         type="info"
@@ -109,7 +143,7 @@ export const KeyStatusIndicator: React.FC<KeyStatusIndicatorProps> = ({
     return (
       <Space>
         <Tag color="success" icon={<UnlockOutlined />}>密钥已解锁</Tag>
-        {keyStatus.hasServerKey && (
+        {state.keyStatus.hasServerKey && (
           <Tooltip title="密钥已同步到服务器">
             <Tag color="blue" icon={<SafetyOutlined />}>已同步</Tag>
           </Tooltip>
@@ -125,15 +159,13 @@ export const KeyStatusIndicator: React.FC<KeyStatusIndicatorProps> = ({
  * 紧凑的密钥状态标签
  */
 export const KeyStatusTag: React.FC<{ onClick?: () => void }> = ({ onClick }) => {
-  const [keyStatus, setKeyStatus] = useState<KeyStatus | null>(null);
-
-  useEffect(() => {
+  const keyStatus = React.useMemo(() => {
     const status = keyManager.getStatus();
-    setKeyStatus({
+    return {
       hasKeyPair: status.hasKeyPair,
       isLocked: status.isLocked,
       hasServerKey: false,
-    });
+    };
   }, []);
 
   if (!keyStatus?.hasKeyPair) {

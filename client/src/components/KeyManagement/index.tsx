@@ -20,7 +20,6 @@ import {
   Divider,
   Upload,
   Tag,
-  Spin,
   Select,
   Steps,
 } from 'antd';
@@ -33,7 +32,6 @@ import {
   CloudSyncOutlined,
   CloudDownloadOutlined,
   QuestionCircleOutlined,
-  UnlockOutlined,
 } from '@ant-design/icons';
 import { keyManager } from '../../utils/keyManager';
 import { checkPasswordStrength, PasswordStrength, getStrengthDescription } from '../../utils/passwordValidator';
@@ -88,7 +86,6 @@ export const KeyManagementModal: React.FC<KeyManagementModalProps> = ({
   const [backupFile, setBackupFile] = useState<File | null>(null);
   const [securityQuestions, setSecurityQuestions] = useState<SecurityQuestion[]>([]);
   const [resetStep, setResetStep] = useState(0);
-  const [verifiedQuestion, setVerifiedQuestion] = useState<SecurityQuestion | null>(null);
 
   useEffect(() => {
     if (visible) {
@@ -358,8 +355,6 @@ export const KeyManagementModal: React.FC<KeyManagementModalProps> = ({
       });
       
       if (response.success) {
-        const question = securityQuestions.find(q => q.id === values.questionId);
-        setVerifiedQuestion(question || null);
         setResetStep(1);
         form.resetFields();
         message.success('验证成功，请设置新密码');
@@ -397,7 +392,6 @@ export const KeyManagementModal: React.FC<KeyManagementModalProps> = ({
       onKeyChange?.();
       form.resetFields();
       setResetStep(0);
-      setVerifiedQuestion(null);
       setMode('status');
     } catch {
       message.error('密码重置失败');

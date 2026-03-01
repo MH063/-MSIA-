@@ -2015,7 +2015,7 @@ export const getDashboardStats = async (req: Request, res: Response) => {
             completedCount,
             archivedCount,
             totalSessions,
-            totalPatients,
+            totalPatientsRaw,
             recentSessions,
             statusGroup,
             knowledgeCount,
@@ -2027,7 +2027,10 @@ export const getDashboardStats = async (req: Request, res: Response) => {
             sessionService.countSessions({ status: 'completed' }),
             sessionService.countSessions({ status: 'archived' }),
             sessionService.countSessions(),
-            prisma.patient.count(),
+            prisma.$queryRaw<Array<{ count: bigint }>>`
+                SELECT COUNT(DISTINCT patient_id)::bigint as count
+                FROM interview_sessions
+            `,
             sessionService.getSessions({ take: 5, orderBy: { createdAt: 'desc' } }),
             prisma.interviewSession.groupBy({ by: ['status'], _count: { _all: true } }),
             knowledgeService.countKnowledge(),
@@ -2047,6 +2050,8 @@ export const getDashboardStats = async (req: Request, res: Response) => {
                 ORDER BY DATE(created_at) ASC;
             `,
         ]);
+
+        const totalPatients = Number(totalPatientsRaw[0]?.count || 0);
 
         const statusCounts: Record<string, number> = {};
         for (const row of statusGroup) {

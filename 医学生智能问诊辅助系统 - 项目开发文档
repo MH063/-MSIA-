@@ -14,8 +14,8 @@ MedStudent Interview Assistant (MSIA) - 医学生智能问诊辅助系统
 - **效率价值**：结构化数据输入，自动生成病历草稿
 
 ### 当前状态
-**项目阶段**：Phase 1 MVP 已完成，Phase 2 智能增强进行中
-**最后更新**：2026年2月
+**项目阶段**：Phase 1 MVP 已完成，Phase 2 智能增强已完成，Phase 3 扩展优化已完成，Phase 4 安全加固已完成
+**最后更新**：2026年3月
 
 ---
 
@@ -41,7 +41,7 @@ MedStudent Interview Assistant (MSIA) - 医学生智能问诊辅助系统
 - [x] 症状关键词提取
 
 #### 4. 现病史动态问诊引擎（核心功能）
-- [x] 症状知识库（42种症状）
+- [x] 症状知识库（33种症状）
 - [x] 动态问题生成
 - [x] HPI（现病史）结构化录入
 - [x] 症状严重程度评估
@@ -93,10 +93,10 @@ MedStudent Interview Assistant (MSIA) - 医学生智能问诊辅助系统
 - **Framework**: Node.js + Express 5
 - **Language**: TypeScript 5+
 - **API Style**: RESTful API
-- **ORM**: Prisma 7
+- **ORM**: Prisma 6
 
 **数据库 (Database)**：
-- **RDBMS**: PostgreSQL 18
+- **RDBMS**: PostgreSQL 16
 - **Connection**: pg + @prisma/adapter-pg
 
 **部署 (Deployment)**：
@@ -164,7 +164,7 @@ MedStudent Interview Assistant (MSIA) - 医学生智能问诊辅助系统
 │   ├── 📁 prisma/               # 数据库模型
 │   │   ├── 📄 schema.prisma     # Prisma模型
 │   │   └── 📁 migrations/       # 数据库迁移
-│   ├── 📁 knowledge_base/       # 症状知识库(42个JSON)
+│   ├── 📁 knowledge_base/       # 症状知识库(33个JSON)
 │   ├── 📄 package.json
 │   ├── 📄 Dockerfile            # 后端容器配置
 │   └── 📄 docker-entrypoint.sh  # 容器入口脚本
@@ -281,31 +281,44 @@ npm run build
 ### Phase 1：MVP ✅ 已完成
 - [x] 基础问诊功能
 - [x] 数据持久化
-- [x] 症状知识库(42种)
+- [x] 症状知识库(33种)
 - [x] Docker 部署支持
 
-### Phase 2：智能增强 🔄 进行中
+### Phase 2：智能增强 ✅ 已完成
 - [x] 智能诊断建议
 - [x] 症状图谱可视化
-- [ ] 医学指南定期更新功能
-- [ ] 诊断准确率优化
+- [x] 用户认证系统
+- [x] 数据统计 Dashboard
 
-### Phase 3：扩展与优化 ⏳ 计划中
-- [ ] 用户认证系统
-- [ ] 数据统计 Dashboard
-- [ ] 移动端 UI 优化
-- [ ] 病历导出 Word/PDF
+### Phase 3：扩展与优化 ✅ 已完成
+- [x] 移动端 UI 优化
+- [x] 病历导出 Word/PDF
+
+### Phase 4：安全加固 ✅ 已完成
+- [x] 开发 Token 绕过认证修复
+- [x] Cookie secure 配置优化
+- [x] SQL 注入防护增强
+- [x] localStorage 敏感信息移除
+- [x] 环境变量验证增强
+- [x] CORS 配置优化
+- [x] 依赖安全漏洞修复
 
 ---
 
 ## 最近更新
+
+### 2026年3月
+1. ✅ 文档更新与修正
+   - 修正症状知识库数量为33种
+   - 统一所有文档版本号至v2.2
+   - 更新项目阶段状态
 
 ### 2026年2月
 1. ✅ 完成 Docker 部署配置
 2. ✅ 添加智能诊断功能
 3. ✅ 实现症状关联图谱
 4. ✅ 项目目录清理优化
-5. 🔄 开发医学指南定期更新功能
+5. ✅ 安全加固更新
 
 ---
 
@@ -318,9 +331,9 @@ npm run build
 
 ### 环境要求
 - Node.js 20+
-- PostgreSQL 18+
+- PostgreSQL 16+
 - Docker 20.10+ (可选)
 
 ### 文档版本
-**版本**: v2.0 (Docker Deployment Update)
-**最后更新**: 2026年2月
+**版本**: v2.2
+**最后更新**: 2026年3月

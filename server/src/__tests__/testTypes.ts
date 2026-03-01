@@ -2,7 +2,7 @@
  * 测试工具类型定义
  * 用于消除测试文件中的 any 类型
  */
-import type { PrismaClient, Prisma } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 
 /**
  * Mock 函数类型

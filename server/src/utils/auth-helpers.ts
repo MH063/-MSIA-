@@ -29,7 +29,7 @@ const ROTATION_INTERVAL_MS = 30 * 24 * 60 * 60 * 1000; // 30天
 const ROTATION_OVERLAP_MS = 24 * 60 * 60 * 1000; // 密钥轮换后旧密钥保留24小时
 
 let secretConfig: JwtSecretConfig;
-let rotationTimer: NodeJS.Timeout | null = null;
+let rotationTimer: ReturnType<typeof setInterval> | null = null;
 
 /**
  * 初始化JWT密钥配置

@@ -307,15 +307,15 @@ describe('SessionController', () => {
         .mockResolvedValueOnce(3)   // archivedCount
         .mockResolvedValueOnce(20)  // totalSessions
         ;
-      (prisma.patient.count as ReturnType<typeof vi.fn>).mockResolvedValue(15);
+      (prisma.$queryRaw as ReturnType<typeof vi.fn>)
+        .mockResolvedValueOnce([{ count: BigInt(15) }])  // totalPatientsRaw
+        .mockResolvedValueOnce([])  // sessionsDailyRaw
+        .mockResolvedValueOnce([]); // completedDailyRaw
       (sessionService.getSessions as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.interviewSession.groupBy as ReturnType<typeof vi.fn>).mockResolvedValue([
         { status: 'draft', _count: { _all: 10 } },
         { status: 'completed', _count: { _all: 5 } },
       ]);
-      (prisma.$queryRaw as ReturnType<typeof vi.fn>)
-        .mockResolvedValueOnce([])  // sessionsDailyRaw
-        .mockResolvedValueOnce([]); // completedDailyRaw
 
       await sessionController.getDashboardStats(mockReq as Request, mockRes as Response);
 

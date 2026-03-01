@@ -514,5 +514,5 @@ sudo apt update && sudo apt upgrade -y
 
 **部署完成后访问**: https://your-domain.com
 
-**版本**: v2.1  
-**最后更新**: 2026年2月
+**版本**: v2.2  
+**最后更新**: 2026年3月

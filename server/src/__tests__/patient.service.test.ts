@@ -37,7 +37,9 @@ describe('PatientService', () => {
       const result = await getAllPatients();
 
       expect(result).toEqual(mockData);
-      expect(prisma.patient.findMany).toHaveBeenCalledWith();
+      expect(prisma.patient.findMany).toHaveBeenCalledWith({
+        orderBy: { createdAt: 'desc' },
+      });
     });
 
     it('当没有患者时，应该返回空数组', async () => {

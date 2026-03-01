@@ -8,7 +8,6 @@ import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import { secureLogger } from '../utils/secureLogger';
 import { getRedisClient } from '../utils/redis-client';
-import { serverConfig } from '../config';
 
 /**
  * CSRF令牌配置

@@ -5,7 +5,6 @@
 
 import { secureLogger } from './secureLogger';
 import { getRedisClient } from './redis-client';
-import { serverConfig } from '../config';
 import type { Request } from 'express';
 
 /**
@@ -238,9 +237,9 @@ export async function queryAuditLogs(params: {
             const entry = JSON.parse(logStr) as AuditLogEntry;
             
             // 应用过滤条件
-            if (eventType && entry.eventType !== eventType) continue;
-            if (operatorId && entry.operatorId !== operatorId) continue;
-            if (severity && entry.severity !== severity) continue;
+            if (eventType && entry.eventType !== eventType) {continue;}
+            if (operatorId && entry.operatorId !== operatorId) {continue;}
+            if (severity && entry.severity !== severity) {continue;}
             
             results.push(entry);
           } catch {
@@ -255,11 +254,11 @@ export async function queryAuditLogs(params: {
   
   // 合并内存存储
   for (const entry of memoryAuditLogs) {
-    if (eventType && entry.eventType !== eventType) continue;
-    if (operatorId && entry.operatorId !== operatorId) continue;
-    if (severity && entry.severity !== severity) continue;
-    if (startDate && new Date(entry.timestamp) < startDate) continue;
-    if (endDate && new Date(entry.timestamp) > endDate) continue;
+    if (eventType && entry.eventType !== eventType) {continue;}
+    if (operatorId && entry.operatorId !== operatorId) {continue;}
+    if (severity && entry.severity !== severity) {continue;}
+    if (startDate && new Date(entry.timestamp) < startDate) {continue;}
+    if (endDate && new Date(entry.timestamp) > endDate) {continue;}
     
     results.push(entry);
   }

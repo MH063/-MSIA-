@@ -8,7 +8,7 @@ import { Prisma } from '@prisma/client';
 import { 
   validateEncryptedFields, 
   getEncryptionSummary,
-  SENSITIVE_FIELDS,
+  SENSITIVE_FIELDS as _SENSITIVE_FIELDS,
   SensitiveField 
 } from '../utils/cryptoService';
 import { secureLogger } from '../utils/secureLogger';
@@ -72,7 +72,7 @@ export function validatePatientEncryption(data: PatientData): {
 export const createPatientWithEncryption = async (
   data: PatientDataWithKey
 ): Promise<Prisma.PatientGetPayload<object>> => {
-  const { publicKey, keyFingerprint, ...patientData } = data;
+  const { publicKey: _publicKey, keyFingerprint: _keyFingerprint, ...patientData } = data;
 
   const validation = validatePatientEncryption(patientData);
   
@@ -123,16 +123,16 @@ export const updatePatientWithEncryption = async (
 
   const updateData: Prisma.PatientUpdateInput = {};
 
-  if (data.name !== undefined) updateData.name = data.name;
-  if (data.gender !== undefined) updateData.gender = data.gender;
-  if (data.birthDate !== undefined) updateData.birthDate = data.birthDate ? new Date(data.birthDate) : null;
-  if (data.nativePlace !== undefined) updateData.nativePlace = data.nativePlace;
-  if (data.placeOfBirth !== undefined) updateData.placeOfBirth = data.placeOfBirth;
-  if (data.ethnicity !== undefined) updateData.ethnicity = data.ethnicity;
-  if (data.address !== undefined) updateData.address = data.address;
-  if (data.occupation !== undefined) updateData.occupation = data.occupation;
-  if (data.employer !== undefined) updateData.employer = data.employer;
-  if (data.contactInfo !== undefined) updateData.contactInfo = data.contactInfo;
+  if (data.name !== undefined) {updateData.name = data.name;}
+  if (data.gender !== undefined) {updateData.gender = data.gender;}
+  if (data.birthDate !== undefined) {updateData.birthDate = data.birthDate ? new Date(data.birthDate) : null;}
+  if (data.nativePlace !== undefined) {updateData.nativePlace = data.nativePlace;}
+  if (data.placeOfBirth !== undefined) {updateData.placeOfBirth = data.placeOfBirth;}
+  if (data.ethnicity !== undefined) {updateData.ethnicity = data.ethnicity;}
+  if (data.address !== undefined) {updateData.address = data.address;}
+  if (data.occupation !== undefined) {updateData.occupation = data.occupation;}
+  if (data.employer !== undefined) {updateData.employer = data.employer;}
+  if (data.contactInfo !== undefined) {updateData.contactInfo = data.contactInfo;}
 
   const patient = await prisma.patient.update({
     where: { id },
@@ -197,8 +197,8 @@ export const searchPatients = async (query: {
 
   if (query.startDate || query.endDate) {
     where.createdAt = {};
-    if (query.startDate) where.createdAt.gte = query.startDate;
-    if (query.endDate) where.createdAt.lte = query.endDate;
+    if (query.startDate) {where.createdAt.gte = query.startDate;}
+    if (query.endDate) {where.createdAt.lte = query.endDate;}
   }
 
   return await prisma.patient.findMany({

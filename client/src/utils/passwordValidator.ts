@@ -197,10 +197,10 @@ export function checkPasswordStrength(password: string): PasswordValidationResul
   }
 
   // 特殊字符检查 (最高15分，基础15分)
-  if (PASSWORD_CONFIG.requireSpecialChar && !/[!@#$%^&*()_+\-=\[\]{};':"|\\<>,.?/]/.test(password)) {
+  if (PASSWORD_CONFIG.requireSpecialChar && !/[!@#$%^&*()_+\-=[\]{};':"|\\<>,.?/]/.test(password)) {
     errors.push('密码必须包含特殊字符');
   } else {
-    const specialCount = (password.match(/[!@#$%^&*()_+\-=\[\]{};':"|\\<>,.?/]/g) || []).length;
+    const specialCount = (password.match(/[!@#$%^&*()_+\-=[\]{};':"|\\<>,.?/]/g) || []).length;
     if (specialCount >= 3) score += 15;
     else if (specialCount >= 2) score += 15;
     else score += 15;  // 至少有1个就得15分

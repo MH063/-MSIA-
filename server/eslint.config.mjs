@@ -70,6 +70,12 @@ export default [
       'no-var': 'error',
       'eqeqeq': ['error', 'always', { null: 'ignore' }],
       'curly': ['warn', 'all'],
+      
+      // 允许用于全局类型扩展的命名空间声明
+      '@typescript-eslint/no-namespace': ['error', {
+        allowDeclarations: true,
+        allowDefinitionFiles: true,
+      }],
     },
   },
   {

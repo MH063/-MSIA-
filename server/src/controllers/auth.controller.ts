@@ -7,7 +7,7 @@ import { authCookieConfig, authGuardConfig, authSessionConfig } from '../config'
 import { getRedisClient, incrWithExpire, incrWithTtl } from '../utils/redis-client';
 import { createCaptcha, verifyCaptcha as verifyCaptchaPair } from '../services/captcha.service';
 import { secureLogger } from '../utils/secureLogger';
-import { parseCookieHeader, readCookieFromRequest } from '../utils/cookie';
+import { readCookieFromRequest } from '../utils/cookie';
 
 type LoginFailRecord = {
   count: number;
