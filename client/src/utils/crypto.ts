@@ -338,7 +338,8 @@ async function generateFingerprint(publicKeyBase64: string): Promise<string> {
   const buffer = new TextEncoder().encode(publicKeyBase64);
   const hashBuffer = await window.crypto.subtle.digest('SHA-256', buffer);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join(':').substring(0, 23);
+  // 保留完整的SHA-256指纹（64个十六进制字符），用冒号分隔便于阅读
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join(':');
 }
 
 /**

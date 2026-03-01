@@ -148,14 +148,17 @@ describe('AuthController', () => {
       body: {},
       headers: {},
       ip: '127.0.0.1',
-      header: (name: string) => {
+      header: ((name: string): string | string[] | undefined => {
         const headers = mockReq.headers as Record<string, string>;
         const key = name.toLowerCase();
+        if (key === 'set-cookie') {
+          return headers['set-cookie'] ? [headers['set-cookie']] : undefined;
+        }
         if (key === 'cookie') {
           return headers['cookie'] || headers['Cookie'] || undefined;
         }
         return headers[key] || headers[name] || undefined;
-      },
+      }) as Request['header'],
     };
 
     mockRes = {

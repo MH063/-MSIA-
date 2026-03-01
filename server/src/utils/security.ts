@@ -3,12 +3,35 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
+import crypto from 'crypto';
 import { secureLogger } from './secureLogger';
+
+/**
+ * 生成 CSP nonce
+ */
+export function generateNonce(): string {
+  return crypto.randomBytes(16).toString('base64');
+}
+
+/**
+ * 扩展 Express Request 类型
+ */
+declare global {
+  namespace Express {
+    interface Request {
+      cspNonce?: string;
+    }
+  }
+}
 
 /**
  * 安全响应头中间件
  */
 export const securityHeaders = (req: Request, res: Response, next: NextFunction): void => {
+  // 生成 CSP nonce
+  const nonce = generateNonce();
+  req.cspNonce = nonce;
+
   // 防止XSS攻击
   res.setHeader('X-XSS-Protection', '1; mode=block');
   
@@ -18,15 +41,45 @@ export const securityHeaders = (req: Request, res: Response, next: NextFunction)
   // 防止点击劫持
   res.setHeader('X-Frame-Options', 'DENY');
   
-  // 内容安全策略
-  res.setHeader('Content-Security-Policy',
-    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: https:;");
+  // 内容安全策略 - 使用 nonce 替代 unsafe-inline
+  // 开发环境允许 unsafe-inline 以便热更新
+  const isDev = process.env.NODE_ENV !== 'production';
+  
+  if (isDev) {
+    // 开发环境：允许 unsafe-inline 以支持热更新
+    res.setHeader('Content-Security-Policy',
+      "default-src 'self'; " +
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
+      "style-src 'self' 'unsafe-inline'; " +
+      "font-src 'self' data:; " +
+      "img-src 'self' data: https: blob:; " +
+      "connect-src 'self' ws: wss: http: https:;"
+    );
+  } else {
+    // 生产环境：使用 nonce，移除 unsafe-inline
+    res.setHeader('Content-Security-Policy',
+      `default-src 'self'; ` +
+      `script-src 'self' 'nonce-${nonce}'; ` +
+      `style-src 'self' 'nonce-${nonce}'; ` +
+      `font-src 'self' data:; ` +
+      `img-src 'self' data: https: blob:; ` +
+      `connect-src 'self'; ` +
+      `object-src 'none'; ` +
+      `base-uri 'self'; ` +
+      `form-action 'self'; ` +
+      `frame-ancestors 'none';`
+    );
+  }
   
   // 引用者策略
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   
   // 隐藏服务器信息
   res.setHeader('X-Powered-By', '');
+  
+  // 权限策略
+  res.setHeader('Permissions-Policy', 
+    'geolocation=(), microphone=(), camera=(), payment=(), usb=(), interest-cohort=()');
   
   next();
 };

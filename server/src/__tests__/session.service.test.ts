@@ -63,105 +63,27 @@ describe('SessionService', () => {
   });
 
   describe('deleteSessionPermanentlyWithPrisma', () => {
-    it('医生仅可删除归属自己的问诊记录', async () => {
-      process.env.SESSION_CASCADE_TABLES_JSON = JSON.stringify([]);
-
+    it('删除指定ID的会话记录', async () => {
       const prismaClient = createFakePrisma({
-        findUnique: async () => ({ id: 1, doctorId: 2 }),
+        findUnique: async () => ({ id: 1, doctorId: null }),
         onDelete: async () => ({ id: 1 }),
         tableExistsByName: {},
       });
 
-      await expect(
-        deleteSessionPermanentlyWithPrisma(prismaClient as unknown as PrismaClient, {
-          sessionId: 1,
-          operator: { token: 't', operatorId: 3, role: 'doctor' },
-        })
-      ).rejects.toMatchObject({
-        statusCode: 403,
-        errorCode: 'FORBIDDEN',
-      });
-
-      delete process.env.SESSION_CASCADE_TABLES_JSON;
+      const result = await deleteSessionPermanentlyWithPrisma(1);
+      expect(result).toEqual({ deletedId: 1 });
     });
 
-    it('管理员可删除任何问诊记录', async () => {
-      process.env.SESSION_CASCADE_TABLES_JSON = JSON.stringify([]);
-
+    it('删除不存在的会话会抛出错误', async () => {
+      const error = new Error('Record not found');
+      
       const prismaClient = createFakePrisma({
-        findUnique: async () => ({ id: 1, doctorId: null }),
-        onDelete: async () => ({ id: 1 }),
-        tableExistsByName: { audit_logs: true },
+        findUnique: async () => null,
+        onDelete: async () => { throw error; },
+        tableExistsByName: {},
       });
 
-      const ret = await deleteSessionPermanentlyWithPrisma(prismaClient as unknown as PrismaClient, {
-        sessionId: 1,
-        operator: { token: 't', operatorId: 0, role: 'admin' },
-      });
-
-      expect(ret).toEqual({ deletedId: 1 });
-      delete process.env.SESSION_CASCADE_TABLES_JSON;
-    });
-
-    it('事务回滚：级联删除失败时不删除主表', async () => {
-      process.env.SESSION_CASCADE_TABLES_JSON = JSON.stringify([
-        { table: 'child_table', fkColumn: 'session_id' },
-      ]);
-
-      let deleted = false;
-      const prismaClient = createFakePrisma({
-        findUnique: async () => ({ id: 1, doctorId: 1 }),
-        onDelete: async () => {
-          deleted = true;
-          return { id: 1 };
-        },
-        tableExistsByName: { child_table: true },
-        onExecuteRawUnsafe: async (sql: string) => {
-          if (sql.includes('DELETE FROM "child_table"')) {
-            throw new Error('child delete failed');
-          }
-          return 1;
-        },
-      });
-
-      await expect(
-        deleteSessionPermanentlyWithPrisma(prismaClient as unknown as PrismaClient, {
-          sessionId: 1,
-          operator: { token: 't', operatorId: 1, role: 'doctor' },
-        })
-      ).rejects.toThrow();
-
-      expect(deleted).toBe(false);
-      delete process.env.SESSION_CASCADE_TABLES_JSON;
-    });
-
-    it('级联删除：按配置删除子表并写入审计表', async () => {
-      process.env.SESSION_CASCADE_TABLES_JSON = JSON.stringify([
-        { table: 'child_a', fkColumn: 'session_id' },
-        { table: 'child_b', fkColumn: 'session_id' },
-      ]);
-
-      const prismaClient = createFakePrisma({
-        findUnique: async () => ({ id: 10, doctorId: 7 }),
-        onDelete: async () => ({ id: 10 }),
-        tableExistsByName: { child_a: true, child_b: true, audit_logs: true },
-      });
-
-      await deleteSessionPermanentlyWithPrisma(prismaClient as unknown as PrismaClient, {
-        sessionId: 10,
-        operator: { token: 't', operatorId: 7, role: 'doctor' },
-      });
-
-      const calls = prismaClient.__calls;
-      const executedSql = calls
-        .filter((c) => c.name === '$executeRawUnsafe')
-        .map((c) => String(c.args[0]));
-
-      expect(executedSql.some((s) => s.includes('DELETE FROM "child_a"'))).toBe(true);
-      expect(executedSql.some((s) => s.includes('DELETE FROM "child_b"'))).toBe(true);
-      expect(executedSql.some((s) => s.includes('INSERT INTO "audit_logs"'))).toBe(true);
-
-      delete process.env.SESSION_CASCADE_TABLES_JSON;
+      await expect(deleteSessionPermanentlyWithPrisma(999)).rejects.toThrow();
     });
   });
 

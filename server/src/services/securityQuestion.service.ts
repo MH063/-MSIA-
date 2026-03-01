@@ -1,11 +1,14 @@
 /**
  * 安全问题服务
  * 处理用户设置的安全问题（用于密码重置）
+ * 答案使用 bcrypt 哈希存储，防止数据库泄露时暴露答案
  */
 
 import prisma from '../prisma';
-import { Prisma } from '@prisma/client';
 import { secureLogger } from '../utils/secureLogger';
+import bcrypt from 'bcryptjs';
+
+const SALT_ROUNDS = 10;
 
 /**
  * 安全问题类型
@@ -21,23 +24,27 @@ export interface SecurityQuestion {
 
 /**
  * 创建安全问题
+ * 答案会被哈希后存储
  */
 export async function createSecurityQuestion(
   operatorId: number,
   question: string,
   answer: string
 ): Promise<SecurityQuestion> {
+  const hashedAnswer = await bcrypt.hash(answer.trim().toLowerCase(), SALT_ROUNDS);
+  
   return await prisma.securityQuestion.create({
     data: {
       operatorId,
       question,
-      answer,
+      answer: hashedAnswer,
     },
   });
 }
 
 /**
  * 验证安全问题答案
+ * 使用 bcrypt 比较答案
  */
 export async function verifySecurityQuestion(
   operatorId: number,
@@ -48,35 +55,53 @@ export async function verifySecurityQuestion(
     where: { id: questionId },
   });
 
-  if (!securityQuestion) {
+  if (!securityQuestion || securityQuestion.operatorId !== operatorId) {
     return false;
   }
 
-  return securityQuestion.answer === answer;
+  try {
+    return await bcrypt.compare(answer.trim().toLowerCase(), securityQuestion.answer);
+  } catch (error) {
+    secureLogger.error('[SecurityQuestion] 验证答案失败', error instanceof Error ? error : new Error(String(error)));
+    return false;
+  }
 }
 
 /**
  * 获取用户的所有安全问题
+ * 不返回答案字段
  */
 export async function getSecurityQuestionsByOperatorId(
   operatorId: number
-): Promise<SecurityQuestion[]> {
-  return await prisma.securityQuestion.findMany({
+): Promise<Omit<SecurityQuestion, 'answer'>[]> {
+  const questions = await prisma.securityQuestion.findMany({
     where: { operatorId },
     orderBy: { createdAt: 'desc' },
+    select: {
+      id: true,
+      operatorId: true,
+      question: true,
+      createdAt: true,
+      updatedAt: true,
+    },
   });
+  
+  return questions;
 }
 
 /**
  * 更新安全问题
+ * 答案会被哈希后存储
  */
 export async function updateSecurityQuestion(
   id: number,
   answer: string
 ): Promise<SecurityQuestion> {
+  const hashedAnswer = await bcrypt.hash(answer.trim().toLowerCase(), SALT_ROUNDS);
+  
   return await prisma.securityQuestion.update({
     where: { id },
-    data: { answer, updatedAt: new Date() },
+    data: { answer: hashedAnswer, updatedAt: new Date() },
   });
 }
 

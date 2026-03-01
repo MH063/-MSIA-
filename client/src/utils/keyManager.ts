@@ -11,7 +11,6 @@ import {
 } from './crypto';
 import { logger } from './logger';
 import api from './api';
-import type { AxiosRequestConfig } from 'axios';
 
 /**
  * 存储键名
@@ -141,7 +140,7 @@ class KeyManager {
 
     // 同步到服务器
     try {
-      await api.post('/keys/store', {
+      await api.post('/api/keys/store', {
         publicKey: keyPair.publicKey,
         encryptedPrivateKey: encryptedPrivateKeyStr,
         keyFingerprint: keyPair.publicKeyFingerprint,
@@ -430,7 +429,8 @@ class KeyManager {
       localStorage.setItem(STORAGE_KEYS.KEY_CREATED_AT, keyData.createdAt || '');
 
       this.cachedPublicKey = keyData.publicKey;
-      this.cachedPrivateKey = keyData.privateKey;
+      // 注意：导入后密钥处于锁定状态，需要用户调用 unlock() 解密私钥
+      this.cachedPrivateKey = null;
 
       // 同步到服务器
       await this.syncToServer();
@@ -460,8 +460,10 @@ class KeyManager {
     // 从服务器删除
     try {
       await api.delete('/api/keys');
-    } catch {
-      // 忽略错误
+    } catch (error) {
+      logger.warn('[KeyManager] 从服务器删除密钥失败', {
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
 
     logger.warn('[KeyManager] 密钥对已删除');

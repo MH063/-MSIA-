@@ -11,6 +11,7 @@ import diagnosisRoutes from './routes/diagnosis.routes';
 import mappingRoutes from './routes/mapping.routes';
 import authRoutes from './routes/auth.routes';
 import keyRoutes from './routes/key.routes';
+import securityQuestionRoutes from './routes/securityQuestion.routes';
 
 import captchaRoutes from './routes/captcha.routes';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
@@ -287,6 +288,7 @@ app.use('/api/mapping', mappingRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/captcha', captchaRoutes);
 app.use('/api/keys', keyRoutes);
+app.use('/api/security-questions', securityQuestionRoutes);
 
 /**
  * 健康检查接口

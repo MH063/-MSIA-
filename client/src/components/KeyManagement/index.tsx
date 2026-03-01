@@ -2,6 +2,7 @@
  * 密钥管理组件
  * 提供密钥生成、导出、导入、更换等功能
  * 支持服务器同步，实现跨设备访问
+ * 支持安全问题恢复密码
  */
 
 import React, { useState, useEffect } from 'react';
@@ -20,6 +21,8 @@ import {
   Upload,
   Tag,
   Spin,
+  Select,
+  Steps,
 } from 'antd';
 import {
   KeyOutlined,
@@ -29,9 +32,12 @@ import {
   SafetyOutlined,
   CloudSyncOutlined,
   CloudDownloadOutlined,
+  QuestionCircleOutlined,
+  UnlockOutlined,
 } from '@ant-design/icons';
 import { keyManager } from '../../utils/keyManager';
 import { checkPasswordStrength, PasswordStrength, getStrengthDescription } from '../../utils/passwordValidator';
+import api from '../../utils/api';
 
 const { Text } = Typography;
 
@@ -42,6 +48,12 @@ interface KeyStatus {
   createdAt: string | null;
   isLocked: boolean;
   isUnauthorized?: boolean;
+  hasSecurityQuestion?: boolean;
+}
+
+interface SecurityQuestion {
+  id: number;
+  question: string;
 }
 
 interface KeyManagementModalProps {
@@ -49,6 +61,17 @@ interface KeyManagementModalProps {
   onClose: () => void;
   onKeyChange?: () => void;
 }
+
+const SECURITY_QUESTIONS = [
+  '您母亲的姓名是什么？',
+  '您宠物的名字是什么？',
+  '您第一所学校的名称是什么？',
+  '您最喜欢的颜色是什么？',
+  '您最喜欢的食物是什么？',
+  '您童年最好的朋友的名字是什么？',
+  '您的第一份工作的公司名称是什么？',
+  '您出生的城市是哪里？',
+];
 
 export const KeyManagementModal: React.FC<KeyManagementModalProps> = ({
   visible,
@@ -59,10 +82,13 @@ export const KeyManagementModal: React.FC<KeyManagementModalProps> = ({
   const [keyStatus, setKeyStatus] = useState<KeyStatus | null>(null);
   const [loading, setLoading] = useState(false);
   const [checkingServer, setCheckingServer] = useState(true);
-  const [mode, setMode] = useState<'status' | 'create' | 'unlock' | 'change' | 'export' | 'import' | 'restore' | null>(null);
+  const [mode, setMode] = useState<'status' | 'create' | 'unlock' | 'change' | 'export' | 'import' | 'restore' | 'security' | 'reset' | null>(null);
   const [passwordStrength, setPasswordStrength] = useState<PasswordStrength>(PasswordStrength.WEAK);
   const [passwordScore, setPasswordScore] = useState(0);
   const [backupFile, setBackupFile] = useState<File | null>(null);
+  const [securityQuestions, setSecurityQuestions] = useState<SecurityQuestion[]>([]);
+  const [resetStep, setResetStep] = useState(0);
+  const [verifiedQuestion, setVerifiedQuestion] = useState<SecurityQuestion | null>(null);
 
   useEffect(() => {
     if (visible) {
@@ -77,7 +103,6 @@ export const KeyManagementModal: React.FC<KeyManagementModalProps> = ({
     setCheckingServer(true);
     const status = keyManager.getStatus();
     
-    // 检查服务器是否有密钥
     let hasServerKey: boolean | 'unauthorized' = false;
     let isUnauthorized = false;
     try {
@@ -91,21 +116,31 @@ export const KeyManagementModal: React.FC<KeyManagementModalProps> = ({
     } catch {
       // 忽略错误
     }
+
+    let hasSecurityQuestion = false;
+    if (!isUnauthorized) {
+      try {
+        const response = await api.get('/security-questions');
+        const questions = response.data?.data || [];
+        setSecurityQuestions(questions);
+        hasSecurityQuestion = questions.length > 0;
+      } catch {
+        // 忽略错误
+      }
+    }
     
     setKeyStatus({
       ...status,
       hasServerKey: hasServerKey === true,
       isUnauthorized,
+      hasSecurityQuestion,
     });
     
-    // 如果未登录，显示状态页面
     if (isUnauthorized) {
       setMode('status');
     } else if (!status.hasKeyPair && hasServerKey) {
-      // 本地没有密钥，但服务器有 -> 显示恢复界面
       setMode('restore');
     } else if (!status.hasKeyPair) {
-      // 本地和服务器都没有 -> 显示创建界面
       setMode('create');
     } else {
       setMode('status');
@@ -179,9 +214,6 @@ export const KeyManagementModal: React.FC<KeyManagementModalProps> = ({
     }
   };
 
-  /**
-   * 从服务器恢复密钥
-   */
   const handleRestoreFromServer = async (values: { password: string }) => {
     setLoading(true);
     try {
@@ -294,6 +326,249 @@ export const KeyManagementModal: React.FC<KeyManagementModalProps> = ({
   };
 
   /**
+   * 设置安全问题
+   */
+  const handleSetSecurityQuestion = async (values: { question: string; answer: string }) => {
+    setLoading(true);
+    try {
+      await api.post('/security-questions', {
+        question: values.question,
+        answer: values.answer,
+      });
+      message.success('安全问题设置成功');
+      await loadKeyStatus();
+      form.resetFields();
+      setMode('status');
+    } catch {
+      message.error('设置安全问题失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * 验证安全问题（密码重置第一步）
+   */
+  const handleVerifyQuestion = async (values: { questionId: number; answer: string }) => {
+    setLoading(true);
+    try {
+      const response = await api.post('/security-questions/verify', {
+        questionId: values.questionId,
+        answer: values.answer,
+      });
+      
+      if (response.success) {
+        const question = securityQuestions.find(q => q.id === values.questionId);
+        setVerifiedQuestion(question || null);
+        setResetStep(1);
+        form.resetFields();
+        message.success('验证成功，请设置新密码');
+      } else {
+        message.error('答案错误');
+      }
+    } catch {
+      message.error('验证失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * 重置密码（密码重置第二步）
+   */
+  const handleResetPassword = async (values: { newPassword: string; confirmPassword: string }) => {
+    if (values.newPassword !== values.confirmPassword) {
+      message.error('两次输入的密码不一致');
+      return;
+    }
+
+    const strengthResult = checkPasswordStrength(values.newPassword);
+    if (!strengthResult.isValid) {
+      message.error(strengthResult.errors[0]);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // 生成新密钥对
+      await keyManager.generateAndStore(values.newPassword);
+      message.success('密码重置成功，新密钥已创建');
+      await loadKeyStatus();
+      onKeyChange?.();
+      form.resetFields();
+      setResetStep(0);
+      setVerifiedQuestion(null);
+      setMode('status');
+    } catch {
+      message.error('密码重置失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * 渲染安全问题设置表单
+   */
+  const renderSecurityForm = () => (
+    <Form form={form} layout="vertical" onFinish={handleSetSecurityQuestion}>
+      <Alert
+        type="info"
+        title="设置安全问题"
+        description="安全问题可用于在忘记密码时重置密钥。请选择一个只有您知道答案的问题。"
+        showIcon
+        icon={<QuestionCircleOutlined />}
+        style={{ marginBottom: 16 }}
+      />
+      
+      <Form.Item
+        name="question"
+        label="安全问题"
+        rules={[{ required: true, message: '请选择安全问题' }]}
+      >
+        <Select placeholder="选择一个安全问题">
+          {SECURITY_QUESTIONS.map(q => (
+            <Select.Option key={q} value={q}>{q}</Select.Option>
+          ))}
+        </Select>
+      </Form.Item>
+      
+      <Form.Item
+        name="answer"
+        label="答案"
+        rules={[{ required: true, message: '请输入答案' }]}
+      >
+        <Input placeholder="输入答案（请牢记）" />
+      </Form.Item>
+
+      <Alert
+        type="warning"
+        title="重要提示"
+        description="请牢记您的答案！答案区分大小写。如果忘记答案，将无法通过安全问题重置密码。"
+        showIcon
+        style={{ marginBottom: 16 }}
+      />
+
+      <Space>
+        <Button type="primary" htmlType="submit" loading={loading}>
+          设置安全问题
+        </Button>
+        <Button onClick={() => { setMode('status'); form.resetFields(); }}>
+          取消
+        </Button>
+      </Space>
+    </Form>
+  );
+
+  /**
+   * 渲染密码重置流程
+   */
+  const renderResetForm = () => (
+    <div>
+      <Steps
+        current={resetStep}
+        size="small"
+        style={{ marginBottom: 24 }}
+        items={[
+          { title: '验证安全问题' },
+          { title: '设置新密码' },
+        ]}
+      />
+
+      {resetStep === 0 && (
+        <Form form={form} layout="vertical" onFinish={handleVerifyQuestion}>
+          <Alert
+            type="info"
+            title="验证安全问题"
+            description="请回答您设置的安全问题，验证通过后可重置密码。"
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
+          
+          <Form.Item
+            name="questionId"
+            label="安全问题"
+            rules={[{ required: true, message: '请选择问题' }]}
+          >
+            <Select placeholder="选择您设置的安全问题">
+              {securityQuestions.map(q => (
+                <Select.Option key={q.id} value={q.id}>{q.question}</Select.Option>
+              ))}
+            </Select>
+          </Form.Item>
+          
+          <Form.Item
+            name="answer"
+            label="答案"
+            rules={[{ required: true, message: '请输入答案' }]}
+          >
+            <Input placeholder="输入您的答案" />
+          </Form.Item>
+
+          <Space>
+            <Button type="primary" htmlType="submit" loading={loading}>
+              验证
+            </Button>
+            <Button onClick={() => { setMode('status'); setResetStep(0); form.resetFields(); }}>
+              取消
+            </Button>
+          </Space>
+        </Form>
+      )}
+
+      {resetStep === 1 && (
+        <Form form={form} layout="vertical" onFinish={handleResetPassword}>
+          <Alert
+            type="warning"
+            title="重置密码"
+            description="验证成功！请设置新的加密密码。注意：重置后将生成新的密钥对，之前加密的数据将无法解密。"
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
+          
+          <Form.Item
+            name="newPassword"
+            label="新密码"
+            rules={[{ required: true, message: '请输入新密码' }]}
+          >
+            <Input.Password
+              prefix={<LockOutlined />}
+              placeholder="至少12位，包含大小写字母、数字和特殊字符"
+              onChange={handlePasswordChange}
+            />
+          </Form.Item>
+          
+          <div style={{ marginBottom: 16 }}>
+            <Text>密码强度：</Text>
+            <Progress
+              percent={passwordScore}
+              size="small"
+              strokeColor={getStrengthColor(passwordStrength)}
+              format={() => getStrengthDescription(passwordStrength)}
+            />
+          </div>
+          
+          <Form.Item
+            name="confirmPassword"
+            label="确认新密码"
+            rules={[{ required: true, message: '请确认新密码' }]}
+          >
+            <Input.Password prefix={<LockOutlined />} placeholder="再次输入新密码" />
+          </Form.Item>
+
+          <Space>
+            <Button type="primary" htmlType="submit" loading={loading}>
+              重置密码
+            </Button>
+            <Button onClick={() => { setMode('status'); setResetStep(0); form.resetFields(); }}>
+              取消
+            </Button>
+          </Space>
+        </Form>
+      )}
+    </div>
+  );
+
+  /**
    * 渲染从服务器恢复界面
    */
   const renderRestoreForm = () => (
@@ -315,13 +590,13 @@ export const KeyManagementModal: React.FC<KeyManagementModalProps> = ({
         <Input.Password prefix={<LockOutlined />} placeholder="输入您在其他设备上设置的加密密码" />
       </Form.Item>
 
-      <Alert
-        type="warning"
-        title="提示"
-        description="请输入您在创建密钥时设置的密码。如果忘记密码，将无法恢复密钥。"
-        showIcon
-        style={{ marginBottom: 16 }}
-      />
+      {keyStatus?.hasSecurityQuestion && (
+        <div style={{ marginBottom: 16 }}>
+          <Button type="link" onClick={() => { setMode('reset'); setResetStep(0); }}>
+            忘记密码？通过安全问题重置
+          </Button>
+        </div>
+      )}
 
       <Space>
         <Button type="primary" htmlType="submit" loading={loading} icon={<CloudSyncOutlined />}>
@@ -387,6 +662,13 @@ export const KeyManagementModal: React.FC<KeyManagementModalProps> = ({
               <Tag color="default">未同步</Tag>
             )}
           </Descriptions.Item>
+          <Descriptions.Item label="安全问题">
+            {keyStatus.hasSecurityQuestion ? (
+              <Tag color="success">已设置</Tag>
+            ) : (
+              <Tag color="warning">未设置</Tag>
+            )}
+          </Descriptions.Item>
           <Descriptions.Item label="密钥指纹">
             <Text code>{keyStatus.publicKeyFingerprint || '未知'}</Text>
           </Descriptions.Item>
@@ -428,6 +710,15 @@ export const KeyManagementModal: React.FC<KeyManagementModalProps> = ({
               <Button icon={<DownloadOutlined />} onClick={() => setMode('export')}>
                 导出备份
               </Button>
+              {keyStatus.hasSecurityQuestion ? (
+                <Button icon={<QuestionCircleOutlined />} onClick={() => { setMode('reset'); setResetStep(0); }}>
+                  重置密码
+                </Button>
+              ) : (
+                <Button icon={<SafetyOutlined />} onClick={() => setMode('security')}>
+                  设置安全问题
+                </Button>
+              )}
             </>
           )}
           <Button icon={<UploadOutlined />} onClick={() => setMode('import')}>
@@ -481,7 +772,7 @@ export const KeyManagementModal: React.FC<KeyManagementModalProps> = ({
       <Alert
         type="warning"
         title="重要提示"
-        description="请牢记此密码！如果忘记密码，您将无法解密已加密的数据。密钥会自动同步到服务器，换设备登录时输入相同密码即可恢复。"
+          description="请牢记此密码！如果忘记密码，您将无法解密已加密的数据。建议设置安全问题以便在忘记密码时恢复。"
         showIcon
         style={{ marginBottom: 16 }}
       />
@@ -514,6 +805,14 @@ export const KeyManagementModal: React.FC<KeyManagementModalProps> = ({
       >
         <Input.Password prefix={<LockOutlined />} placeholder="输入加密密码" />
       </Form.Item>
+
+      {keyStatus?.hasSecurityQuestion && (
+        <div style={{ marginBottom: 16 }}>
+          <Button type="link" onClick={() => { setMode('reset'); setResetStep(0); }}>
+            忘记密码？通过安全问题重置
+          </Button>
+        </div>
+      )}
 
       <Space>
         <Button type="primary" htmlType="submit" loading={loading}>
@@ -690,21 +989,15 @@ export const KeyManagementModal: React.FC<KeyManagementModalProps> = ({
       transitionName=""
       maskTransitionName=""
     >
-      {checkingServer || mode === null ? (
-        <div style={{ textAlign: 'center', padding: 40 }}>
-          <Spin description="加载中..." />
-        </div>
-      ) : (
-        <>
-          {mode === 'status' && renderStatus()}
-          {mode === 'create' && renderCreateForm()}
-          {mode === 'unlock' && renderUnlockForm()}
-          {mode === 'change' && renderChangePasswordForm()}
-          {mode === 'export' && renderExportForm()}
-          {mode === 'import' && renderImportForm()}
-          {mode === 'restore' && renderRestoreForm()}
-        </>
-      )}
+      {mode === 'status' && renderStatus()}
+      {mode === 'create' && renderCreateForm()}
+      {mode === 'unlock' && renderUnlockForm()}
+      {mode === 'change' && renderChangePasswordForm()}
+      {mode === 'export' && renderExportForm()}
+      {mode === 'import' && renderImportForm()}
+      {mode === 'restore' && renderRestoreForm()}
+      {mode === 'security' && renderSecurityForm()}
+      {mode === 'reset' && renderResetForm()}
     </Modal>
   );
 };

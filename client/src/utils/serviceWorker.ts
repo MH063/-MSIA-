@@ -3,6 +3,8 @@
  * 提供 PWA 离线支持、后台同步和推送通知功能
  */
 
+import { logger } from './logger';
+
 /**
  * Service Worker 配置选项
  */
@@ -24,7 +26,7 @@ export function registerServiceWorker(config?: SWConfig): void {
       navigator.serviceWorker
         .register(swUrl)
         .then((registration) => {
-          
+          logger.debug('[SW] Service Worker registered');
 
           // 监听更新
           registration.onupdatefound = () => {
@@ -37,11 +39,11 @@ export function registerServiceWorker(config?: SWConfig): void {
               if (installingWorker.state === 'installed') {
                 if (navigator.serviceWorker.controller) {
                   // 有新版本可用
-                  
+                  logger.info('[SW] New content available, please refresh');
                   config?.onUpdate?.(registration);
                 } else {
                   // 首次安装完成
-                  
+                  logger.info('[SW] Content cached for offline use');
                   config?.onSuccess?.(registration);
                 }
               }
@@ -49,18 +51,18 @@ export function registerServiceWorker(config?: SWConfig): void {
           };
         })
         .catch((error) => {
-          console.error('[SW] Service Worker registration failed:', error);
+          logger.error('[SW] Service Worker registration failed', error);
         });
     });
 
     // 监听网络状态变化
     window.addEventListener('online', () => {
-      
+      logger.info('[SW] Network is online');
       config?.onOnline?.();
     });
 
     window.addEventListener('offline', () => {
-      
+      logger.warn('[SW] Network is offline');
       config?.onOffline?.();
     });
   }
@@ -73,7 +75,7 @@ export async function unregisterServiceWorker(): Promise<void> {
   if ('serviceWorker' in navigator) {
     const registration = await navigator.serviceWorker.ready;
     await registration.unregister();
-    
+    logger.info('[SW] Service Worker unregistered');
   }
 }
 
@@ -84,7 +86,7 @@ export async function updateServiceWorker(): Promise<void> {
   if ('serviceWorker' in navigator) {
     const registration = await navigator.serviceWorker.ready;
     await registration.update();
-    
+    logger.debug('[SW] Service Worker updated');
   }
 }
 
@@ -136,7 +138,7 @@ export async function requestBackgroundSync(tag: string): Promise<void> {
     if ('sync' in registration) {
       // @ts-expect-error Background Sync API is not yet in types
       await registration.sync.register(tag);
-      
+      logger.debug('[SW] Background sync registered', { tag });
     }
   }
 }
@@ -146,12 +148,12 @@ export async function requestBackgroundSync(tag: string): Promise<void> {
  */
 export async function requestNotificationPermission(): Promise<NotificationPermission> {
   if (!('Notification' in window)) {
-    console.warn('[SW] This browser does not support notifications');
+    logger.warn('[SW] This browser does not support notifications');
     return 'denied';
   }
 
   const permission = await Notification.requestPermission();
-  
+  logger.debug('[SW] Notification permission', { permission });
   return permission;
 }
 
@@ -173,7 +175,7 @@ export async function subscribeToPushNotifications(
   publicVapidKey: string
 ): Promise<PushSubscription | null> {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-    console.warn('[SW] Push notifications not supported');
+    logger.warn('[SW] Push notifications not supported');
     return null;
   }
 
@@ -184,10 +186,10 @@ export async function subscribeToPushNotifications(
       applicationServerKey: urlBase64ToUint8Array(publicVapidKey),
     });
 
-    
+    logger.info('[SW] Push subscription successful');
     return subscription;
   } catch (error) {
-    console.error('[SW] Push subscription failed:', error);
+    logger.error('[SW] Push subscription failed', error);
     return null;
   }
 }
@@ -206,12 +208,12 @@ export async function unsubscribeFromPushNotifications(): Promise<boolean> {
 
     if (subscription) {
       await subscription.unsubscribe();
-      
+      logger.info('[SW] Push unsubscription successful');
       return true;
     }
     return false;
   } catch (error) {
-    console.error('[SW] Push unsubscription failed:', error);
+    logger.error('[SW] Push unsubscription failed', error);
     return false;
   }
 }
@@ -283,7 +285,7 @@ export function captureInstallPrompt(): void {
     e.preventDefault();
     // 保存事件以便稍后触发
     deferredPrompt = e;
-    
+    logger.debug('[SW] Install prompt captured');
   });
 }
 
@@ -301,7 +303,7 @@ export async function showInstallPrompt(): Promise<boolean> {
   const { outcome } = await deferredPrompt.userChoice;
   deferredPrompt = null;
 
-  
+  logger.info('[SW] Install prompt shown', { outcome });
   return outcome === 'accepted';
 }
 

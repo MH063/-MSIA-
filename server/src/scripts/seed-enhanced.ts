@@ -64,7 +64,7 @@ function loadKnowledgeFromFile(filename: string): SymptomData | null {
       return null;
     }
     
-    return typedData as SymptomData;
+    return typedData as unknown as SymptomData;
   } catch (error) {
     process.stderr.write(`[Seed] 无法读取文件 ${filename}: ${error}\n`);
     return null;
@@ -164,7 +164,14 @@ async function syncSymptom(data: SymptomData, filename: string): Promise<SyncRes
         
         await prisma.symptomKnowledge.update({
           where: { symptomKey: data.symptomKey },
-          data: mergedData
+          data: {
+            displayName: mergedData.displayName,
+            requiredQuestions: mergedData.requiredQuestions,
+            associatedSymptoms: mergedData.associatedSymptoms,
+            redFlags: mergedData.redFlags,
+            physicalSigns: mergedData.physicalSigns,
+            updatedAt: mergedData.updatedAt,
+          }
         });
         
         result.status = 'updated';
@@ -183,8 +190,8 @@ async function syncSymptom(data: SymptomData, filename: string): Promise<SyncRes
           physicalSigns: data.physicalSigns || [],
           category: data.category || null,
           priority: data.priority || 'medium',
-          questions: data.questions || data.requiredQuestions || [],
-          physicalExamination: data.physicalExamination || data.physicalSigns || []
+          questions: (data.questions || data.requiredQuestions || []) as never[],
+          physicalExamination: (data.physicalExamination || data.physicalSigns || []) as never[]
         }
       });
       
