@@ -65,16 +65,25 @@ function readCookie(req: Request, name: string): string | null {
  * 获取 Cookie 安全配置
  * 生产环境强制 HTTPS（secure: true）
  * 开发环境允许 HTTP（secure: false）
+ * 
+ * 注意：如果生产环境使用 HTTP（不推荐），需要设置环境变量 AUTH_COOKIE_SECURE=false
  */
 function getCookieSecurityOptions() {
   const isProduction = process.env.NODE_ENV === 'production';
-  const isDev = !isProduction;
+  
+  // 优先使用配置文件中的设置，支持环境变量覆盖
+  const secure = authCookieConfig.secure !== undefined 
+    ? authCookieConfig.secure 
+    : isProduction;
+  
+  // sameSite: 'lax' 允许顶级导航携带 Cookie，适合大多数场景
+  const sameSite = authCookieConfig.sameSite || 'lax';
   
   return {
     httpOnly: true,
-    secure: isProduction, // 生产环境强制 HTTPS
-    sameSite: isDev ? 'lax' : 'strict',
-    domain: undefined, // 不设置 domain，让浏览器自动处理
+    secure,
+    sameSite,
+    domain: authCookieConfig.domain,
   } as const;
 }
 
