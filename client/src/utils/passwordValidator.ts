@@ -22,12 +22,14 @@ export const PASSWORD_CONFIG = {
 /**
  * 密码强度等级
  */
-export enum PasswordStrength {
-  WEAK = 0,
-  FAIR = 1,
-  GOOD = 2,
-  STRONG = 3,
-}
+export const PasswordStrength = {
+  WEAK: 0,
+  FAIR: 1,
+  GOOD: 2,
+  STRONG: 3,
+} as const;
+
+export type PasswordStrength = typeof PasswordStrength[keyof typeof PasswordStrength];
 
 /**
  * 密码验证结果
@@ -207,7 +209,7 @@ export function checkPasswordStrength(password: string): PasswordValidationResul
   }
 
   // 常见密码检查
-  if (PASSWORD_CONFIG.forbidCommonPasswords && COMMON_PASSWORDS.includes(password.toLowerCase())) {
+  if (PASSWORD_CONFIG.forbidCommonPasswords && (COMMON_PASSWORDS as readonly string[]).includes(password.toLowerCase())) {
     errors.push('密码过于常见，请使用更复杂的密码');
     score = 0;
   }

@@ -29,6 +29,10 @@ const independentSymptomMapping: Record<string, { dbKey: string; displayName: st
   'oliguria': { dbKey: 'oliguria_anuria_polyuria', displayName: '少尿' },
   'anuria': { dbKey: 'oliguria_anuria_polyuria', displayName: '无尿' },
   'polyuria': { dbKey: 'oliguria_anuria_polyuria', displayName: '多尿' },
+  'cough': { dbKey: 'cough_and_expectoration', displayName: '咳嗽' },
+  'expectoration': { dbKey: 'cough_and_expectoration', displayName: '咳痰' },
+  'nausea': { dbKey: 'nausea_vomiting', displayName: '恶心' },
+  'vomiting': { dbKey: 'nausea_vomiting', displayName: '呕吐' },
 };
 
 /**
@@ -54,7 +58,11 @@ export const getSymptomMappings = async (_req: Request, res: Response) => {
     const synonyms: Record<string, string> = {};
 
     // 需要拆分的症状 key 集合
-    const splitKeys = new Set(['oliguria_anuria_polyuria']);
+    const splitKeys = new Set([
+      'oliguria_anuria_polyuria',
+      'cough_and_expectoration',
+      'nausea_vomiting',
+    ]);
 
     for (const symptom of symptoms) {
       // 检查是否需要拆分为独立症状

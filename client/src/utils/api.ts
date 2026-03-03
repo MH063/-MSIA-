@@ -185,7 +185,7 @@ const refreshApi = axios.create({
 /**
  * 扩展的可重试 Axios 配置
  */
-type RetriableAxiosConfig = AxiosRequestConfig & {
+export type RetriableAxiosConfig = AxiosRequestConfig & {
   _retry?: boolean;
   _skipAuthRefresh?: boolean;
   _retryCsrf?: boolean;

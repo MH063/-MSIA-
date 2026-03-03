@@ -721,9 +721,7 @@ const NewInterview: React.FC = () => {
                 >
                   <BirthplaceSelect 
                     placeholder="选择出生地（到区县级）" 
-                    size="large" 
                     style={{ borderRadius: 8 }}
-                    label="出生地"
                   />
                 </Form.Item>
               </Col>

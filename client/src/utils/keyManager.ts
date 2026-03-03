@@ -39,7 +39,14 @@ export interface KeyStatus {
 class KeyManager {
   private cachedPrivateKey: string | null = null;
   private cachedPublicKey: string | null = null;
-  private unlockPassword: string | null = null;
+  private _unlockPassword: string | null = null;
+
+  /**
+   * 检查是否有解锁密码缓存
+   */
+  hasUnlockPassword(): boolean {
+    return this._unlockPassword !== null;
+  }
 
   /**
    * 初始化密钥对
@@ -136,7 +143,7 @@ class KeyManager {
 
     this.cachedPublicKey = keyPair.publicKey;
     this.cachedPrivateKey = keyPair.privateKey;
-    this.unlockPassword = password;
+    this._unlockPassword = password;
 
     // 同步到服务器
     try {
@@ -170,7 +177,7 @@ class KeyManager {
       const privateKey = await decryptPrivateKey(encryptedPrivateKeyStr, password);
       this.cachedPrivateKey = privateKey;
       this.cachedPublicKey = localStorage.getItem(STORAGE_KEYS.PUBLIC_KEY);
-      this.unlockPassword = password;
+      this._unlockPassword = password;
 
       logger.info('[KeyManager] 密钥解锁成功');
       return true;
@@ -206,7 +213,7 @@ class KeyManager {
 
       this.cachedPublicKey = keyData.publicKey;
       this.cachedPrivateKey = privateKey;
-      this.unlockPassword = password;
+      this._unlockPassword = password;
 
       logger.info('[KeyManager] 从服务器同步密钥成功');
       return true;
@@ -253,7 +260,7 @@ class KeyManager {
    */
   lock(): void {
     this.cachedPrivateKey = null;
-    this.unlockPassword = null;
+    this._unlockPassword = null;
     logger.info('[KeyManager] 密钥已锁定');
   }
 
@@ -296,7 +303,7 @@ class KeyManager {
 
       localStorage.setItem(STORAGE_KEYS.ENCRYPTED_PRIVATE_KEY, newEncryptedPrivateKey);
 
-      this.unlockPassword = newPassword;
+      this._unlockPassword = newPassword;
 
       // 同步到服务器
       await this.syncToServer();
@@ -455,7 +462,7 @@ class KeyManager {
     localStorage.removeItem(STORAGE_KEYS.KEY_CREATED_AT);
     this.cachedPrivateKey = null;
     this.cachedPublicKey = null;
-    this.unlockPassword = null;
+    this._unlockPassword = null;
 
     // 从服务器删除
     try {
@@ -480,8 +487,8 @@ class KeyManager {
 /**
  * ArrayBuffer 转 Base64
  */
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  const bytes = new Uint8Array(buffer);
+function arrayBufferToBase64(buffer: ArrayBuffer | Uint8Array): string {
+  const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
   let binary = '';
   for (let i = 0; i < bytes.byteLength; i++) {
     binary += String.fromCharCode(bytes[i]);

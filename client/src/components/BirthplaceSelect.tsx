@@ -13,10 +13,9 @@
  * - 大小写不敏感
  */
 
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo } from 'react';
 import { AutoComplete, Empty, Tag, Typography, Input } from 'antd';
-import type { TextAreaRef } from 'antd/es/input/TextArea';
-import { EnvironmentOutlined, InfoCircleOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { InfoCircleOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { searchBirthplaceByFirstLetter, isValidFirstLetterInput } from '../utils/chinaRegions';
 
 const { TextArea } = Input;
@@ -71,7 +70,6 @@ const BirthplaceSelect: React.FC<BirthplaceSelectProps> = ({
 }) => {
   const [searchText, setSearchText] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const inputRef = useRef<TextAreaRef>(null);
 
   // 解析 value，分离地区和详细地址（使用 useMemo 避免在 effect 中调用 setState）
   const parsedValue = useMemo(() => {
@@ -151,10 +149,6 @@ const BirthplaceSelect: React.FC<BirthplaceSelectProps> = ({
     setSearchText('');
     setIsDropdownOpen(false);
     onChange?.(selectedValue);
-    // 聚焦输入框，允许用户继续输入详细地址
-    setTimeout(() => {
-      inputRef.current?.focus();
-    }, 100);
   };
 
   // 处理焦点
@@ -222,7 +216,6 @@ const BirthplaceSelect: React.FC<BirthplaceSelectProps> = ({
   return (
     <div style={{ width: '100%' }}>
       <AutoComplete
-        ref={inputRef}
         value={displayValue}
         onChange={handleInputChange}
         onSelect={handleSelect}
@@ -244,7 +237,6 @@ const BirthplaceSelect: React.FC<BirthplaceSelectProps> = ({
         <TextArea 
           placeholder={placeholder}
           autoSize={{ minRows: 2, maxRows: 4 }}
-          suffix={selectedRegion ? <CheckCircleOutlined style={{ color: '#52c41a' }} /> : <EnvironmentOutlined />}
           onPressEnter={(e) => {
             if (!e.shiftKey) {
               e.preventDefault();
@@ -253,6 +245,9 @@ const BirthplaceSelect: React.FC<BirthplaceSelectProps> = ({
           }}
         />
       </AutoComplete>
+      {selectedRegion && (
+        <CheckCircleOutlined style={{ color: '#52c41a', marginLeft: 8, position: 'absolute', right: 8, top: 8 }} />
+      )}
       
       {!selectedRegion && (
         <div className="birthplace-info-hint" style={{ 

@@ -80,8 +80,8 @@ app.use(cors({
       const h = u.hostname;
       const p = u.port ? Number(u.port) : (u.protocol === 'https:' ? 443 : 80);
 
-      // 允许的前端开发端口：5173(Vite), 4000(后端API), 8000/8100(前端), 80(HTTP), 443(HTTPS), 5432(PostgreSQL)
-      const allowedDevPorts = new Set([5173, 4000, 8000, 8100, 80, 443, 5432]);
+      // 允许的前端开发端口：5173(Vite), 4000(后端API), 8000/8100(前端), 80(HTTP), 443(HTTPS)
+      const allowedDevPorts = new Set([5173, 4000, 8000, 8100, 80, 443]);
       if (!allowedDevPorts.has(p)) {
         secureLogger.warn('[CORS] 开发环境拒绝非允许端口', { origin, port: p });
         callback(new Error('不允许的跨域请求'));

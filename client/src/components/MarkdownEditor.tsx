@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { Button, Space, Input, theme } from 'antd';
+import type { TextAreaRef } from 'antd/es/input/TextArea';
 import { 
   BoldOutlined, 
   ItalicOutlined, 
@@ -30,14 +31,14 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
 }) => {
   const { token } = theme.useToken();
   const [activeTab, setActiveTab] = useState<'write' | 'preview'>('write');
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const textareaRef = useRef<TextAreaRef>(null);
 
   /**
    * 在光标位置插入文本
    * 支持选中文本时包裹前后缀
    */
   const insertText = useCallback((before: string, after: string = '') => {
-    const textarea = textareaRef.current;
+    const textarea = textareaRef.current?.nativeElement as HTMLTextAreaElement | undefined;
     
     if (!textarea) {
       // 降级处理：在末尾插入
@@ -46,8 +47,8 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       return;
     }
 
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
+    const start = textarea.selectionStart ?? 0;
+    const end = textarea.selectionEnd ?? 0;
     const selectedText = value.substring(start, end);
     
     // 构建新值：光标前 + before + 选中文本 + after + 光标后
@@ -56,10 +57,11 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     
     // 恢复光标位置和焦点
     setTimeout(() => {
-      if (textarea) {
+      const ta = textareaRef.current?.nativeElement as HTMLTextAreaElement | undefined;
+      if (ta) {
         const newCursorPos = start + before.length + selectedText.length;
-        textarea.setSelectionRange(newCursorPos, newCursorPos);
-        textarea.focus();
+        ta.setSelectionRange(newCursorPos, newCursorPos);
+        ta.focus();
       }
     }, 0);
   }, [value, onChange]);

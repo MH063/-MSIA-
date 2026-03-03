@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { App as AntdApp, Button, Form, Input, Typography, Tabs, theme } from 'antd';
 import { LockOutlined, UserOutlined, SafetyOutlined, MedicineBoxFilled } from '@ant-design/icons';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
-import api, { unwrapData, getApiErrorMessage } from '../../utils/api';
+import api, { unwrapData, getApiErrorMessage, type RetriableAxiosConfig } from '../../utils/api';
 import type { ApiResponse } from '../../utils/api';
 import './login.css';
 import Captcha from '../../components/Captcha';
@@ -288,7 +288,7 @@ const Login: React.FC = () => {
     let alive = true;
     (async () => {
       try {
-        const res = (await api.get('/auth/me', { _skipAuthRefresh: true })) as ApiResponse<LoginResult | { data: LoginResult }>;
+        const res = (await api.get('/auth/me', { _skipAuthRefresh: true } as RetriableAxiosConfig)) as ApiResponse<LoginResult | { data: LoginResult }>;
         const payload = unwrapData<LoginResult>(res);
         if (!alive) return;
         if (res?.success && payload) {
@@ -309,7 +309,7 @@ const Login: React.FC = () => {
     await new Promise(resolve => setTimeout(resolve, 300));
     
     try {
-      const res = (await api.get('/auth/me', { _skipAuthRefresh: true })) as ApiResponse<LoginResult | { data: LoginResult }>;
+      const res = (await api.get('/auth/me', { _skipAuthRefresh: true } as RetriableAxiosConfig)) as ApiResponse<LoginResult | { data: LoginResult }>;
       const payload = unwrapData<LoginResult>(res);
       logger.info('[Login] 登录后验证认证状态', { success: res?.success, operatorId: payload?.operatorId });
     } catch (err) {

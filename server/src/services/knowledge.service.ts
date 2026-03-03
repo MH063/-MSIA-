@@ -70,6 +70,10 @@ const SYMPTOM_KEY_ALIASES: Record<string, string> = {
   'oliguria': 'oliguria_anuria_polyuria',
   'anuria': 'oliguria_anuria_polyuria',
   'polyuria': 'oliguria_anuria_polyuria',
+  'expectoration': 'cough_and_expectoration',
+  'cough': 'cough_and_expectoration',
+  'nausea': 'nausea_vomiting',
+  'vomiting': 'nausea_vomiting',
 };
 
 /**

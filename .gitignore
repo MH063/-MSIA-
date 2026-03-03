@@ -16,6 +16,7 @@ dist
 .ssh_key
 *.pem
 *.key
+ssh_config
 
 # IDE and editor
 .trae/

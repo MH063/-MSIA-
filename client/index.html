@@ -19,9 +19,8 @@
     <!-- 使用已存在的 SVG 作为占位，后续可替换为 PNG -->
     <link rel="apple-touch-icon" href="/favicon.svg" />
     
-    <!-- Preconnect to API -->
-    <link rel="preconnect" href="http://localhost:3000" />
-    <link rel="dns-prefetch" href="http://localhost:3000" />
+    <!-- Preconnect to API (development only, production uses relative path) -->
+    <!-- Note: In production, API requests go through nginx proxy, no preconnect needed -->
     
     <!-- Preload Critical Resources - Removed for production build compatibility -->
     

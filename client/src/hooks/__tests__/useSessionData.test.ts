@@ -1,11 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { useSessionData } from '../useSessionData';
-import * as apiModule from '../../utils/api';
+
+const mockGet = vi.fn();
 
 vi.mock('../../utils/api', () => ({
   default: {
-    get: vi.fn(),
+    get: mockGet,
   },
 }));
 
@@ -14,8 +15,6 @@ vi.mock('../../utils/logger', () => ({
     error: vi.fn(),
   },
 }));
-
-const api = vi.mocked(apiModule.default);
 
 describe('useSessionData', () => {
   beforeEach(() => {
@@ -49,19 +48,19 @@ describe('useSessionData', () => {
       historian: '患者本人',
     };
 
-    api.get.mockImplementation(async () => ({
+    mockGet.mockImplementation(async () => ({
       data: { success: true, data: mockData },
     }));
 
     renderHook(() => useSessionData('1'));
 
     await waitFor(() => {
-      expect(api.get).toHaveBeenCalledWith('/sessions/1');
+      expect(mockGet).toHaveBeenCalledWith('/sessions/1');
     });
   });
 
   it('应该处理 API 错误', async () => {
-    api.get.mockRejectedValueOnce(new Error('Network Error'));
+    mockGet.mockRejectedValueOnce(new Error('Network Error'));
 
     const { result } = renderHook(() => useSessionData('1'));
 
@@ -75,7 +74,7 @@ describe('useSessionData', () => {
   });
 
   it('应该提供 refetch 函数', async () => {
-    api.get.mockResolvedValue({ data: { success: true, data: { id: 1 } } });
+    mockGet.mockResolvedValue({ data: { success: true, data: { id: 1 } } });
 
     const { result } = renderHook(() => useSessionData('1'));
 
@@ -87,7 +86,7 @@ describe('useSessionData', () => {
   });
 
   it('refetch 应该重新调用 API', async () => {
-    api.get.mockResolvedValue({ data: { success: true, data: { id: 1 } } });
+    mockGet.mockResolvedValue({ data: { success: true, data: { id: 1 } } });
 
     const { result } = renderHook(() => useSessionData('1'));
 
@@ -95,12 +94,12 @@ describe('useSessionData', () => {
       expect(result.current.loading).toBe(false);
     }, { timeout: 3000 });
 
-    const initialCallCount = api.get.mock.calls.length;
+    const initialCallCount = mockGet.mock.calls.length;
 
     await act(async () => {
       await result.current.refetch();
     });
 
-    expect(api.get.mock.calls.length).toBeGreaterThan(initialCallCount);
+    expect(mockGet.mock.calls.length).toBeGreaterThan(initialCallCount);
   });
 });

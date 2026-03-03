@@ -134,8 +134,9 @@ export const SessionSchemas = {
       z.string().max(50).optional()
     ),
 
-    chiefComplaint: z
-      .object({
+    chiefComplaint: z.preprocess(
+      (v) => (v === null || v === undefined ? undefined : v),
+      z.object({
         text: z.string().max(500, '主诉文本过长').optional(),
         symptom: z.string().max(100).optional(),
         durationNum: z.preprocess(
@@ -186,8 +187,8 @@ export const SessionSchemas = {
           },
           z.string().max(50).optional()
         ),
-      })
-      .optional(),
+      }).optional()
+    ),
     presentIllness: z.preprocess(
       (v) => (v === null || v === undefined ? undefined : v),
       z.record(z.string(), z.any()).optional()

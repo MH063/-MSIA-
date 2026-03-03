@@ -9,8 +9,8 @@ import {
   decryptWithPrivateKey,
   ENCRYPTED_PREFIX,
   SENSITIVE_FIELDS,
-  SensitiveField,
 } from './crypto';
+import type { SensitiveField } from './crypto';
 import { logger } from './logger';
 
 /**

@@ -352,7 +352,7 @@ export const KeyManagementModal: React.FC<KeyManagementModalProps> = ({
       const response = await api.post('/security-questions/verify', {
         questionId: values.questionId,
         answer: values.answer,
-      });
+      }) as { success: boolean };
       
       if (response.success) {
         setResetStep(1);

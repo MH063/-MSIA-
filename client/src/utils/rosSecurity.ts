@@ -235,7 +235,7 @@ export function sanitizeInput(input: string): string {
  * @returns 是否有效
  */
 export function isValidSymptomKey(symptomKey: string): boolean {
-  return typeof symptomKey === 'string' && VALID_SYMPTOM_KEYS.has(symptomKey);
+  return typeof symptomKey === 'string' && VALID_SYMPTOM_KEYS.has(symptomKey as typeof VALID_SYMPTOM_KEYS extends Set<infer T> ? T : never);
 }
 
 /**
@@ -244,7 +244,7 @@ export function isValidSymptomKey(symptomKey: string): boolean {
  * @returns 是否有效
  */
 export function isValidSystemKey(systemKey: string): boolean {
-  return typeof systemKey === 'string' && VALID_SYSTEM_KEYS.has(systemKey);
+  return typeof systemKey === 'string' && VALID_SYSTEM_KEYS.has(systemKey as typeof VALID_SYSTEM_KEYS extends Set<infer T> ? T : never);
 }
 
 /**

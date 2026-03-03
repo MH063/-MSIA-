@@ -84,13 +84,29 @@ const toRecord = (v: unknown): JsonData => {
  */
 export const createSession = async (req: Request, res: Response) => {
   try {
-    const { patientId, historian, reliability, historianRelationship } = req.body;
+    const { patientId, historian, reliability, historianRelationship, generalInfo, maritalHistory, chiefComplaint, presentIllness, pastHistory, personalHistory, menstrualHistory, fertilityHistory, familyHistory, physicalExam, specialistExam, auxiliaryExams, reviewOfSystems, status } = req.body;
     if (!patientId) {
       res.status(400).json({ success: false, message: 'Patient ID is required' });
       return;
     }
     const session = await sessionService.createSession(Number(patientId), {
-        historian, reliability, historianRelationship
+        historian, 
+        reliability, 
+        historianRelationship,
+        generalInfo,
+        maritalHistory,
+        chiefComplaint,
+        presentIllness,
+        pastHistory,
+        personalHistory,
+        menstrualHistory,
+        fertilityHistory,
+        familyHistory,
+        physicalExam,
+        specialistExam,
+        auxiliaryExams,
+        reviewOfSystems,
+        status,
     });
     res.json({ success: true, data: session });
   } catch (error) {
@@ -111,16 +127,22 @@ export const getSession = async (req: Request, res: Response) => {
       return;
     }
 
-    // 权限检查：只有管理员或创建该会话的医生可以访问
+    // 权限检查：
+    // 1. 管理员可以访问所有会话
+    // 2. 医生只能访问自己创建的会话
+    // 3. 如果会话未关联医生（doctorId 为 null），允许访问
     const operator = req.operator;
-    if (operator && operator.role === 'doctor' && session.doctorId !== operator.operatorId) {
-      secureLogger.warn('[SessionController.getSession] 权限不足', {
-        sessionId: session.id,
-        doctorId: session.doctorId,
-        operatorId: operator.operatorId,
-      });
-      res.status(403).json({ success: false, message: '无权访问该会话' });
-      return;
+    if (operator && operator.role === 'doctor') {
+      // 医生角色：检查是否是会话创建者
+      if (session.doctorId !== null && session.doctorId !== operator.operatorId) {
+        secureLogger.warn('[SessionController.getSession] 权限不足', {
+          sessionId: session.id,
+          doctorId: session.doctorId,
+          operatorId: operator.operatorId,
+        });
+        res.status(403).json({ success: false, message: '无权访问该会话' });
+        return;
+      }
     }
 
     secureLogger.info('[SessionController.getSession] 返回session概要', {
