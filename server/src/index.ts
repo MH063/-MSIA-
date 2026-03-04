@@ -28,8 +28,12 @@ import { initRedis, stopRedis } from './utils/redis-starter';
 import { closeRedisClient } from './utils/redis-client';
 import { auditLog, AuditEventType } from './utils/auditLogger';
 import { startRotationScheduler, stopRotationScheduler } from './utils/auth-helpers';
+import path from 'path';
 
-dotenv.config();
+// 明确指定 .env 文件路径，确保 PM2 能正确加载
+dotenv.config({
+  path: path.resolve(__dirname, '../.env')
+});
 
 // 安全初始化
 try {
