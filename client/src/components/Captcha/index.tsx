@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { theme } from 'antd';
+import { theme, Spin } from 'antd';
 import './captcha.css';
 import api, { unwrapData, getApiErrorMessage, type ApiResponse } from '../../utils/api';
 import logger from '../../utils/logger';
@@ -13,18 +13,19 @@ interface CaptchaProps {
 
 /**
  * 验证码组件
- * 显示图形验证码，支持点击刷新和30秒自动刷新
+ * 显示图形验证码，支持点击刷新和60秒自动刷新
  */
 const Captcha: React.FC<CaptchaProps> = ({ onChange, onVerify, onIdChange, externalCaptcha }) => {
   const { token } = theme.useToken();
-  // const isDark = token.algorithmId === theme.darkAlgorithm;
   const [imageUrl, setImageUrl] = useState<string>('');
   const [userInput, setUserInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const timerRef = useRef<number | null>(null);
   const onIdChangeRef = useRef<typeof onIdChange>(onIdChange);
   const onVerifyRef = useRef<typeof onVerify>(onVerify);
   const refreshRef = useRef<(() => Promise<void> | void) | undefined>(undefined);
+  const mountedRef = useRef(false);
 
   useEffect(() => {
     onIdChangeRef.current = onIdChange;
@@ -42,7 +43,8 @@ const Captcha: React.FC<CaptchaProps> = ({ onChange, onVerify, onIdChange, exter
     setIsLoading(true);
     setUserInput('');
     try {
-      const resp = (await api.get('/captcha/new', { timeout: 8000 })) as ApiResponse<{ id: string; svg: string }>;
+      // 使用更短的超时时间，快速响应
+      const resp = (await api.get('/captcha/new', { timeout: 5000 })) as ApiResponse<{ id: string; svg: string }>;
       const payload = unwrapData<{ id: string; svg: string }>(resp);
       if (!resp?.success || !payload) {
         throw new Error('验证码获取失败：响应数据无效');
@@ -60,6 +62,7 @@ const Captcha: React.FC<CaptchaProps> = ({ onChange, onVerify, onIdChange, exter
       setImageUrl(`data:image/svg+xml;utf8,${encodeURIComponent(fallback)}`);
     } finally {
       setIsLoading(false);
+      setIsInitialLoading(false);
     }
   }, [isLoading, token.colorFillAlter, token.colorTextSecondary]);
 
@@ -80,10 +83,18 @@ const Captcha: React.FC<CaptchaProps> = ({ onChange, onVerify, onIdChange, exter
 
   // 组件挂载时加载验证码
   useEffect(() => {
-    if (!externalCaptcha) {
-      refreshRef.current?.();
-    }
+    mountedRef.current = true;
+    
+    // 延迟加载验证码，确保组件完全挂载
+    const loadTimer = setTimeout(() => {
+      if (mountedRef.current && !externalCaptcha) {
+        refreshRef.current?.();
+      }
+    }, 100);
+    
     return () => {
+      mountedRef.current = false;
+      clearTimeout(loadTimer);
       if (timerRef.current) {
         window.clearInterval(timerRef.current);
         timerRef.current = null;
@@ -91,15 +102,17 @@ const Captcha: React.FC<CaptchaProps> = ({ onChange, onVerify, onIdChange, exter
     };
   }, [externalCaptcha]);
 
-  // 启动自动刷新定时器（30秒）
+  // 启动自动刷新定时器（60秒）- 延长刷新间隔减少服务器压力
   useEffect(() => {
     if (timerRef.current) {
       window.clearInterval(timerRef.current);
       timerRef.current = null;
     }
     timerRef.current = window.setInterval(() => {
-      refreshCaptcha();
-    }, 30000);
+      if (mountedRef.current) {
+        refreshCaptcha();
+      }
+    }, 60000);
     return () => {
       if (timerRef.current) {
         window.clearInterval(timerRef.current);
@@ -170,7 +183,20 @@ const Captcha: React.FC<CaptchaProps> = ({ onChange, onVerify, onIdChange, exter
         />
       </div>
       <div className="captcha-image-wrapper">
-        {imageUrl ? (
+        {isInitialLoading ? (
+          <div 
+            className="captcha-image" 
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              background: token.colorFillAlter,
+              cursor: 'default'
+            }}
+          >
+            <Spin size="small" />
+          </div>
+        ) : imageUrl ? (
           <img
             src={imageUrl}
             alt="验证码"

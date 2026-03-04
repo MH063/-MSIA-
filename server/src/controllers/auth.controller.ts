@@ -673,46 +673,108 @@ export const register = async (req: Request, res: Response) => {
   try {
     const { username, password, name, role, captchaId, captcha } = req.body;
 
+    secureLogger.info('[auth.register] 开始注册流程', { username: username?.toString() || 'empty' });
+
+    // 参数校验
+    if (!username || !password) {
+      secureLogger.warn('[auth.register] 缺少必要参数', { hasUsername: !!username, hasPassword: !!password });
+      return res.status(400).json({ success: false, message: '用户名和密码不能为空' });
+    }
+
     const guard = checkRegisterGuard(req);
     if (guard?.blocked) {
+      secureLogger.warn('[auth.register] 被限流拦截', { ip: getClientIp(req) });
       return res.status(guard.status).json({ success: false, message: guard.message });
     }
 
     // 验证码校验
     if (!captchaId || !captcha) {
+      secureLogger.warn('[auth.register] 缺少验证码', { hasCaptchaId: !!captchaId, hasCaptcha: !!captcha });
       return res.status(400).json({ success: false, message: '请先获取验证码并填写' });
     }
     const captchaOk = await verifyCaptchaPair(String(captchaId), String(captcha));
     if (!captchaOk) {
+      secureLogger.warn('[auth.register] 验证码校验失败', { captchaId });
       const body = await buildCaptchaErrorResponse('验证码错误或已过期');
       return res.status(400).json(body);
     }
 
-    const existing = await prisma.operator.findUnique({
-      where: { username },
-    });
+    secureLogger.info('[auth.register] 验证码校验通过，检查用户名是否存在');
+
+    // 检查用户名是否已存在
+    let existing;
+    try {
+      existing = await prisma.operator.findUnique({
+        where: { username },
+      });
+    } catch (dbError) {
+      secureLogger.error('[auth.register] 查询用户失败', dbError instanceof Error ? dbError : undefined);
+      return res.status(500).json({ success: false, message: '数据库查询失败' });
+    }
 
     if (existing) {
+      secureLogger.warn('[auth.register] 用户名已存在', { username });
       return res.status(400).json({ success: false, message: '用户名已存在' });
     }
 
-    const hashedPassword = await hashPassword(password);
-    const operator = await prisma.operator.create({
-      data: {
-        username,
-        password: hashedPassword,
-        name,
-        role: role || 'doctor',
-      },
-    });
+    secureLogger.info('[auth.register] 用户名可用，开始创建用户');
 
-    const sid = crypto.randomUUID();
-    const jti = crypto.randomUUID();
-    const accessToken = signAccessToken({ operatorId: operator.id, role: operator.role });
-    const refreshToken = signRefreshToken({ operatorId: operator.id, role: operator.role, sid, jti });
-    await putRefreshSession({ sid, operatorId: operator.id, role: operator.role, jti });
-    setAuthCookies(res, { accessToken, refreshToken });
-    secureLogger.info('[auth.register] 注册成功', { operatorId: operator.id });
+    // 密码哈希
+    let hashedPassword;
+    try {
+      hashedPassword = await hashPassword(password);
+    } catch (hashError) {
+      secureLogger.error('[auth.register] 密码哈希失败', hashError instanceof Error ? hashError : undefined);
+      return res.status(500).json({ success: false, message: '密码处理失败' });
+    }
+
+    // 创建用户
+    let operator;
+    try {
+      operator = await prisma.operator.create({
+        data: {
+          username,
+          password: hashedPassword,
+          name: name || username,
+          role: role || 'doctor',
+        },
+      });
+      secureLogger.info('[auth.register] 用户创建成功', { operatorId: operator.id });
+    } catch (createError) {
+      secureLogger.error('[auth.register] 创建用户失败', createError instanceof Error ? createError : undefined);
+      return res.status(500).json({ success: false, message: '创建用户失败' });
+    }
+
+    // 生成 Token
+    let sid, jti, accessToken, refreshToken;
+    try {
+      sid = crypto.randomUUID();
+      jti = crypto.randomUUID();
+      accessToken = signAccessToken({ operatorId: operator.id, role: operator.role });
+      refreshToken = signRefreshToken({ operatorId: operator.id, role: operator.role, sid, jti });
+      secureLogger.info('[auth.register] Token生成成功');
+    } catch (tokenError) {
+      secureLogger.error('[auth.register] Token生成失败', tokenError instanceof Error ? tokenError : undefined);
+      return res.status(500).json({ success: false, message: 'Token生成失败' });
+    }
+
+    // 保存刷新会话
+    try {
+      await putRefreshSession({ sid, operatorId: operator.id, role: operator.role, jti });
+      secureLogger.info('[auth.register] 刷新会话保存成功');
+    } catch (sessionError) {
+      secureLogger.warn('[auth.register] 刷新会话保存失败，继续注册流程', { error: sessionError instanceof Error ? sessionError.message : String(sessionError) });
+    }
+
+    // 设置 Cookie
+    try {
+      setAuthCookies(res, { accessToken, refreshToken });
+      secureLogger.info('[auth.register] Cookie设置成功');
+    } catch (cookieError) {
+      secureLogger.warn('[auth.register] Cookie设置失败', { error: cookieError instanceof Error ? cookieError.message : String(cookieError) });
+    }
+
+    secureLogger.info('[auth.register] 注册成功', { operatorId: operator.id, username });
 
     return res.json({
       success: true,
@@ -725,8 +787,8 @@ export const register = async (req: Request, res: Response) => {
     });
 
   } catch (error) {
-    secureLogger.error('[auth.register] 注册失败', error instanceof Error ? error : undefined);
-    return res.status(500).json({ success: false, message: '注册失败' });
+    secureLogger.error('[auth.register] 注册流程异常', error instanceof Error ? error : undefined);
+    return res.status(500).json({ success: false, message: '注册失败，请稍后重试' });
   }
 };
 

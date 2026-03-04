@@ -11,7 +11,7 @@ const FALLBACK_STORE = new Map<string, StoreItem>();
  * 快速获取可用的 Redis 客户端（最大等待时间可控）
  * 超时或连接不可用时立即返回 null，避免请求阻塞
  */
-async function getRedisQuick(timeoutMs: number = Number(process.env.CAPTCHA_REDIS_WAIT_MS || '300')) {
+async function getRedisQuick(timeoutMs: number = Number(process.env.CAPTCHA_REDIS_WAIT_MS || '100')) {
   try {
     const p = getRedisClient();
     const result = await Promise.race([

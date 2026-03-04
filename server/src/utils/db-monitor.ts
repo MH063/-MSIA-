@@ -213,6 +213,10 @@ class DatabaseMonitor {
     let client;
 
     try {
+      // 添加连接池状态日志
+      const poolStats = this.getPoolStats();
+      secureLogger.debug('[DBMonitor] 健康检查前连接池状态', { poolStats });
+
       client = await this.pool.connect();
       await client.query('SELECT 1');
 
@@ -227,11 +231,16 @@ class DatabaseMonitor {
       return status;
     } catch (error) {
       const responseTime = Date.now() - startTime;
+      const errorMsg = error instanceof Error ? error.message : '健康检查失败';
+      
+      // 记录详细的错误信息
+      secureLogger.error('[DBMonitor] 健康检查失败详情', new Error(errorMsg));
+      
       const status: HealthStatus = {
         healthy: false,
         responseTime,
         lastCheck: new Date(),
-        message: error instanceof Error ? error.message : '健康检查失败',
+        message: errorMsg,
       };
 
       this.lastHealthStatus = status;

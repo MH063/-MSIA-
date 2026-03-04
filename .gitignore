@@ -45,3 +45,6 @@ client/.env.local
 
 # Documentation
 docs/
+
+# SSH and server config
+ssh_config

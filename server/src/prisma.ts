@@ -12,8 +12,11 @@ const getConnectionString = () => {
   const base = databaseConfig.url;
   if (!base) {return '';}
 
+  // 本地连接不需要 SSL，只有远程连接才需要
+  const isLocalhost = base.includes('localhost') || base.includes('127.0.0.1');
+  
   // 如果已强制要求 SSL 且连接字符串中没有 sslmode 参数，则追加
-  if (databaseConfig.ssl && !base.includes('sslmode=')) {
+  if (databaseConfig.ssl && !isLocalhost && !base.includes('sslmode=')) {
     const separator = base.includes('?') ? '&' : '?';
     return `${base}${separator}sslmode=require`;
   }
@@ -21,27 +24,31 @@ const getConnectionString = () => {
   return base;
 };
 
+const connectionString = getConnectionString();
+const isLocalhost = connectionString.includes('localhost') || connectionString.includes('127.0.0.1');
+
+// 简化连接池配置，使用更保守的设置
 const pool = new Pool({
-  connectionString: getConnectionString(),
-  // 连接池配置优化
-  max: 20,                      // 最大连接数
-  min: 5,                       // 最小连接数
-  idleTimeoutMillis: 30000,     // 连接空闲超时时间
-  connectionTimeoutMillis: 10000, // 连接超时时间
-  // 在 pg Pool 层面也支持 ssl 配置
-  ssl: databaseConfig.ssl ? { rejectUnauthorized: false } : undefined
+  connectionString,
+  max: 20,
+  min: 2,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000,
+  // 本地连接不使用 SSL
+  ssl: (!isLocalhost && databaseConfig.ssl) ? { rejectUnauthorized: false } : undefined
 });
 
 pool.on('connect', (client) => {
   client.query("SET client_encoding TO 'UTF8'").catch(() => {});
 });
 
-// 初始化数据库监控
-dbMonitor.initialize(pool, {
-  slowQueryThreshold: 1000,      // 慢查询阈值 1秒
-  healthCheckInterval: 30000,    // 健康检查间隔 30秒
-  maxQueryHistory: 1000,         // 最大查询历史记录数
-});
+// 禁用 DBMonitor 健康检查，因为它与 Prisma 的连接池管理可能冲突
+// 只保留查询统计功能
+// dbMonitor.initialize(pool, {
+//   slowQueryThreshold: 2000,
+//   healthCheckInterval: 60000,
+//   maxQueryHistory: 500,
+// });
 
 // 扩展 PrismaClient 以支持查询监控
 const adapter = new PrismaPg(pool);
