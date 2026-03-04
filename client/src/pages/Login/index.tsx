@@ -87,10 +87,10 @@ const PasswordLogin: React.FC<{ onSuccess: (data: LoginResult) => void }> = ({ o
         return;
       }
       setLoading(true);
-      const res = (await api.post('/auth/login', values)) as ApiResponse<LoginResult | { data: LoginResult }>;
-      const payload = unwrapData<LoginResult>(res);
-      if (!res?.success || !payload) throw new Error('登录响应无效');
-      onSuccess(payload);
+      const axiosRes = await api.post('/auth/login', values);
+      const res = axiosRes as unknown as ApiResponse<LoginResult>;
+      if (!res?.success || !res.data) throw new Error('登录响应无效');
+      onSuccess(res.data);
     } catch (err) {
       logger.error('[Login] Password login failed', err);
       const msg = getApiErrorMessage(err, '登录失败，请检查用户名或密码');

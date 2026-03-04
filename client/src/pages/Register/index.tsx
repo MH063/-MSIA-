@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { App as AntdApp, Button, Form, Input, Typography, Select, Progress, Row, Col, theme } from 'antd';
 import { UserOutlined, LockOutlined, TeamOutlined, MedicineBoxFilled, CheckCircleFilled, CloseCircleFilled } from '@ant-design/icons';
 import { useNavigate, Link } from 'react-router-dom';
-import api, { unwrapData, getApiErrorMessage } from '../../utils/api';
+import api, { getApiErrorMessage } from '../../utils/api';
 import type { ApiResponse } from '../../utils/api';
 import Captcha from '../../components/Captcha';
 import { useThemeStore } from '../../store/theme.store';
@@ -147,12 +147,16 @@ const Register: React.FC = () => {
 
     setLoading(true);
     try {
-
-      const res = (await api.post('/auth/register', values)) as ApiResponse<RegisterResult | { data: RegisterResult }>;
-      const payload = unwrapData<RegisterResult>(res);
+      // api.post 的响应拦截器已返回 response.data，直接使用
+      const res = await api.post('/auth/register', values) as ApiResponse<RegisterResult>;
       
-      if (!res?.success || !payload) {
-        throw new Error('注册响应无效');
+      if (!res?.success) {
+        throw new Error('注册失败');
+      }
+      
+      const payload = res.data;
+      if (!payload) {
+        throw new Error('注册响应数据无效');
       }
 
       message.success('注册成功，请登录');

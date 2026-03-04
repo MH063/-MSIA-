@@ -81,20 +81,17 @@ const Captcha: React.FC<CaptchaProps> = ({ onChange, onVerify, onIdChange, exter
     onVerifyRef.current(false);
   }, [externalCaptcha]);
 
-  // 组件挂载时加载验证码
+  // 组件挂载时立即加载验证码
   useEffect(() => {
     mountedRef.current = true;
     
-    // 延迟加载验证码，确保组件完全挂载
-    const loadTimer = setTimeout(() => {
-      if (mountedRef.current && !externalCaptcha) {
-        refreshRef.current?.();
-      }
-    }, 100);
+    // 立即加载验证码
+    if (!externalCaptcha) {
+      refreshRef.current?.();
+    }
     
     return () => {
       mountedRef.current = false;
-      clearTimeout(loadTimer);
       if (timerRef.current) {
         window.clearInterval(timerRef.current);
         timerRef.current = null;
@@ -176,7 +173,7 @@ const Captcha: React.FC<CaptchaProps> = ({ onChange, onVerify, onIdChange, exter
           type="text"
           value={userInput}
           onChange={handleInputChange}
-          placeholder="请输入验证码（区分大小写）"
+          placeholder="请输入验证码"
           maxLength={4}
           className="captcha-input"
           disabled={isLoading}
